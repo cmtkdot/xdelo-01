@@ -12,11 +12,6 @@ interface MediaTableRowProps {
 export const MediaTableRow = ({ item, onOpenFile }: MediaTableRowProps) => {
   return (
     <TableRow className="hover:bg-white/5">
-      <TableCell className="font-medium text-white/90 whitespace-nowrap">
-        <div className="flex items-center gap-2">
-          {item.file_name}
-        </div>
-      </TableCell>
       <TableCell className="text-white/70 whitespace-nowrap">{item.media_type}</TableCell>
       <TableCell className="text-white/70 whitespace-nowrap">{item.chat?.title || 'N/A'}</TableCell>
       <TableCell className="text-white/70 whitespace-nowrap">

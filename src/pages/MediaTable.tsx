@@ -76,7 +76,6 @@ const MediaTable = () => {
             <Table>
               <TableHeader className="bg-black/60 sticky top-0 z-10">
                 <TableRow>
-                  <TableHead className="text-sky-400 min-w-[200px]">File Name</TableHead>
                   <TableHead className="text-sky-400 min-w-[150px]">Type</TableHead>
                   <TableHead className="text-sky-400 min-w-[150px]">Channel</TableHead>
                   <TableHead className="text-sky-400 min-w-[200px]">Created At</TableHead>
