@@ -77,6 +77,14 @@ const Login = () => {
                 divider: "text-white/50",
                 message: "text-white",
               },
+              style: {
+                input: {
+                  color: 'white',
+                  '::placeholder': {
+                    color: 'rgba(255, 255, 255, 0.5)',
+                  },
+                },
+              },
             }}
             providers={[]}
           />
