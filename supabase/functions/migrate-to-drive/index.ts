@@ -14,8 +14,15 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken } = await req.json()
-    console.log('Starting migration to Google Drive with access token:', accessToken.substring(0, 10) + '...');
+    const body = await req.json()
+    const { accessToken } = body
+
+    if (!accessToken) {
+      console.error('No access token provided')
+      throw new Error('Access token is required')
+    }
+
+    console.log('Starting migration to Google Drive with valid access token')
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -30,18 +37,18 @@ serve(async (req) => {
       .is('google_drive_id', null)
 
     if (fetchError) {
-      console.error('Failed to fetch media files:', fetchError);
+      console.error('Failed to fetch media files:', fetchError)
       throw new Error(`Failed to fetch media files: ${fetchError.message}`)
     }
 
-    console.log(`Found ${mediaFiles?.length || 0} files to migrate`);
+    console.log(`Found ${mediaFiles?.length || 0} files to migrate`)
 
     const results = []
     
     // Process each file
     for (const file of mediaFiles || []) {
       try {
-        console.log(`Processing file: ${file.file_name}`);
+        console.log(`Processing file: ${file.file_name}`)
         
         // Download file from Supabase URL
         const response = await fetch(file.file_url)
@@ -62,7 +69,7 @@ serve(async (req) => {
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
         form.append('file', blob)
 
-        console.log('Uploading to Google Drive:', file.file_name);
+        console.log('Uploading to Google Drive:', file.file_name)
         
         // Upload to Google Drive
         const uploadResponse = await fetch(
@@ -83,7 +90,7 @@ serve(async (req) => {
         }
 
         const result = await uploadResponse.json()
-        console.log(`Successfully uploaded to Google Drive: ${file.file_name}, ID: ${result.id}`);
+        console.log(`Successfully uploaded to Google Drive: ${file.file_name}, ID: ${result.id}`)
 
         // Get the Google Drive file link
         const driveFileUrl = `https://drive.google.com/file/d/${result.id}/view`
@@ -98,7 +105,7 @@ serve(async (req) => {
           .eq('id', file.id)
 
         if (updateError) {
-          console.error('Failed to update media record:', updateError);
+          console.error('Failed to update media record:', updateError)
           throw new Error(`Failed to update media record: ${updateError.message}`)
         }
 
