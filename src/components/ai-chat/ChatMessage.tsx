@@ -21,7 +21,18 @@ interface ChatMessageProps {
 export const ChatMessage = ({ message }: ChatMessageProps) => {
   const [showVisualization, setShowVisualization] = useState(false);
   
-  const hasVisualization = message.metadata?.type === 'sql' && message.metadata.result;
+  // Check if the data actually contains numerical values that can be visualized
+  const hasVisualizableData = () => {
+    if (!message.metadata?.type === 'sql' || !message.metadata?.result) return false;
+    
+    const data = message.metadata.result;
+    if (!Array.isArray(data) || data.length === 0) return false;
+    
+    // Check if there's at least one numerical value in the first row
+    return Object.values(data[0]).some(value => typeof value === 'number');
+  };
+  
+  const hasVisualization = hasVisualizableData();
   const hasImage = message.metadata?.type === 'image' && message.metadata.imageUrl;
 
   const toggleVisualization = () => {
