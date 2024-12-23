@@ -80,9 +80,6 @@ const Login = () => {
               style: {
                 input: {
                   color: 'white',
-                  '&::placeholder': {
-                    color: 'rgba(255, 255, 255, 0.5)',
-                  },
                 },
               },
             }}
