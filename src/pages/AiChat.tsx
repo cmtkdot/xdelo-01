@@ -2,13 +2,13 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { AISettingsPanel, AISettings } from "@/components/ai-chat/AISettings";
+import { AISettings } from "@/components/ai-chat/AISettings";
 import { AITrainingPanel } from "@/components/ai-chat/AITrainingPanel";
 import { ChatInput } from "@/components/ai-chat/ChatInput";
 import { ChatMessages } from "@/components/ai-chat/ChatMessages";
+import { ChatHeader } from "@/components/ai-chat/ChatHeader";
 import WebhookUrlManager from "@/components/webhook/WebhookUrlManager";
-import { Button } from "@/components/ui/button";
-import { Bot, Webhook } from "lucide-react";
+import { Bot } from "lucide-react";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -28,7 +28,8 @@ const AiChat = () => {
   const [settings, setSettings] = useState<AISettings>({
     temperature: 0.7,
     maxTokens: 500,
-    streamResponse: true
+    streamResponse: true,
+    model: 'gpt-4o-mini'
   });
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -150,26 +151,12 @@ const AiChat = () => {
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <div className="glass-card min-h-[700px] flex flex-col">
-        <div className="p-4 border-b border-white/10 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-semibold text-white">AI Assistant</h1>
-            <p className="text-white/60 text-sm mt-1">
-              Chat with an AI that understands your data, executes SQL queries, and triggers webhooks
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-white/10 hover:bg-white/5"
-              onClick={() => setShowWebhookConfig(!showWebhookConfig)}
-            >
-              <Webhook className="w-4 h-4 mr-2" />
-              Webhooks
-            </Button>
-            <AISettingsPanel settings={settings} onSettingsChange={setSettings} />
-          </div>
-        </div>
+        <ChatHeader
+          settings={settings}
+          onSettingsChange={setSettings}
+          showWebhookConfig={showWebhookConfig}
+          onToggleWebhookConfig={() => setShowWebhookConfig(!showWebhookConfig)}
+        />
         
         {showWebhookConfig && (
           <div className="p-4 border-b border-white/10 bg-black/20">

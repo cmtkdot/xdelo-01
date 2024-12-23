@@ -3,6 +3,13 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -15,6 +22,7 @@ export interface AISettings {
   temperature: number;
   maxTokens: number;
   streamResponse: boolean;
+  model: string;
 }
 
 interface AISettingsProps {
@@ -38,6 +46,24 @@ export const AISettingsPanel = ({ settings, onSettingsChange }: AISettingsProps)
           </SheetDescription>
         </SheetHeader>
         <div className="space-y-6 py-4">
+          <div className="space-y-2">
+            <Label>AI Model</Label>
+            <Select
+              value={settings.model}
+              onValueChange={(value) =>
+                onSettingsChange({ ...settings, model: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select AI model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gpt-4o">GPT-4 Optimized</SelectItem>
+                <SelectItem value="gpt-4o-mini">GPT-4 Mini</SelectItem>
+                <SelectItem value="claude-3">Claude 3</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-2">
             <Label>Temperature ({settings.temperature})</Label>
             <Slider
