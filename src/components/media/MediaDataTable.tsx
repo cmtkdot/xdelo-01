@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { MediaItem } from "./types";
 import { format } from "date-fns";
+import { Link2 } from "lucide-react";
 
 export function MediaDataTable() {
   const { data: mediaItems, isLoading } = useQuery({
@@ -32,6 +33,10 @@ export function MediaDataTable() {
     return <div className="text-center p-4">Loading media data...</div>;
   }
 
+  const openFileInNewTab = (url: string) => {
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -42,6 +47,7 @@ export function MediaDataTable() {
             <TableHead>Channel</TableHead>
             <TableHead>Created At</TableHead>
             <TableHead>Caption</TableHead>
+            <TableHead>File URL</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -57,6 +63,17 @@ export function MediaDataTable() {
               </TableCell>
               <TableCell className="max-w-md truncate">
                 {item.caption || 'No caption'}
+              </TableCell>
+              <TableCell>
+                <button
+                  onClick={() => openFileInNewTab(item.file_url)}
+                  className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors"
+                >
+                  <Link2 className="w-4 h-4" />
+                  <span className="truncate max-w-xs">
+                    {item.file_url}
+                  </span>
+                </button>
               </TableCell>
             </TableRow>
           ))}

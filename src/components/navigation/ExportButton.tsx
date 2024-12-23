@@ -27,7 +27,8 @@ const ExportButton = ({ className }: ExportButtonProps) => {
         'Type': item.media_type,
         'Channel': item.chat?.title || 'N/A',
         'Created At': new Date(item.created_at).toLocaleString(),
-        'Caption': item.caption || 'No caption'
+        'Caption': item.caption || 'No caption',
+        'File URL': item.file_url
       }));
 
       const headers = Object.keys(formattedData[0]);
