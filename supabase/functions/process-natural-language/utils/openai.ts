@@ -44,7 +44,8 @@ export const generateSqlQuery = async (message: string, settings: any, trainingC
           Available tables: media, messages, channels, webhook_urls, webhook_history, ai_training_data.
           Here are some SQL examples and documentation:
           ${trainingContext}
-          Return ONLY the raw SQL query without any formatting, quotes, or markdown.`
+          IMPORTANT: Return ONLY the raw SQL query without any formatting, quotes, markdown, or semicolons.
+          Example: SELECT * FROM media ORDER BY created_at DESC LIMIT 1`
         },
         { role: 'user', content: message }
       ],
@@ -90,7 +91,6 @@ export const generateWebhookAction = async (message: string, settings: any, trai
   console.log('Generated webhook action:', actionText);
   
   try {
-    // Try to parse the response as JSON directly
     return JSON.parse(actionText);
   } catch (error) {
     console.error('Error parsing webhook action:', error);
