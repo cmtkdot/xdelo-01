@@ -53,7 +53,7 @@ serve(async (req) => {
     console.log('Detected intent:', intent);
 
     if (intent === 'sql') {
-      // Generate SQL query
+      // Generate SQL query using OpenAI
       const sqlResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -126,7 +126,7 @@ serve(async (req) => {
         );
       }
 
-      // Generate webhook action
+      // Generate webhook action using OpenAI
       const webhookResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
