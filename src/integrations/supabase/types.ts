@@ -235,6 +235,71 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_history: {
+        Row: {
+          fields_sent: string[]
+          id: string
+          media_count: number
+          schedule_type: string
+          sent_at: string | null
+          status: string
+          webhook_url_id: string
+        }
+        Insert: {
+          fields_sent: string[]
+          id?: string
+          media_count: number
+          schedule_type: string
+          sent_at?: string | null
+          status: string
+          webhook_url_id: string
+        }
+        Update: {
+          fields_sent?: string[]
+          id?: string
+          media_count?: number
+          schedule_type?: string
+          sent_at?: string | null
+          status?: string
+          webhook_url_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_history_webhook_url_id_fkey"
+            columns: ["webhook_url_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_urls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_urls: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
