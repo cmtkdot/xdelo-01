@@ -4,6 +4,7 @@ import { Loader2, Send, Database, Webhook } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QueryResultChart } from "@/components/ai-chat/QueryResultChart";
 import { AISettingsPanel, AISettings } from "@/components/ai-chat/AISettings";
+import { AITrainingPanel } from "@/components/ai-chat/AITrainingPanel";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -26,6 +27,23 @@ const AiChat = () => {
   });
   const { toast } = useToast();
 
+  // Fetch training data to include in context
+  const getTrainingContext = async () => {
+    const { data: trainingData, error } = await supabase
+      .from('ai_training_data')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching training data:', error);
+      return '';
+    }
+
+    return trainingData.map(item => 
+      `${item.category.toUpperCase()}: ${item.title}\n${item.content}\n---\n`
+    ).join('\n');
+  };
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -38,11 +56,15 @@ const AiChat = () => {
     setIsLoading(true);
 
     try {
+      // Get training context
+      const trainingContext = await getTrainingContext();
+
       // First try to process as natural language command
       const { data: nlData, error: nlError } = await supabase.functions.invoke('process-natural-language', {
         body: { 
           message: userMessage,
-          settings: settings
+          settings: settings,
+          trainingContext: trainingContext
         },
       });
 
@@ -67,7 +89,8 @@ const AiChat = () => {
       const { data, error } = await supabase.functions.invoke('chat-with-claude', {
         body: { 
           messages: [...messages, newUserMessage],
-          settings: settings
+          settings: settings,
+          trainingContext: trainingContext
         },
       });
 
@@ -148,25 +171,28 @@ const AiChat = () => {
           )}
         </div>
 
-        <form onSubmit={sendMessage} className="p-4 border-t border-white/10">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask a question, run a SQL query, or trigger a webhook..."
-              className="glass-input flex-1"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              className="glass-button"
-              disabled={isLoading || !input.trim()}
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
-        </form>
+        <div className="p-4 border-t border-white/10">
+          <AITrainingPanel />
+          <form onSubmit={sendMessage} className="mt-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask a question, run a SQL query, or trigger a webhook..."
+                className="glass-input flex-1"
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                className="glass-button"
+                disabled={isLoading || !input.trim()}
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

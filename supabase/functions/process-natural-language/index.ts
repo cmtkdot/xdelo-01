@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, settings } = await req.json();
+    const { message, settings, trainingContext } = await req.json();
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     
     // Initialize Supabase client
@@ -23,6 +23,7 @@ serve(async (req) => {
 
     console.log('Processing natural language query:', message);
     console.log('Using AI settings:', settings);
+    console.log('Training context length:', trainingContext?.length || 0);
 
     // First, determine if this is a SQL query or webhook action
     const intentResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -37,6 +38,8 @@ serve(async (req) => {
           {
             role: 'system',
             content: `You are an AI assistant that categorizes user queries into either "sql" or "webhook" actions. 
+            Here is some context about the system and examples:
+            ${trainingContext}
             Respond with ONLY "sql" or "webhook" based on whether the user is trying to query data or trigger a webhook action.`
           },
           { role: 'user', content: message }
@@ -65,7 +68,9 @@ serve(async (req) => {
             {
               role: 'system',
               content: `You are a SQL expert. Convert natural language queries into PostgreSQL queries.
-              Available tables: media, messages, channels, webhook_urls, webhook_history.
+              Available tables: media, messages, channels, webhook_urls, webhook_history, ai_training_data.
+              Here are some SQL examples and documentation:
+              ${trainingContext}
               Only generate the SQL query, no explanations.`
             },
             { role: 'user', content: message }
@@ -116,6 +121,8 @@ serve(async (req) => {
               role: 'system',
               content: `You are a webhook expert. Convert natural language into webhook actions.
               Available webhooks: ${JSON.stringify(webhookUrls)}.
+              Here is some context about webhooks and examples:
+              ${trainingContext}
               Return a JSON object with: { webhookId, data }.`
             },
             { role: 'user', content: message }
