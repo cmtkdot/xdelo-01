@@ -23,11 +23,11 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
       </div>
       
       <CardContent className="p-0 flex flex-col h-full">
-        <div className="aspect-video relative group-hover:scale-105 transition-transform duration-300">
+        <div className="relative w-full h-48 group-hover:scale-105 transition-transform duration-300">
           {isVideo ? (
             <video
               src={item.file_url}
-              className="w-full h-full object-cover rounded-t-lg"
+              className="absolute inset-0 w-full h-full object-cover rounded-t-lg"
               controls
               preload="metadata"
             />
@@ -35,7 +35,7 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
             <img
               src={item.file_url}
               alt={item.caption || "Media"}
-              className="w-full h-full object-cover rounded-t-lg"
+              className="absolute inset-0 w-full h-full object-cover rounded-t-lg"
               loading="lazy"
             />
           )}
