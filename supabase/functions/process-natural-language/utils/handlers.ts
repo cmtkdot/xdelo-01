@@ -47,19 +47,49 @@ export const handleWebhookAction = async (message: string, settings: any, traini
     throw new Error('Selected webhook not found. Please verify webhook configuration.');
   }
 
-  const webhookResult = await fetch(webhook.url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(webhookAction.data),
-  });
+  try {
+    const webhookResult = await fetch(webhook.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(webhookAction.data),
+    });
 
-  if (!webhookResult.ok) {
-    throw new Error(`Webhook request failed with status: ${webhookResult.status}`);
+    if (!webhookResult.ok) {
+      throw new Error(`Webhook request failed with status: ${webhookResult.status}`);
+    }
+
+    // Log webhook history
+    const { error: historyError } = await supabase
+      .from('webhook_history')
+      .insert({
+        webhook_url_id: webhook.id,
+        fields_sent: Object.keys(webhookAction.data),
+        schedule_type: 'manual',
+        status: 'success',
+        media_count: Array.isArray(webhookAction.data) ? webhookAction.data.length : 1
+      });
+
+    if (historyError) {
+      console.error('Error logging webhook history:', historyError);
+    }
+
+    return {
+      type: 'webhook',
+      action: webhookAction,
+      result: 'Webhook executed successfully'
+    };
+  } catch (error) {
+    // Log failed webhook attempt
+    await supabase
+      .from('webhook_history')
+      .insert({
+        webhook_url_id: webhook.id,
+        fields_sent: Object.keys(webhookAction.data),
+        schedule_type: 'manual',
+        status: 'failed',
+        media_count: Array.isArray(webhookAction.data) ? webhookAction.data.length : 1
+      });
+
+    throw error;
   }
-
-  return {
-    type: 'webhook',
-    action: webhookAction,
-    result: 'Webhook executed successfully'
-  };
 };

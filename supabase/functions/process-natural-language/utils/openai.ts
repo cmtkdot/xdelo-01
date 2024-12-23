@@ -6,7 +6,7 @@ export const detectIntent = async (message: string, settings: any, trainingConte
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: settings?.model || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -36,16 +36,15 @@ export const generateSqlQuery = async (message: string, settings: any, trainingC
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: settings?.model || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
           content: `You are a SQL expert. Convert natural language queries into PostgreSQL queries.
-          Available tables: media, messages, channels, webhook_urls, webhook_history, ai_training_data.
+          Available tables: media, messages, channels, webhook_urls, webhook_history.
           Here are some SQL examples and documentation:
           ${trainingContext}
-          IMPORTANT: Return ONLY the raw SQL query without any formatting, quotes, markdown, or semicolons.
-          Example: SELECT * FROM media ORDER BY created_at DESC LIMIT 1`
+          IMPORTANT: Return ONLY the raw SQL query without any formatting, quotes, markdown, or semicolons.`
         },
         { role: 'user', content: message }
       ],
@@ -68,7 +67,7 @@ export const generateWebhookAction = async (message: string, settings: any, trai
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: settings?.model || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -76,8 +75,8 @@ export const generateWebhookAction = async (message: string, settings: any, trai
           Available webhooks: ${JSON.stringify(webhookUrls)}.
           Here is some context about webhooks and examples:
           ${trainingContext}
-          Return a raw JSON object with webhookId and data properties. Do not use markdown, code blocks, or any formatting.
-          Example format: {"webhookId": "123", "data": {"key": "value"}}`
+          Return a raw JSON object with webhookId and data properties. Do not use markdown or code blocks.
+          Example: {"webhookId": "123", "data": {"key": "value"}}`
         },
         { role: 'user', content: message }
       ],
