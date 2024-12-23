@@ -3,6 +3,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, AlertCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Alert,
   AlertDescription,
@@ -21,41 +22,18 @@ const GoogleDriveUploader = ({ fileUrl, fileName }: GoogleDriveUploaderProps) =>
 
   const uploadToGoogleDrive = async (accessToken: string) => {
     try {
-      // First, fetch the file from the Supabase URL
-      const response = await fetch(fileUrl);
-      const blob = await response.blob();
-
-      // Create form data for the Google Drive API
-      const metadata = {
-        name: fileName,
-        mimeType: blob.type,
-      };
-
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', blob);
-
-      // Upload to Google Drive
-      const uploadResponse = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: form,
+      const { data, error } = await supabase.functions.invoke('upload-to-drive', {
+        body: { fileUrl, fileName, accessToken }
       });
 
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload to Google Drive');
-      }
+      if (error) throw error;
 
-      const result = await uploadResponse.json();
-      
       toast({
         title: "Success!",
         description: "File successfully uploaded to Google Drive",
       });
 
-      return result;
+      return data;
     } catch (error) {
       console.error('Error uploading to Google Drive:', error);
       toast({
