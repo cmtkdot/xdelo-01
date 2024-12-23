@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, Database, Webhook } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Card } from "@/components/ui/card";
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  metadata?: {
+    type?: 'sql' | 'webhook';
+    query?: string;
+    result?: any;
+  };
 }
 
 const AiChat = () => {
@@ -26,16 +32,34 @@ const AiChat = () => {
     setIsLoading(true);
 
     try {
+      // First try to process as natural language command
+      const { data: nlData, error: nlError } = await supabase.functions.invoke('process-natural-language', {
+        body: { message: userMessage },
+      });
+
+      if (nlError) throw nlError;
+
+      if (nlData) {
+        // Create assistant message with metadata
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: nlData.type === 'sql' 
+            ? `I executed the following SQL query:\n\`\`\`sql\n${nlData.query}\n\`\`\`\n\nResults:\n\`\`\`json\n${JSON.stringify(nlData.result, null, 2)}\n\`\`\``
+            : `I executed the webhook action:\n\`\`\`json\n${JSON.stringify(nlData.action, null, 2)}\n\`\`\`\n\nResult: ${nlData.result}`,
+          metadata: nlData
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        return;
+      }
+
+      // Fallback to regular chat if not a command
       console.log('Sending messages to Claude:', [...messages, newUserMessage]);
       
       const { data, error } = await supabase.functions.invoke('chat-with-claude', {
         body: { messages: [...messages, newUserMessage] },
       });
 
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw error;
-      }
+      if (error) throw error;
       
       console.log('Received response from Claude:', data);
 
@@ -63,7 +87,7 @@ const AiChat = () => {
         <div className="p-4 border-b border-white/10">
           <h1 className="text-2xl font-semibold text-white">AI Assistant</h1>
           <p className="text-white/60 text-sm mt-1">
-            Chat with an AI that understands your Telegram data
+            Chat with an AI that understands your Telegram data, can execute SQL queries, and trigger webhooks
           </p>
         </div>
         
@@ -82,6 +106,15 @@ const AiChat = () => {
                     : 'bg-white/5'
                 }`}
               >
+                {message.metadata?.type && (
+                  <div className="flex items-center gap-2 mb-2 text-sm text-white/60">
+                    {message.metadata.type === 'sql' ? (
+                      <><Database className="w-4 h-4" /> SQL Query</>
+                    ) : (
+                      <><Webhook className="w-4 h-4" /> Webhook Action</>
+                    )}
+                  </div>
+                )}
                 <p className="text-white/90 whitespace-pre-wrap">
                   {message.content}
                 </p>
@@ -103,7 +136,7 @@ const AiChat = () => {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message..."
+              placeholder="Ask a question, run a SQL query, or trigger a webhook..."
               className="glass-input flex-1"
               disabled={isLoading}
             />
