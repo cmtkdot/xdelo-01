@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { MediaItem } from "../media/types";
 import WebhookUrlManager from "./WebhookUrlManager";
 import WebhookHistoryTable from "./WebhookHistoryTable";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WebhookInterfaceProps {
   schedule?: "manual" | "hourly" | "daily" | "weekly";
@@ -79,18 +80,27 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         }),
       });
 
-      // Store webhook history
-      const { error: historyError } = await supabase
-        .from('webhook_history')
-        .insert([{
-          webhook_url_id: webhookUrl,
-          fields_sent: selectedFields,
-          schedule_type: schedule,
-          status: 'success',
-          media_count: selectedMedia.length
-        }]);
+      // Get the webhook URL record ID
+      const { data: webhookUrlData } = await supabase
+        .from('webhook_urls')
+        .select('id')
+        .eq('url', webhookUrl)
+        .single();
 
-      if (historyError) throw historyError;
+      if (webhookUrlData) {
+        // Store webhook history
+        const { error: historyError } = await supabase
+          .from('webhook_history')
+          .insert([{
+            webhook_url_id: webhookUrlData.id,
+            fields_sent: selectedFields,
+            schedule_type: schedule,
+            status: 'success',
+            media_count: selectedMedia.length
+          }]);
+
+        if (historyError) throw historyError;
+      }
 
       toast({
         title: "Success",
@@ -105,17 +115,6 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         description: "Failed to send data to webhook",
         variant: "destructive",
       });
-
-      // Store failed attempt
-      await supabase
-        .from('webhook_history')
-        .insert([{
-          webhook_url_id: webhookUrl,
-          fields_sent: selectedFields,
-          schedule_type: schedule,
-          status: 'failed',
-          media_count: selectedMedia.length
-        }]);
     } finally {
       setIsLoading(false);
     }
