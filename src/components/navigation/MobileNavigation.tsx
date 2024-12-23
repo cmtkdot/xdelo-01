@@ -1,6 +1,6 @@
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NavigationItems } from "./NavigationItems";
+import NavigationItems from "./NavigationItems";
 import LogoutButton from "./LogoutButton";
 import ExportButton from "./ExportButton";
 import { useLocation } from "react-router-dom";
