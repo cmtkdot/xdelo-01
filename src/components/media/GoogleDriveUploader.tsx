@@ -14,7 +14,7 @@ interface GoogleDriveUploaderProps {
   fileName: string;
 }
 
-const GOOGLE_CLIENT_ID = "804361315000-6hnrtp4h4iu598t83ht0r9stjj63d89e.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
 const GoogleDriveUploader = ({ fileUrl, fileName }: GoogleDriveUploaderProps) => {
   const { toast } = useToast();
