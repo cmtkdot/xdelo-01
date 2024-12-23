@@ -68,17 +68,17 @@ const MediaGallery = () => {
   }
 
   return (
-    <div className="space-y-4 px-2 md:px-6">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="w-full max-w-[2000px] mx-auto space-y-6">
+      <div className="flex items-center gap-2">
         <Image className="w-6 h-6 text-[#0088cc]" />
         <h2 className="text-xl font-semibold text-white">Media Gallery</h2>
       </div>
       
-      <div className="w-full overflow-x-auto">
+      <div className="w-full bg-black/20 rounded-lg p-4 backdrop-blur-sm">
         <WebhookInterface selectedMedia={getSelectedMediaData()} />
       </div>
       
-      <div className="w-full overflow-x-auto">
+      <div className="w-full bg-black/20 rounded-lg p-4 backdrop-blur-sm">
         <MediaFilters
           selectedChannel={filter.selectedChannel}
           setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
@@ -89,18 +89,18 @@ const MediaGallery = () => {
       </div>
 
       {!mediaItems || mediaItems.length === 0 ? (
-        <div className="text-center py-8 bg-white/5 rounded-lg border border-white/10 backdrop-blur-xl mx-2">
+        <div className="text-center py-8 bg-black/20 rounded-lg backdrop-blur-sm">
           <p className="text-gray-400">
             No media files yet. Send some media to your Telegram bot!
           </p>
         </div>
       ) : (
-        <ScrollArea className="h-[calc(100vh-16rem)] w-full px-2">
-          <div className="grid grid-cols-2 gap-4 pb-6">
+        <ScrollArea className="h-[calc(100vh-16rem)]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-6">
             {mediaItems.map((item) => (
               <MediaCard 
                 key={item.id} 
-                item={item} 
+                item={item}
                 isSelected={selectedMedia.has(item.id)}
                 onToggleSelect={handleToggleSelect}
               />
