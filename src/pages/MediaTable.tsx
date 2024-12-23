@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import {
   Table,
   TableBody,
@@ -12,6 +13,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { MediaTableHeader } from "@/components/media/table/MediaTableHeader";
 import { MediaTableRow } from "@/components/media/table/MediaTableRow";
+
+const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
 const MediaTable = () => {
   const { toast } = useToast();
@@ -67,37 +70,39 @@ const MediaTable = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <MediaTableHeader />
-      
-      <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg">
-        <ScrollArea className="h-[calc(100vh-16rem)] rounded-lg">
-          <div className="relative min-w-full">
-            <Table>
-              <TableHeader className="bg-black/60 sticky top-0 z-10">
-                <TableRow>
-                  <TableHead className="text-sky-400 min-w-[150px]">Type</TableHead>
-                  <TableHead className="text-sky-400 min-w-[150px]">Channel</TableHead>
-                  <TableHead className="text-sky-400 min-w-[200px]">Created At</TableHead>
-                  <TableHead className="text-sky-400 min-w-[300px]">Caption</TableHead>
-                  <TableHead className="text-sky-400 min-w-[400px]">File URL</TableHead>
-                  <TableHead className="text-sky-400 text-right min-w-[200px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mediaItems?.map((item) => (
-                  <MediaTableRow
-                    key={item.id}
-                    item={item}
-                    onOpenFile={openFileInNewTab}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </ScrollArea>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <div className="space-y-6">
+        <MediaTableHeader />
+        
+        <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg">
+          <ScrollArea className="h-[calc(100vh-16rem)] rounded-lg">
+            <div className="relative min-w-full">
+              <Table>
+                <TableHeader className="bg-black/60 sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead className="text-sky-400 min-w-[150px]">Type</TableHead>
+                    <TableHead className="text-sky-400 min-w-[150px]">Channel</TableHead>
+                    <TableHead className="text-sky-400 min-w-[200px]">Created At</TableHead>
+                    <TableHead className="text-sky-400 min-w-[300px]">Caption</TableHead>
+                    <TableHead className="text-sky-400 min-w-[400px]">File URL</TableHead>
+                    <TableHead className="text-sky-400 text-right min-w-[200px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {mediaItems?.map((item) => (
+                    <MediaTableRow
+                      key={item.id}
+                      item={item}
+                      onOpenFile={openFileInNewTab}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </ScrollArea>
+        </div>
       </div>
-    </div>
+    </GoogleOAuthProvider>
   );
 };
 
