@@ -19,9 +19,19 @@ const Login = () => {
     <div className="min-h-screen relative overflow-hidden bg-black flex items-center justify-center p-4">
       {/* Animated background */}
       <div className="absolute inset-0 w-full h-full">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-purple-900/20 to-black">
-          <div className="absolute inset-0 bg-[url('/lovable-uploads/0ff424f4-b8ea-40bb-9c6c-dd299e01cf05.png')] bg-cover opacity-10 mix-blend-overlay animate-pulse"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-purple-900/20 to-black animate-gradient">
+          {/* Animated particles */}
+          <div className="absolute inset-0">
+            <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-blue-500/30 rounded-full blur-3xl animate-float"></div>
+            <div className="absolute top-3/4 right-1/4 w-40 h-40 bg-purple-500/30 rounded-full blur-3xl animate-float delay-1000"></div>
+            <div className="absolute bottom-1/4 left-1/2 w-36 h-36 bg-indigo-500/30 rounded-full blur-3xl animate-float delay-2000"></div>
+          </div>
+          
+          {/* Grid overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
         </div>
+        
+        {/* Animated borders */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent animate-pulse"></div>
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent animate-pulse"></div>
       </div>
@@ -30,19 +40,13 @@ const Login = () => {
       <div className="relative max-w-md w-full">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg blur-xl animate-pulse"></div>
         <div className="relative backdrop-blur-xl bg-black/40 rounded-lg border border-white/10 p-8 shadow-2xl">
-          {/* Logo and title */}
-          <div className="flex flex-col items-center justify-center gap-4 mb-8">
+          {/* Logo */}
+          <div className="flex flex-col items-center justify-center gap-8 mb-8">
             <img 
-              src="/lovable-uploads/a983b9da-9ed4-4ae4-846a-b605e60fff63.png"
-              alt="Xdelo Logo"
-              className="w-24 h-24 animate-fade-in"
+              src="/lovable-uploads/ed1ad7fe-b108-4e36-8479-42df7f19fd63.png"
+              alt="Logo"
+              className="w-48 h-auto animate-float"
             />
-            <h1 className="text-3xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-              Xdelo Manager
-            </h1>
-            <p className="text-white/60 text-center text-sm">
-              Secure access to your media management system
-            </p>
           </div>
 
           {/* Auth component */}
@@ -76,9 +80,11 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Decorative elements */}
-      <div className="absolute bottom-4 left-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl animate-pulse"></div>
-      <div className="absolute top-4 right-4 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl animate-pulse"></div>
+      {/* Additional animated elements */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute bottom-4 left-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl animate-pulse"></div>
+        <div className="absolute top-4 right-4 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl animate-pulse"></div>
+      </div>
     </div>
   );
 };
