@@ -3,11 +3,34 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 import { corsHeaders, createJWT, uploadFileToDrive, deleteFromSupabase } from './utils.ts'
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
+    console.log('Starting migration process...');
+    
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log('Received request body:', JSON.stringify(requestBody));
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body format' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    const { accessToken } = requestBody;
+    if (!accessToken) {
+      return new Response(
+        JSON.stringify({ error: 'Access token is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -16,6 +39,7 @@ serve(async (req) => {
     const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
     
     if (!credentials.client_email || !credentials.private_key) {
+      console.error('Invalid service account credentials');
       throw new Error('Invalid service account credentials');
     }
 
@@ -33,7 +57,6 @@ serve(async (req) => {
 
     console.log(`Found ${mediaFiles?.length || 0} files to migrate`);
 
-    const accessToken = await createJWT(credentials);
     const results = [];
     
     for (const file of mediaFiles || []) {
