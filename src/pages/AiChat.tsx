@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { QueryResultChart } from "@/components/ai-chat/QueryResultChart";
+import { useNavigate } from "react-router-dom";
 import { AISettingsPanel, AISettings } from "@/components/ai-chat/AISettings";
 import { AITrainingPanel } from "@/components/ai-chat/AITrainingPanel";
-import { Tables } from "@/integrations/supabase/types";
-import { useNavigate } from "react-router-dom";
+import { ChatInput } from "@/components/ai-chat/ChatInput";
+import { ChatMessages } from "@/components/ai-chat/ChatMessages";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -29,21 +28,6 @@ const AiChat = () => {
   });
   const { toast } = useToast();
   const navigate = useNavigate();
-
-  const getTrainingContext = async () => {
-    const { data: trainingData, error } = await supabase
-      .from('ai_training_data')
-      .select('*') as { data: Tables<'ai_training_data'>[] | null, error: any };
-
-    if (error) {
-      console.error('Error fetching training data:', error);
-      return '';
-    }
-
-    return trainingData?.map(item => 
-      `${item.category.toUpperCase()}: ${item.title}\n${item.content}\n---\n`
-    ).join('\n') || '';
-  };
 
   const handleWebhookError = (error: any) => {
     if (error.body && typeof error.body === 'string') {
@@ -68,11 +52,25 @@ const AiChat = () => {
           return true;
         }
       } catch (e) {
-        // If JSON parsing fails, fall through to default error handling
         console.error('Error parsing error body:', e);
       }
     }
     return false;
+  };
+
+  const getTrainingContext = async () => {
+    const { data: trainingData, error } = await supabase
+      .from('ai_training_data')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching training data:', error);
+      return '';
+    }
+
+    return trainingData?.map(item => 
+      `${item.category.toUpperCase()}: ${item.title}\n${item.content}\n---\n`
+    ).join('\n') || '';
   };
 
   const sendMessage = async (e: React.FormEvent) => {
@@ -87,10 +85,8 @@ const AiChat = () => {
     setIsLoading(true);
 
     try {
-      // Get training context
       const trainingContext = await getTrainingContext();
 
-      // First try to process as natural language command
       const { data: nlData, error: nlError } = await supabase.functions.invoke('process-natural-language', {
         body: { 
           message: userMessage,
@@ -100,7 +96,6 @@ const AiChat = () => {
       });
 
       if (nlError) {
-        // Check if this is a webhook configuration error
         if (!handleWebhookError(nlError)) {
           throw nlError;
         }
@@ -108,7 +103,6 @@ const AiChat = () => {
       }
 
       if (nlData) {
-        // Create assistant message with metadata
         const assistantMessage: Message = {
           role: 'assistant',
           content: nlData.type === 'sql' 
@@ -120,9 +114,6 @@ const AiChat = () => {
         return;
       }
 
-      // Fallback to regular chat if not a command
-      console.log('Sending messages to Claude:', [...messages, newUserMessage]);
-      
       const { data, error } = await supabase.functions.invoke('chat-with-claude', {
         body: { 
           messages: [...messages, newUserMessage],
@@ -133,8 +124,6 @@ const AiChat = () => {
 
       if (error) throw error;
       
-      console.log('Received response from Claude:', data);
-
       if (data.content) {
         const assistantMessage: Message = { role: 'assistant', content: data.content };
         setMessages(prev => [...prev, assistantMessage]);
@@ -166,69 +155,16 @@ const AiChat = () => {
           <AISettingsPanel settings={settings} onSettingsChange={setSettings} />
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex ${
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
-            >
-              <div
-                className={`max-w-[80%] p-3 rounded-lg ${
-                  message.role === 'user'
-                    ? 'bg-purple-500/20 ml-auto'
-                    : 'bg-white/5'
-                }`}
-              >
-                {message.metadata?.type && (
-                  <div className="flex items-center gap-2 mb-2 text-sm text-white/60">
-                    {message.metadata.type === 'sql' ? (
-                      <>Database Query</> 
-                    ) : (
-                      <>Webhook Action</>
-                    )}
-                  </div>
-                )}
-                <p className="text-white/90 whitespace-pre-wrap">
-                  {message.content}
-                </p>
-                {message.metadata?.type === 'sql' && message.metadata.result && (
-                  <QueryResultChart data={message.metadata.result} />
-                )}
-              </div>
-            </div>
-          ))}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-white/5 p-3 rounded-lg">
-                <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
-              </div>
-            </div>
-          )}
-        </div>
+        <ChatMessages messages={messages} isLoading={isLoading} />
 
         <div className="p-4 border-t border-white/10">
           <AITrainingPanel />
-          <form onSubmit={sendMessage} className="mt-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask a question, run a SQL query, or trigger a webhook..."
-                className="glass-input flex-1"
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                className="glass-button"
-                disabled={isLoading || !input.trim()}
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-          </form>
+          <ChatInput 
+            input={input}
+            setInput={setInput}
+            isLoading={isLoading}
+            onSubmit={sendMessage}
+          />
         </div>
       </div>
     </div>
