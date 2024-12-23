@@ -7,6 +7,7 @@ import Navigation from "./components/Navigation";
 import Index from "./pages/Index";
 import Messages from "./pages/Messages";
 import Media from "./pages/Media";
+import MediaTable from "./pages/MediaTable";
 import MediaData from "./pages/MediaData";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
@@ -57,6 +58,7 @@ function App() {
                           <Route path="/" element={<Index />} />
                           <Route path="/messages" element={<Messages />} />
                           <Route path="/media" element={<Media />} />
+                          <Route path="/media-table" element={<MediaTable />} />
                           <Route path="/media-data" element={<MediaData />} />
                           <Route path="/webhooks" element={<Webhooks />} />
                           <Route path="/settings" element={<Settings />} />
