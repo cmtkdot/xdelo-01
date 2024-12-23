@@ -109,10 +109,30 @@ serve(async (req) => {
           throw new Error(`Failed to update media record: ${updateError.message}`)
         }
 
+        // Extract bucket and path from Supabase URL
+        const fileUrl = new URL(file.file_url);
+        const pathParts = fileUrl.pathname.split('/');
+        const bucket = pathParts[1]; // Usually 'telegram-media'
+        const filePath = pathParts.slice(2).join('/');
+
+        // Delete file from Supabase Storage
+        const { error: deleteError } = await supabase
+          .storage
+          .from(bucket)
+          .remove([filePath]);
+
+        if (deleteError) {
+          console.error(`Failed to delete file from Supabase storage: ${file.file_name}`, deleteError);
+          // Don't throw error here, we want to continue with other files
+        } else {
+          console.log(`Successfully deleted file from Supabase storage: ${file.file_name}`);
+        }
+
         results.push({
           success: true,
           fileName: file.file_name,
-          driveUrl: driveFileUrl
+          driveUrl: driveFileUrl,
+          deleted: !deleteError
         })
 
       } catch (error) {
