@@ -76,26 +76,13 @@
            focus:outline-none focus:ring-2 focus:ring-sky-500/50
            text-white placeholder:text-white/50;
   }
-
-  .neo-glow {
-    @apply shadow-[0_0_15px_rgba(14,165,233,0.3)];
-  }
 }
 
 /* Animations */
 @layer utilities {
   .animate-gradient {
     background-size: 400%;
-    -webkit-animation: gradient 8s ease infinite;
     animation: gradient 8s ease infinite;
-  }
-
-  .animate-glow {
-    animation: glow 2s ease-in-out infinite;
-  }
-
-  .animate-border-pulse {
-    animation: pulse-border 2s ease-in-out infinite;
   }
 
   .animate-float {
@@ -107,24 +94,6 @@
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
-}
-
-@keyframes glow {
-  0%, 100% {
-    box-shadow: 0 0 5px theme('colors.sky.500'),
-                0 0 10px theme('colors.sky.400'),
-                0 0 15px theme('colors.sky.300');
-  }
-  50% {
-    box-shadow: 0 0 10px theme('colors.sky.500'),
-                0 0 20px theme('colors.sky.400'),
-                0 0 30px theme('colors.sky.300');
-  }
-}
-
-@keyframes pulse-border {
-  0%, 100% { border-color: rgba(14, 165, 233, 0.1); }
-  50% { border-color: rgba(14, 165, 233, 0.3); }
 }
 
 @keyframes float {
