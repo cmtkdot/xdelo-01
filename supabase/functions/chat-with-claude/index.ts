@@ -35,14 +35,28 @@ serve(async (req) => {
       .select('*')
       .limit(5);
 
-    // Prepare system message with database context
+    // Prepare system message with database context and instructions
     const systemMessage = `You are an AI assistant with access to a Telegram media management system. 
     Here's some context about the current data:
     - Recent media files: ${JSON.stringify(mediaData)}
     - Active channels: ${JSON.stringify(channelsData)}
     ${trainingContext}
     
-    Provide helpful responses about the data and system capabilities.`;
+    IMPORTANT INSTRUCTIONS:
+    1. When users ask about data, you should execute SQL queries to get real-time information.
+    2. Don't just show SQL queries - execute them using the execute_safe_query function.
+    3. Explain the results in a clear, conversational way.
+    4. Only show charts when there's numerical data that makes sense to visualize.
+    5. For webhook actions, use the appropriate webhook endpoints.
+    
+    Available tables: media, messages, channels, webhook_urls, webhook_history, ai_training_data.
+    
+    Example good response:
+    User: "How many media files do we have?"
+    Assistant: "Let me check that for you. Based on our database query, we have 150 media files stored. Here's the breakdown by type:
+    - 80 images
+    - 45 videos
+    - 25 documents"`;
 
     let aiResponse;
     const model = settings?.model ?? 'gpt-4o-mini';
@@ -124,6 +138,28 @@ serve(async (req) => {
       });
       const data = await response.json();
       aiResponse = data.choices[0].message.content;
+    }
+
+    // Check if the response contains a SQL query
+    const sqlMatch = aiResponse.match(/```sql\n([\s\S]*?)\n```/);
+    if (sqlMatch) {
+      const sqlQuery = sqlMatch[1];
+      console.log('Executing SQL query:', sqlQuery);
+      
+      // Execute the query using the safe query function
+      const { data: queryResult, error: queryError } = await supabaseAdmin.rpc('execute_safe_query', {
+        query_text: sqlQuery
+      });
+
+      if (queryError) {
+        console.error('Error executing query:', queryError);
+        throw queryError;
+      }
+
+      // Update the response to include the actual results
+      aiResponse = aiResponse.replace(/```sql\n[\s\S]*?\n```/, 
+        `I executed this query:\n\`\`\`sql\n${sqlQuery}\n\`\`\`\n\nHere are the results:\n\`\`\`json\n${JSON.stringify(queryResult, null, 2)}\n\`\`\``
+      );
     }
 
     return new Response(

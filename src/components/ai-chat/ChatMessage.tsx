@@ -23,7 +23,7 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
   
   // Check if the data actually contains numerical values that can be visualized
   const hasVisualizableData = () => {
-    if (!message.metadata?.type === 'sql' || !message.metadata?.result) return false;
+    if (message.metadata?.type !== 'sql' || !message.metadata?.result) return false;
     
     const data = message.metadata.result;
     if (!Array.isArray(data) || data.length === 0) return false;
