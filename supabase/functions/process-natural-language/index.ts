@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message } = await req.json();
+    const { message, settings } = await req.json();
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     
     // Initialize Supabase client
@@ -22,6 +22,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('Processing natural language query:', message);
+    console.log('Using AI settings:', settings);
 
     // First, determine if this is a SQL query or webhook action
     const intentResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -40,6 +41,8 @@ serve(async (req) => {
           },
           { role: 'user', content: message }
         ],
+        temperature: settings?.temperature ?? 0.7,
+        max_tokens: settings?.maxTokens ?? 500,
       }),
     });
 
@@ -67,6 +70,8 @@ serve(async (req) => {
             },
             { role: 'user', content: message }
           ],
+          temperature: settings?.temperature ?? 0.7,
+          max_tokens: settings?.maxTokens ?? 500,
         }),
       });
 
@@ -115,6 +120,8 @@ serve(async (req) => {
             },
             { role: 'user', content: message }
           ],
+          temperature: settings?.temperature ?? 0.7,
+          max_tokens: settings?.maxTokens ?? 500,
         }),
       });
 
