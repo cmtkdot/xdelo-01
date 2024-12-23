@@ -38,12 +38,15 @@ const useMediaSubscription = (spreadsheetId?: string) => {
         console.log('Media change received:', payload);
         
         // Invalidate and refetch the media-table query
-        const updatedData = await queryClient.invalidateQueries({ queryKey: ['media-table'] });
+        await queryClient.invalidateQueries({ queryKey: ['media-table'] });
         
-        // If Google Sheets is configured, sync the data
-        if (spreadsheetId && isGoogleSheetsReady && updatedData) {
+        // Get the latest data after invalidation
+        const mediaData = queryClient.getQueryData(['media-table']) as MediaItem[];
+        
+        // If Google Sheets is configured and we have data, sync it
+        if (spreadsheetId && isGoogleSheetsReady && mediaData) {
           try {
-            await syncWithGoogleSheets(spreadsheetId, updatedData as MediaItem[]);
+            await syncWithGoogleSheets(spreadsheetId, mediaData);
             console.log('Successfully synced with Google Sheets');
           } catch (error) {
             console.error('Failed to sync with Google Sheets:', error);
@@ -63,7 +66,7 @@ const useMediaSubscription = (spreadsheetId?: string) => {
         };
 
         toast({
-          title: eventMessages[payload.eventType] || 'Media changed',
+          title: eventMessages[payload.eventType as keyof typeof eventMessages] || 'Media changed',
           description: `The media gallery has been updated`,
           variant: "default",
         });
