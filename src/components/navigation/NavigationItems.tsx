@@ -1,56 +1,39 @@
-import { Link, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { 
-  Home,
-  MessageSquare,
-  Image,
-  Settings,
-  Webhook,
-  Bot,
-  FileSpreadsheet,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Home, Image, MessageSquare, Settings, Table, Database, Bot } from "lucide-react";
 
-export const navItems = [
-  { path: "/", icon: Home, label: "Dashboard" },
-  { path: "/messages", icon: MessageSquare, label: "Messages" },
-  { path: "/media", icon: Image, label: "Media" },
-  { path: "/media-table", icon: FileSpreadsheet, label: "Media Table" },
-  { path: "/webhooks", icon: Webhook, label: "Webhooks" },
-  { path: "/ai-chat", icon: Bot, label: "AI Chat" },
-  { path: "/settings", icon: Settings, label: "Settings" },
+export const navigationItems = [
+  {
+    name: "Dashboard",
+    href: "/",
+    icon: Home,
+  },
+  {
+    name: "Media",
+    href: "/media",
+    icon: Image,
+  },
+  {
+    name: "Media Data",
+    href: "/media-data",
+    icon: Database,
+  },
+  {
+    name: "Media Table",
+    href: "/media-table",
+    icon: Table,
+  },
+  {
+    name: "Messages",
+    href: "/messages",
+    icon: MessageSquare,
+  },
+  {
+    name: "AI Chat",
+    href: "/ai-chat",
+    icon: Bot,
+  },
+  {
+    name: "Settings",
+    href: "/settings",
+    icon: Settings,
+  },
 ];
-
-interface NavigationItemsProps {
-  onClick?: () => void;
-  className?: string;
-}
-
-const NavigationItems = ({ onClick, className }: NavigationItemsProps) => {
-  const location = useLocation();
-
-  return (
-    <div className={className}>
-      {navItems.map((item) => (
-        <Link
-          key={item.path}
-          to={item.path}
-          onClick={onClick}
-        >
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-start text-white hover:bg-white/10 mb-1 transition-colors",
-              location.pathname === item.path && "bg-white/10 border border-white/20"
-            )}
-          >
-            <item.icon className="w-4 h-4 mr-2" />
-            {item.label}
-          </Button>
-        </Link>
-      ))}
-    </div>
-  );
-};
-
-export default NavigationItems;

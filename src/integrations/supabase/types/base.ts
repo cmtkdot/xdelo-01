@@ -1,10 +1,13 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+import { Json } from './helpers';
+import { 
+  AITrainingDataTable,
+  BotActivitiesTable,
+  BotUsersTable,
+  ChannelsTable,
+  MediaTable,
+  MessagesTable 
+} from './tables';
+import { DatabaseFunctions } from './functions';
 
 export interface Database {
   public: {
