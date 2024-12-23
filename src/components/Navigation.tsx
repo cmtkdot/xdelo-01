@@ -35,11 +35,15 @@ const Navigation = () => {
   return (
     <>
       {/* Desktop Header Navigation */}
-      <div className="hidden md:flex fixed top-0 left-0 right-0 h-16 bg-black/90 backdrop-blur-xl border-b border-white/10 z-40 px-4">
+      <div className="hidden md:flex fixed top-0 left-0 right-0 h-16 backdrop-blur-xl bg-black/40 border-b border-white/10 z-40 px-4">
         <div className="flex items-center justify-between w-full max-w-7xl mx-auto">
           <div className="flex items-center space-x-8">
-            <Link to="/" className="text-white font-semibold text-lg">
-              Telegram Manager
+            <Link to="/" className="flex items-center space-x-2">
+              <img 
+                src="/lovable-uploads/ed1ad7fe-b108-4e36-8479-42df7f19fd63.png"
+                alt="Logo"
+                className="h-8 w-auto"
+              />
             </Link>
             <div className="flex items-center space-x-2">
               {navItems.map((item) => (
@@ -47,8 +51,8 @@ const Navigation = () => {
                   <Button
                     variant="ghost"
                     className={cn(
-                      "text-white hover:bg-white/10",
-                      location.pathname === item.path && "bg-white/10"
+                      "text-white hover:bg-white/10 transition-colors",
+                      location.pathname === item.path && "bg-white/10 border border-white/20"
                     )}
                   >
                     <item.icon className="w-4 h-4 mr-2" />
@@ -61,7 +65,7 @@ const Navigation = () => {
           <Button 
             onClick={handleLogout}
             variant="ghost" 
-            className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
+            className="text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
           >
             <LogOut className="w-4 h-4 mr-2" />
             Logout
@@ -72,20 +76,24 @@ const Navigation = () => {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="fixed top-4 left-4 z-50 md:hidden text-white p-2 hover:bg-white/10 rounded-lg"
+        className="fixed top-4 left-4 z-50 md:hidden text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
       >
         <Menu className="w-6 h-6" />
       </button>
 
       {/* Mobile Navigation */}
       <nav className={cn(
-        "fixed top-0 left-0 h-full w-64 bg-black/90 backdrop-blur-xl border-r border-white/10 transform transition-transform duration-200 ease-in-out z-40 md:hidden",
+        "fixed top-0 left-0 h-full w-64 backdrop-blur-xl bg-black/40 border-r border-white/10 transform transition-transform duration-300 ease-out z-40 md:hidden",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           <div className="p-4">
-            <Link to="/" className="text-white font-semibold text-lg block py-4">
-              Telegram Manager
+            <Link to="/" className="flex items-center space-x-2">
+              <img 
+                src="/lovable-uploads/ed1ad7fe-b108-4e36-8479-42df7f19fd63.png"
+                alt="Logo"
+                className="h-8 w-auto"
+              />
             </Link>
           </div>
 
@@ -99,8 +107,8 @@ const Navigation = () => {
                 <Button
                   variant="ghost"
                   className={cn(
-                    "w-full justify-start text-white hover:bg-white/10 mb-1",
-                    location.pathname === item.path && "bg-white/10"
+                    "w-full justify-start text-white hover:bg-white/10 mb-1 transition-colors",
+                    location.pathname === item.path && "bg-white/10 border border-white/20"
                   )}
                 >
                   <item.icon className="w-4 h-4 mr-2" />
@@ -114,7 +122,7 @@ const Navigation = () => {
             <Button 
               onClick={handleLogout}
               variant="ghost" 
-              className="w-full justify-start text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              className="w-full justify-start text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Logout
@@ -126,7 +134,7 @@ const Navigation = () => {
       {/* Mobile overlay */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
