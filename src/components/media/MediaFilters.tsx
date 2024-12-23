@@ -17,9 +17,9 @@ const MediaFilters = ({
   channels = [],
 }: MediaFiltersProps) => {
   return (
-    <div className="flex flex-col sm:flex-row gap-4">
+    <div className="flex flex-col xs:flex-row gap-3">
       <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-        <SelectTrigger className="w-full sm:w-[200px] glass-input">
+        <SelectTrigger className="w-full xs:w-[180px] glass-input text-white">
           <SelectValue placeholder="Select Channel" />
         </SelectTrigger>
         <SelectContent className="bg-gray-900/90 backdrop-blur-xl border-white/10">
@@ -37,7 +37,7 @@ const MediaFilters = ({
       </Select>
 
       <Select value={selectedType} onValueChange={setSelectedType}>
-        <SelectTrigger className="w-full sm:w-[200px] glass-input">
+        <SelectTrigger className="w-full xs:w-[180px] glass-input text-white">
           <SelectValue placeholder="Select Media Type" />
         </SelectTrigger>
         <SelectContent className="bg-gray-900/90 backdrop-blur-xl border-white/10">
@@ -45,7 +45,7 @@ const MediaFilters = ({
           <SelectItem value="photo" className="text-white hover:bg-white/5">Photos</SelectItem>
           <SelectItem value="video" className="text-white hover:bg-white/5">Videos</SelectItem>
           <SelectItem value="animation" className="text-white hover:bg-white/5">Animations</SelectItem>
-          <SelectItem value="edited_channel_post" className="text-white hover:bg-white/5">Edited Channel Posts</SelectItem>
+          <SelectItem value="edited_channel_post" className="text-white hover:bg-white/5">Edited Posts</SelectItem>
           <SelectItem value="channel_post" className="text-white hover:bg-white/5">Channel Posts</SelectItem>
         </SelectContent>
       </Select>

@@ -68,19 +68,19 @@ const MediaGallery = () => {
   }
 
   return (
-    <div className="w-full max-w-[2000px] mx-auto space-y-6">
-      <div className="flex items-center gap-2 glass-card p-4 animate-fade-in">
+    <div className="w-full max-w-[2000px] mx-auto space-y-4">
+      <div className="flex items-center gap-2 glass-card p-4">
         <Image className="w-6 h-6 text-purple-400" />
-        <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 text-transparent bg-clip-text">
+        <h2 className="text-lg md:text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 text-transparent bg-clip-text">
           Media Gallery
         </h2>
       </div>
       
-      <div className="glass-card p-6 animate-fade-in">
+      <div className="glass-card p-4 md:p-6">
         <WebhookInterface selectedMedia={getSelectedMediaData()} />
       </div>
       
-      <div className="glass-card p-6 animate-fade-in">
+      <div className="glass-card p-4 md:p-6">
         <MediaFilters
           selectedChannel={filter.selectedChannel}
           setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
@@ -91,14 +91,14 @@ const MediaGallery = () => {
       </div>
 
       {!mediaItems || mediaItems.length === 0 ? (
-        <div className="glass-card p-8 text-center animate-fade-in">
-          <p className="text-gray-400">
+        <div className="glass-card p-4 md:p-6 text-center">
+          <p className="text-white/80 text-sm md:text-base">
             No media files yet. Send some media to your Telegram bot!
           </p>
         </div>
       ) : (
         <ScrollArea className="h-[calc(100vh-16rem)]">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-6">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4 pb-6">
             {mediaItems.map((item) => (
               <MediaCard 
                 key={item.id} 
