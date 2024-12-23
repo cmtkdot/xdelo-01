@@ -1,7 +1,7 @@
 import { useGoogleLogin } from '@react-oauth/google';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, CloudUpload } from "lucide-react";
+import { CloudUpload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const MediaTableHeader = () => {
@@ -9,6 +9,8 @@ export const MediaTableHeader = () => {
 
   const migrateToGoogleDrive = async (accessToken: string) => {
     try {
+      console.log('Starting migration with access token:', accessToken);
+      
       const { data, error } = await supabase.functions.invoke('migrate-to-drive', {
         body: { accessToken }
       });
@@ -35,7 +37,16 @@ export const MediaTableHeader = () => {
 
   const login = useGoogleLogin({
     onSuccess: async (response) => {
+      console.log('Google OAuth success:', response);
       await migrateToGoogleDrive(response.access_token);
+    },
+    onError: (error) => {
+      console.error('Google OAuth error:', error);
+      toast({
+        variant: "destructive",
+        title: "Authentication Failed",
+        description: "Failed to authenticate with Google. Please try again.",
+      });
     },
     scope: 'https://www.googleapis.com/auth/drive.file',
   });
