@@ -235,6 +235,71 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_history: {
+        Row: {
+          fields_sent: Json
+          id: string
+          media_count: number
+          schedule_type: Database["public"]["Enums"]["webhook_schedule_type"]
+          sent_at: string | null
+          status: string
+          webhook_url_id: string
+        }
+        Insert: {
+          fields_sent?: Json
+          id?: string
+          media_count?: number
+          schedule_type?: Database["public"]["Enums"]["webhook_schedule_type"]
+          sent_at?: string | null
+          status: string
+          webhook_url_id: string
+        }
+        Update: {
+          fields_sent?: Json
+          id?: string
+          media_count?: number
+          schedule_type?: Database["public"]["Enums"]["webhook_schedule_type"]
+          sent_at?: string | null
+          status?: string
+          webhook_url_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_webhook_url"
+            columns: ["webhook_url_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_urls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_urls: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -262,7 +327,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      webhook_schedule_type: "manual" | "hourly" | "daily" | "weekly"
     }
     CompositeTypes: {
       [_ in never]: never
