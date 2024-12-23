@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MediaItem } from "../media/types";
+import WebhookUrlManager from "./WebhookUrlManager";
+import WebhookHistoryTable from "./WebhookHistoryTable";
 
 interface WebhookInterfaceProps {
   schedule?: "manual" | "hourly" | "daily" | "weekly";
@@ -30,7 +32,7 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
     if (!webhookUrl.trim()) {
       toast({
         title: "Error",
-        description: "Please enter a webhook URL",
+        description: "Please enter or select a webhook URL",
         variant: "destructive",
       });
       return;
@@ -77,6 +79,19 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         }),
       });
 
+      // Store webhook history
+      const { error: historyError } = await supabase
+        .from('webhook_history')
+        .insert([{
+          webhook_url_id: webhookUrl,
+          fields_sent: selectedFields,
+          schedule_type: schedule,
+          status: 'success',
+          media_count: selectedMedia.length
+        }]);
+
+      if (historyError) throw historyError;
+
       toast({
         title: "Success",
         description: schedule === "manual" 
@@ -90,6 +105,17 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         description: "Failed to send data to webhook",
         variant: "destructive",
       });
+
+      // Store failed attempt
+      await supabase
+        .from('webhook_history')
+        .insert([{
+          webhook_url_id: webhookUrl,
+          fields_sent: selectedFields,
+          schedule_type: schedule,
+          status: 'failed',
+          media_count: selectedMedia.length
+        }]);
     } finally {
       setIsLoading(false);
     }
@@ -97,12 +123,7 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
 
   return (
     <div className="space-y-4">
-      <Input
-        value={webhookUrl}
-        onChange={(e) => setWebhookUrl(e.target.value)}
-        placeholder="Enter webhook URL..."
-        className="flex-1 bg-white/5 border-white/10 text-white"
-      />
+      <WebhookUrlManager onUrlSelect={setWebhookUrl} />
       
       <div className="space-y-2">
         <Label className="text-white">Select Fields to Send ({selectedMedia.length} items selected)</Label>
@@ -134,6 +155,8 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
       >
         {schedule === "manual" ? `Send Selected Media (${selectedMedia.length})` : `Schedule ${schedule} updates`}
       </Button>
+
+      <WebhookHistoryTable />
     </div>
   );
 };
