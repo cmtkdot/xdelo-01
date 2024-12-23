@@ -22,8 +22,6 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('Processing natural language query:', message);
-    console.log('Using AI settings:', settings);
-    console.log('Training context length:', trainingContext?.length || 0);
 
     // First, determine if this is a SQL query or webhook action
     const intentResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -85,12 +83,17 @@ serve(async (req) => {
       
       console.log('Generated SQL query:', sqlQuery);
 
-      // Execute the query
+      // Execute the query using the safe execution function
       const { data: queryResult, error: queryError } = await supabase.rpc('execute_safe_query', {
         query_text: sqlQuery
       });
 
-      if (queryError) throw queryError;
+      if (queryError) {
+        console.error('Error executing query:', queryError);
+        throw queryError;
+      }
+
+      console.log('Query result:', queryResult);
 
       return new Response(
         JSON.stringify({

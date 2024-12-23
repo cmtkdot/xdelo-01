@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { QueryResultChart } from "@/components/ai-chat/QueryResultChart";
 import { AISettingsPanel, AISettings } from "@/components/ai-chat/AISettings";
 import { AITrainingPanel } from "@/components/ai-chat/AITrainingPanel";
+import { MediaDataTable } from "@/components/media/MediaDataTable";
 import { Tables } from "@/integrations/supabase/types";
 
 interface Message {
@@ -172,6 +173,10 @@ const AiChat = () => {
         </div>
 
         <div className="p-4 border-t border-white/10">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-white mb-2">Media Data</h2>
+            <MediaDataTable />
+          </div>
           <AITrainingPanel />
           <form onSubmit={sendMessage} className="mt-4">
             <div className="flex gap-2">
