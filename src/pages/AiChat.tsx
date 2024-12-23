@@ -1,47 +1,47 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 const AiChat = () => {
-  const [iframeUrl, setIframeUrl] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const initializeChatbot = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        const { data, error } = await supabase.functions.invoke('create-chatbot-session', {
-          body: { user },
-        });
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
 
-        if (error) throw error;
-        
-        setIframeUrl(data.url);
-      } catch (error) {
-        console.error('Error initializing chatbot:', error);
-        toast({
-          title: "Error",
-          description: "Failed to initialize chat. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const userMessage = input.trim();
+    setInput("");
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setIsLoading(true);
 
-    initializeChatbot();
-  }, [toast]);
+    try {
+      const { data, error } = await supabase.functions.invoke('chat-with-claude', {
+        body: { message: userMessage },
+      });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
-      </div>
-    );
-  }
+      if (error) throw error;
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
@@ -53,19 +53,55 @@ const AiChat = () => {
           </p>
         </div>
         
-        {iframeUrl ? (
-          <div className="flex-1 relative">
-            <iframe
-              src={iframeUrl}
-              className="absolute inset-0 w-full h-full rounded-b-lg"
-              style={{ minHeight: "600px" }}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`flex ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              <div
+                className={`max-w-[80%] p-3 rounded-lg ${
+                  message.role === 'user'
+                    ? 'bg-purple-500/20 ml-auto'
+                    : 'bg-white/5'
+                }`}
+              >
+                <p className="text-white/90 whitespace-pre-wrap">
+                  {message.content}
+                </p>
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-white/5 p-3 rounded-lg">
+                <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={sendMessage} className="p-4 border-t border-white/10">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your message..."
+              className="glass-input flex-1"
+              disabled={isLoading}
             />
+            <button
+              type="submit"
+              className="glass-button"
+              disabled={isLoading || !input.trim()}
+            >
+              <Send className="w-5 h-5" />
+            </button>
           </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-white/60">Failed to load chat interface</p>
-          </div>
-        )}
+        </form>
       </div>
     </div>
   );
