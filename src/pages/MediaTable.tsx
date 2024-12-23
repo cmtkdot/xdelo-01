@@ -90,9 +90,9 @@ const MediaTable = () => {
       
       <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg">
         <ScrollArea className="h-[calc(100vh-16rem)] rounded-lg">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-w-full inline-block">
             <Table>
-              <TableHeader className="bg-black/60 sticky top-0">
+              <TableHeader className="bg-black/60 sticky top-0 z-10">
                 <TableRow>
                   <TableHead className="text-sky-400 min-w-[200px]">File Name</TableHead>
                   <TableHead className="text-sky-400 min-w-[150px]">Type</TableHead>
@@ -106,7 +106,7 @@ const MediaTable = () => {
               <TableBody>
                 {mediaItems?.map((item) => (
                   <TableRow key={item.id} className="hover:bg-white/5">
-                    <TableCell className="font-medium text-white/90">
+                    <TableCell className="font-medium text-white/90 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         {item.media_type.includes('image') ? (
                           <ImageIcon className="w-4 h-4 text-sky-400" />
@@ -116,26 +116,28 @@ const MediaTable = () => {
                         {item.file_name}
                       </div>
                     </TableCell>
-                    <TableCell className="text-white/70">{item.media_type}</TableCell>
-                    <TableCell className="text-white/70">{item.chat?.title || 'N/A'}</TableCell>
-                    <TableCell className="text-white/70">
+                    <TableCell className="text-white/70 whitespace-nowrap">{item.media_type}</TableCell>
+                    <TableCell className="text-white/70 whitespace-nowrap">{item.chat?.title || 'N/A'}</TableCell>
+                    <TableCell className="text-white/70 whitespace-nowrap">
                       {item.created_at ? format(new Date(item.created_at), 'PPpp') : 'N/A'}
                     </TableCell>
-                    <TableCell className="max-w-md truncate text-white/70">
-                      {item.caption || 'No caption'}
+                    <TableCell className="text-white/70">
+                      <div className="max-w-[300px] truncate">
+                        {item.caption || 'No caption'}
+                      </div>
                     </TableCell>
                     <TableCell className="text-white/70">
                       <button
                         onClick={() => openFileInNewTab(item.file_url)}
                         className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group"
                       >
-                        <Link2 className="w-4 h-4" />
+                        <Link2 className="w-4 h-4 flex-shrink-0" />
                         <span className="truncate max-w-[300px] group-hover:underline">
                           {item.file_url}
                         </span>
                       </button>
                     </TableCell>
-                    <TableCell className="text-right space-x-2">
+                    <TableCell className="text-right space-x-2 whitespace-nowrap">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
