@@ -13,6 +13,8 @@ export type MediaItem = Database['public']['Tables']['media']['Row'] & {
     title: string;
     username: string;
   };
+  google_drive_id?: string;
+  google_drive_url?: string;
 };
 
 export type Channel = {

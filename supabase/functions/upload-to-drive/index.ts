@@ -7,7 +7,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -56,8 +55,29 @@ serve(async (req) => {
     const result = await uploadResponse.json()
     console.log('Successfully uploaded to Google Drive:', result)
 
+    // Get the Google Drive file link
+    const driveFileUrl = `https://drive.google.com/file/d/${result.id}/view`;
+
+    // Update the media record with Google Drive information
+    const { error: updateError } = await supabase
+      .from('media')
+      .update({
+        google_drive_id: result.id,
+        google_drive_url: driveFileUrl
+      })
+      .eq('file_url', fileUrl);
+
+    if (updateError) {
+      console.error('Error updating media record:', updateError);
+      throw updateError;
+    }
+
     return new Response(
-      JSON.stringify({ success: true, fileId: result.id }),
+      JSON.stringify({ 
+        success: true, 
+        fileId: result.id,
+        fileUrl: driveFileUrl 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {

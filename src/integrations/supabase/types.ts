@@ -154,6 +154,8 @@ export type Database = {
           created_at: string | null
           file_name: string
           file_url: string
+          google_drive_id: string | null
+          google_drive_url: string | null
           id: string
           media_group_id: string | null
           media_type: string
@@ -168,6 +170,8 @@ export type Database = {
           created_at?: string | null
           file_name: string
           file_url: string
+          google_drive_id?: string | null
+          google_drive_url?: string | null
           id?: string
           media_group_id?: string | null
           media_type: string
@@ -182,6 +186,8 @@ export type Database = {
           created_at?: string | null
           file_name?: string
           file_url?: string
+          google_drive_id?: string | null
+          google_drive_url?: string | null
           id?: string
           media_group_id?: string | null
           media_type?: string
