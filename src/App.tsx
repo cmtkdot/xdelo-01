@@ -10,6 +10,7 @@ import Media from "./pages/Media";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Webhooks from "./pages/Webhooks";
+import AiChat from "./pages/AiChat";
 import { Toaster } from "./components/ui/toaster";
 import { SidebarProvider } from "./components/ui/sidebar";
 
@@ -57,6 +58,7 @@ function App() {
                           <Route path="/media" element={<Media />} />
                           <Route path="/webhooks" element={<Webhooks />} />
                           <Route path="/settings" element={<Settings />} />
+                          <Route path="/ai-chat" element={<AiChat />} />
                           <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>
                       </main>

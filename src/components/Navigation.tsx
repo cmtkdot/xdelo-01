@@ -7,7 +7,8 @@ import {
   Settings,
   LogOut,
   Webhook,
-  Menu
+  Menu,
+  Bot
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +30,7 @@ const Navigation = () => {
     { path: "/messages", icon: MessageSquare, label: "Messages" },
     { path: "/media", icon: Image, label: "Media" },
     { path: "/webhooks", icon: Webhook, label: "Webhooks" },
+    { path: "/ai-chat", icon: Bot, label: "AI Chat" },
     { path: "/settings", icon: Settings, label: "Settings" },
   ];
 
