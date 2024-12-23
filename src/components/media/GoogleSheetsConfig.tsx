@@ -9,7 +9,7 @@ interface GoogleSheetsConfigProps {
 }
 
 export const GoogleSheetsConfig = ({ onSpreadsheetIdSet }: GoogleSheetsConfigProps) => {
-  const [spreadsheetId, setSpreadsheetId] = useState("");
+  const [spreadsheetId, setSpreadsheetId] = useState("1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w");
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {

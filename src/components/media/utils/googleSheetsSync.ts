@@ -14,6 +14,8 @@ const formatMediaForSheets = (items: MediaItem[]) => {
   ]));
 };
 
+declare const gapi: any;
+
 // Function to sync data with Google Sheets
 export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: MediaItem[]) => {
   try {
@@ -22,7 +24,7 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
     // First, we need to get access to the Google Sheets API
     const response = await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'A2:H', // Assuming headers are in row 1
+      range: 'Supabase!A2:H', // Specifically targeting the "Supabase" sheet
       valueInputOption: 'RAW',
       resource: {
         values: formattedData
