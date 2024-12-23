@@ -106,9 +106,25 @@ serve(async (req) => {
 
     } else if (intent === 'webhook') {
       // Get webhook URLs for context
-      const { data: webhookUrls } = await supabase
+      const { data: webhookUrls, error: webhookError } = await supabase
         .from('webhook_urls')
         .select('*');
+
+      if (webhookError) {
+        throw new Error(`Error fetching webhook URLs: ${webhookError.message}`);
+      }
+
+      if (!webhookUrls || webhookUrls.length === 0) {
+        return new Response(
+          JSON.stringify({
+            error: 'No webhook URLs configured. Please add a webhook URL first.'
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
 
       // Generate webhook action
       const webhookResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -142,24 +158,49 @@ serve(async (req) => {
       const webhook = webhookUrls?.find(w => w.id === webhookAction.webhookId);
       
       if (!webhook) {
-        throw new Error('Webhook not found');
+        return new Response(
+          JSON.stringify({
+            error: 'Selected webhook not found. Please verify webhook configuration.'
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
 
-      // Execute webhook
-      const webhookResult = await fetch(webhook.url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(webhookAction.data),
-      });
+      try {
+        // Execute webhook
+        const webhookResult = await fetch(webhook.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(webhookAction.data),
+        });
 
-      return new Response(
-        JSON.stringify({
-          type: 'webhook',
-          action: webhookAction,
-          result: 'Webhook executed successfully'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        if (!webhookResult.ok) {
+          throw new Error(`Webhook request failed with status: ${webhookResult.status}`);
+        }
+
+        return new Response(
+          JSON.stringify({
+            type: 'webhook',
+            action: webhookAction,
+            result: 'Webhook executed successfully'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (webhookError) {
+        console.error('Webhook execution error:', webhookError);
+        return new Response(
+          JSON.stringify({
+            error: `Failed to execute webhook: ${webhookError.message}`
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
     }
 
     throw new Error('Invalid intent detected');
@@ -167,7 +208,9 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error processing natural language:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message || 'An unexpected error occurred while processing your request'
+      }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
