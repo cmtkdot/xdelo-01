@@ -40,49 +40,47 @@ export function MediaDataTable() {
 
   return (
     <ScrollArea className="h-[calc(100vh-16rem)] rounded-md border">
-      <div className="relative w-full overflow-auto">
-        <div className="min-w-full inline-block align-middle">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[200px]">File Name</TableHead>
-                <TableHead className="min-w-[150px]">Type</TableHead>
-                <TableHead className="min-w-[150px]">Channel</TableHead>
-                <TableHead className="min-w-[200px]">Created At</TableHead>
-                <TableHead className="min-w-[300px]">Caption</TableHead>
-                <TableHead className="min-w-[400px]">File URL</TableHead>
+      <div className="relative min-w-full">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[200px]">File Name</TableHead>
+              <TableHead className="min-w-[150px]">Type</TableHead>
+              <TableHead className="min-w-[150px]">Channel</TableHead>
+              <TableHead className="min-w-[200px]">Created At</TableHead>
+              <TableHead className="min-w-[300px]">Caption</TableHead>
+              <TableHead className="min-w-[400px]">File URL</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {mediaItems?.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell className="font-medium whitespace-nowrap">{item.file_name}</TableCell>
+                <TableCell className="whitespace-nowrap">{item.media_type}</TableCell>
+                <TableCell className="whitespace-nowrap">{item.chat?.title || 'N/A'}</TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {item.created_at 
+                    ? format(new Date(item.created_at), 'PPpp')
+                    : 'N/A'}
+                </TableCell>
+                <TableCell className="max-w-md truncate">
+                  {item.caption || 'No caption'}
+                </TableCell>
+                <TableCell>
+                  <button
+                    onClick={() => openFileInNewTab(item.file_url)}
+                    className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors"
+                  >
+                    <Link2 className="w-4 h-4" />
+                    <span className="truncate max-w-xs">
+                      {item.file_url}
+                    </span>
+                  </button>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mediaItems?.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium whitespace-nowrap">{item.file_name}</TableCell>
-                  <TableCell className="whitespace-nowrap">{item.media_type}</TableCell>
-                  <TableCell className="whitespace-nowrap">{item.chat?.title || 'N/A'}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {item.created_at 
-                      ? format(new Date(item.created_at), 'PPpp')
-                      : 'N/A'}
-                  </TableCell>
-                  <TableCell className="max-w-md truncate">
-                    {item.caption || 'No caption'}
-                  </TableCell>
-                  <TableCell>
-                    <button
-                      onClick={() => openFileInNewTab(item.file_url)}
-                      className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors"
-                    >
-                      <Link2 className="w-4 h-4" />
-                      <span className="truncate max-w-xs">
-                        {item.file_url}
-                      </span>
-                    </button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </ScrollArea>
   );

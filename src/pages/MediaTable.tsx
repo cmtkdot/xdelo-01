@@ -90,7 +90,7 @@ const MediaTable = () => {
       
       <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg">
         <ScrollArea className="h-[calc(100vh-16rem)] rounded-lg">
-          <div className="overflow-x-auto min-w-full inline-block">
+          <div className="relative min-w-full">
             <Table>
               <TableHeader className="bg-black/60 sticky top-0 z-10">
                 <TableRow>
