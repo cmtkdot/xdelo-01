@@ -1,24 +1,12 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 import { AISettings } from "@/components/ai-chat/AISettings";
 import { AITrainingPanel } from "@/components/ai-chat/AITrainingPanel";
 import { ChatInput } from "@/components/ai-chat/ChatInput";
-import { ChatMessages } from "@/components/ai-chat/ChatMessages";
+import { ChatMessages, Message } from "@/components/ai-chat/ChatMessages";
 import { ChatHeader } from "@/components/ai-chat/ChatHeader";
-import WebhookUrlManager from "@/components/webhook/WebhookUrlManager";
 import { Bot } from "lucide-react";
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  metadata?: {
-    type?: 'sql' | 'webhook';
-    query?: string;
-    result?: any;
-  };
-}
 
 const AiChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -32,36 +20,6 @@ const AiChat = () => {
     model: 'gpt-4o-mini'
   });
   const { toast } = useToast();
-  const navigate = useNavigate();
-
-  const handleWebhookError = (error: any) => {
-    if (error.body && typeof error.body === 'string') {
-      try {
-        const parsedError = JSON.parse(error.body);
-        if (parsedError.error === 'No webhook URLs configured. Please add a webhook URL first.') {
-          toast({
-            title: "Webhook Configuration Required",
-            description: (
-              <div className="flex flex-col gap-2">
-                <p>No webhook URLs are configured. Please add a webhook URL first.</p>
-                <button
-                  onClick={() => navigate('/webhooks')}
-                  className="text-blue-500 hover:text-blue-600 underline"
-                >
-                  Go to Webhook Configuration
-                </button>
-              </div>
-            ),
-            variant: "destructive",
-          });
-          return true;
-        }
-      } catch (e) {
-        console.error('Error parsing error body:', e);
-      }
-    }
-    return false;
-  };
 
   const getTrainingContext = async () => {
     const { data: trainingData, error } = await supabase
@@ -101,11 +59,7 @@ const AiChat = () => {
       });
 
       if (nlError) {
-        if (!handleWebhookError(nlError)) {
-          throw nlError;
-        }
-        setShowWebhookConfig(true);
-        return;
+        throw nlError;
       }
 
       if (nlData) {
@@ -113,8 +67,12 @@ const AiChat = () => {
           role: 'assistant',
           content: nlData.type === 'sql' 
             ? `I executed the following SQL query:\n\`\`\`sql\n${nlData.query}\n\`\`\`\n\nResults:\n\`\`\`json\n${JSON.stringify(nlData.result, null, 2)}\n\`\`\``
-            : `I executed the webhook action:\n\`\`\`json\n${JSON.stringify(nlData.action, null, 2)}\n\`\`\`\n\nResult: ${nlData.result}`,
-          metadata: nlData
+            : nlData.content,
+          metadata: {
+            type: 'sql',
+            query: nlData.query,
+            result: nlData.result
+          }
         };
         setMessages(prev => [...prev, assistantMessage]);
         return;
@@ -167,7 +125,6 @@ const AiChat = () => {
             <p className="text-white/60 text-sm mb-4">
               Add webhook URLs to allow the AI to send data to external services
             </p>
-            <WebhookUrlManager onUrlSelect={() => setShowWebhookConfig(false)} />
           </div>
         )}
 
