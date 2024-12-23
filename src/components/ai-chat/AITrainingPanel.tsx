@@ -83,7 +83,7 @@ export const AITrainingPanel = () => {
   return (
     <div className="space-y-4 p-4 bg-black/20 rounded-lg border border-white/10">
       <Select value={category} onValueChange={setCategory}>
-        <SelectTrigger>
+        <SelectTrigger className="text-white bg-black/40 border-white/10">
           <SelectValue placeholder="Select category" />
         </SelectTrigger>
         <SelectContent>
@@ -98,14 +98,14 @@ export const AITrainingPanel = () => {
         placeholder="Title"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="bg-black/40 border-white/10"
+        className="text-white bg-black/40 border-white/10 placeholder:text-white/50"
       />
 
       <Textarea
         placeholder="Content"
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        className="min-h-[200px] bg-black/40 border-white/10"
+        className="min-h-[200px] text-white bg-black/40 border-white/10 placeholder:text-white/50"
       />
 
       <div className="flex gap-2">
