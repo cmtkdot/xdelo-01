@@ -7,6 +7,7 @@ import Navigation from "./components/Navigation";
 import Index from "./pages/Index";
 import Messages from "./pages/Messages";
 import Media from "./pages/Media";
+import MediaData from "./pages/MediaData";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Webhooks from "./pages/Webhooks";
@@ -35,12 +36,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <SidebarProvider>
-          <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/40 via-black to-black overflow-hidden">
+          <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-black to-black overflow-hidden">
             {/* Animated background elements */}
             <div className="fixed inset-0 pointer-events-none">
               <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-40"></div>
-              <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float"></div>
-              <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
+              <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gray-500/10 rounded-full blur-3xl animate-float"></div>
+              <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gray-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
             </div>
             
             <Routes>
@@ -56,6 +57,7 @@ function App() {
                           <Route path="/" element={<Index />} />
                           <Route path="/messages" element={<Messages />} />
                           <Route path="/media" element={<Media />} />
+                          <Route path="/media-data" element={<MediaData />} />
                           <Route path="/webhooks" element={<Webhooks />} />
                           <Route path="/settings" element={<Settings />} />
                           <Route path="/ai-chat" element={<AiChat />} />
