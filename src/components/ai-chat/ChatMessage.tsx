@@ -1,18 +1,8 @@
 import { QueryResultChart } from "./QueryResultChart";
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Image } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  metadata?: {
-    type?: 'sql';
-    query?: string;
-    result?: any;
-    imageUrl?: string;
-  };
-}
+import { Message } from "./ChatMessages";
 
 interface ChatMessageProps {
   message: Message;

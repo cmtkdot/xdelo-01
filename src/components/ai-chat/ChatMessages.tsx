@@ -1,13 +1,14 @@
 import { Loader2 } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 
-interface Message {
+export interface Message {
   role: 'user' | 'assistant';
   content: string;
   metadata?: {
-    type?: 'sql' | 'webhook';
+    type?: 'sql' | 'image';
     query?: string;
     result?: any;
+    imageUrl?: string;
   };
 }
 
