@@ -1,39 +1,35 @@
-import { Home, Image, MessageSquare, Settings, Table, Database, Bot } from "lucide-react";
+import { navigationItems } from "./navigationConfig";
+import { NavLink } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
-export const navigationItems = [
-  {
-    name: "Dashboard",
-    href: "/",
-    icon: Home,
-  },
-  {
-    name: "Media",
-    href: "/media",
-    icon: Image,
-  },
-  {
-    name: "Media Data",
-    href: "/media-data",
-    icon: Database,
-  },
-  {
-    name: "Media Table",
-    href: "/media-table",
-    icon: Table,
-  },
-  {
-    name: "Messages",
-    href: "/messages",
-    icon: MessageSquare,
-  },
-  {
-    name: "AI Chat",
-    href: "/ai-chat",
-    icon: Bot,
-  },
-  {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
-];
+interface NavigationItemsProps {
+  className?: string;
+  onClick?: () => void;
+}
+
+export function NavigationItems({ className, onClick }: NavigationItemsProps) {
+  return (
+    <nav className={className}>
+      {navigationItems.map((item) => {
+        const Icon = item.icon;
+        return (
+          <NavLink
+            key={item.href}
+            to={item.href}
+            onClick={onClick}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                "hover:bg-white/10",
+                isActive ? "bg-white/10 text-white" : "text-white/60"
+              )
+            }
+          >
+            <Icon className="w-4 h-4" />
+            <span>{item.name}</span>
+          </NavLink>
+        );
+      })}
+    </nav>
+  );
+}
