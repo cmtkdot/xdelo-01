@@ -10,15 +10,15 @@ import {
 } from "@/components/ui/table";
 import { MediaItem } from "@/components/media/types";
 import { format } from "date-fns";
+import { FileSpreadsheet, ExternalLink, Image as ImageIcon, Link2, Upload } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileSpreadsheet, ExternalLink, Image as ImageIcon, Link2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
