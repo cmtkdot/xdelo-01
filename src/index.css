@@ -76,16 +76,36 @@
   }
 }
 
-@keyframes glow {
-  0%, 100% {
-    box-shadow: 0 0 5px theme('colors.purple.500'),
-                0 0 10px theme('colors.purple.400'),
-                0 0 15px theme('colors.purple.300');
+@layer utilities {
+  .animate-gradient {
+    background-size: 400%;
+    -webkit-animation: gradient 8s ease infinite;
+    animation: gradient 8s ease infinite;
+  }
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
   }
   50% {
-    box-shadow: 0 0 10px theme('colors.purple.500'),
-                0 0 20px theme('colors.purple.400'),
-                0 0 30px theme('colors.purple.300');
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px theme('colors.blue.500'),
+                0 0 10px theme('colors.blue.400'),
+                0 0 15px theme('colors.blue.300');
+  }
+  50% {
+    box-shadow: 0 0 10px theme('colors.blue.500'),
+                0 0 20px theme('colors.blue.400'),
+                0 0 30px theme('colors.blue.300');
   }
 }
 
@@ -95,13 +115,26 @@
 
 @keyframes pulse-border {
   0%, 100% {
-    border-color: rgba(139, 92, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.1);
   }
   50% {
-    border-color: rgba(139, 92, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.3);
   }
 }
 
 .animate-border-pulse {
   animation: pulse-border 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }
