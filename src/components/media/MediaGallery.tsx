@@ -69,16 +69,18 @@ const MediaGallery = () => {
 
   return (
     <div className="w-full max-w-[2000px] mx-auto space-y-6">
-      <div className="flex items-center gap-2">
-        <Image className="w-6 h-6 text-[#0088cc]" />
-        <h2 className="text-xl font-semibold text-white">Media Gallery</h2>
+      <div className="flex items-center gap-2 glass-card p-4 animate-fade-in">
+        <Image className="w-6 h-6 text-purple-400" />
+        <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 text-transparent bg-clip-text">
+          Media Gallery
+        </h2>
       </div>
       
-      <div className="w-full bg-black/20 rounded-lg p-4 backdrop-blur-sm">
+      <div className="glass-card p-6 animate-fade-in">
         <WebhookInterface selectedMedia={getSelectedMediaData()} />
       </div>
       
-      <div className="w-full bg-black/20 rounded-lg p-4 backdrop-blur-sm">
+      <div className="glass-card p-6 animate-fade-in">
         <MediaFilters
           selectedChannel={filter.selectedChannel}
           setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
@@ -89,7 +91,7 @@ const MediaGallery = () => {
       </div>
 
       {!mediaItems || mediaItems.length === 0 ? (
-        <div className="text-center py-8 bg-black/20 rounded-lg backdrop-blur-sm">
+        <div className="glass-card p-8 text-center animate-fade-in">
           <p className="text-gray-400">
             No media files yet. Send some media to your Telegram bot!
           </p>

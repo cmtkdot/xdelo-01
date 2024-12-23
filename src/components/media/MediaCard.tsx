@@ -13,21 +13,21 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const isVideo = item.media_type === "video";
 
   return (
-    <Card className="group relative overflow-hidden bg-black/20 border-white/10 hover:border-white/20 transition-colors">
+    <Card className="group relative overflow-hidden glass-card hover:neo-glow transition-all duration-300 animate-scale-in">
       <div className="absolute top-2 left-2 z-10">
         <Checkbox
           checked={isSelected}
           onCheckedChange={() => onToggleSelect(item.id)}
-          className="bg-white/10 border-white/20 data-[state=checked]:bg-[#0088cc] data-[state=checked]:border-[#0088cc]"
+          className="bg-white/10 border-white/20 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
         />
       </div>
       
       <CardContent className="p-0 flex flex-col h-full">
-        <div className="aspect-video relative">
+        <div className="aspect-video relative group-hover:scale-105 transition-transform duration-300">
           {isVideo ? (
             <video
               src={item.file_url}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-t-lg"
               controls
               preload="metadata"
             />
@@ -35,13 +35,13 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
             <img
               src={item.file_url}
               alt={item.caption || "Media"}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-t-lg"
               loading="lazy"
             />
           )}
         </div>
         
-        <div className="p-3 md:p-4 space-y-2 flex-1 flex flex-col">
+        <div className="p-3 md:p-4 space-y-2 flex-1 flex flex-col bg-black/20 backdrop-blur-sm">
           {item.caption && (
             <p className="text-sm text-white/80 line-clamp-2 flex-1">
               {item.caption}
