@@ -25,6 +25,10 @@ serve(async (req) => {
       throw new Error("Missing Anthropic API key");
     }
 
+    if (!Array.isArray(messages)) {
+      throw new Error("Messages must be an array");
+    }
+
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -69,6 +73,8 @@ serve(async (req) => {
     // Prepare messages array with system message
     const allMessages = [systemMessage, ...messages];
 
+    console.log('Sending request to Anthropic with messages:', allMessages);
+
     // Make request to Anthropic's API
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -94,7 +100,7 @@ serve(async (req) => {
     const result = await response.json();
     console.log('Claude response:', result);
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(result.content), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

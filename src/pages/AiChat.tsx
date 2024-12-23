@@ -20,17 +20,23 @@ const AiChat = () => {
 
     const userMessage = input.trim();
     setInput("");
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    
+    const newUserMessage = { role: 'user', content: userMessage };
+    setMessages(prev => [...prev, newUserMessage]);
     setIsLoading(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('chat-with-claude', {
-        body: { message: userMessage },
+        body: { messages: [...messages, newUserMessage] },
       });
 
       if (error) throw error;
       
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+      if (data.content) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+      } else {
+        throw new Error('Invalid response format from AI');
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
