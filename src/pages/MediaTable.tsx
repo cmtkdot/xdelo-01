@@ -3,30 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { MediaItem } from "@/components/media/types";
-import { format } from "date-fns";
-import { FileSpreadsheet, ExternalLink, Image as ImageIcon, Link2, Upload } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import GoogleDriveUploader from "@/components/media/GoogleDriveUploader";
+import { MediaTableHeader } from "@/components/media/table/MediaTableHeader";
+import { MediaTableRow } from "@/components/media/table/MediaTableRow";
 
 const MediaTable = () => {
   const { toast } = useToast();
@@ -83,10 +68,7 @@ const MediaTable = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
-        <FileSpreadsheet className="w-6 h-6 text-sky-400" />
-        <h1 className="text-xl font-semibold text-white">Media Table View</h1>
-      </div>
+      <MediaTableHeader />
       
       <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg">
         <ScrollArea className="h-[calc(100vh-16rem)] rounded-lg">
@@ -105,75 +87,11 @@ const MediaTable = () => {
               </TableHeader>
               <TableBody>
                 {mediaItems?.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-white/5">
-                    <TableCell className="font-medium text-white/90 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        {item.media_type.includes('image') ? (
-                          <ImageIcon className="w-4 h-4 text-sky-400" />
-                        ) : (
-                          <FileSpreadsheet className="w-4 h-4 text-sky-400" />
-                        )}
-                        {item.file_name}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-white/70 whitespace-nowrap">{item.media_type}</TableCell>
-                    <TableCell className="text-white/70 whitespace-nowrap">{item.chat?.title || 'N/A'}</TableCell>
-                    <TableCell className="text-white/70 whitespace-nowrap">
-                      {item.created_at ? format(new Date(item.created_at), 'PPpp') : 'N/A'}
-                    </TableCell>
-                    <TableCell className="text-white/70">
-                      <div className="max-w-[300px] truncate">
-                        {item.caption || 'No caption'}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-white/70">
-                      <button
-                        onClick={() => openFileInNewTab(item.file_url)}
-                        className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group"
-                      >
-                        <Link2 className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate max-w-[300px] group-hover:underline">
-                          {item.file_url}
-                        </span>
-                      </button>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2 whitespace-nowrap">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => openFileInNewTab(item.file_url)}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 hover:text-sky-300 transition-all duration-200 font-medium"
-                            >
-                              View <ExternalLink className="w-4 h-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Open file in new tab</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <button
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-green-500/20 text-green-400 hover:bg-green-500/30 hover:text-green-300 transition-all duration-200 font-medium"
-                          >
-                            Drive <Upload className="w-4 h-4" />
-                          </button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Upload to Google Drive</DialogTitle>
-                          </DialogHeader>
-                          <GoogleDriveUploader
-                            fileUrl={item.file_url}
-                            fileName={item.file_name}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                    </TableCell>
-                  </TableRow>
+                  <MediaTableRow
+                    key={item.id}
+                    item={item}
+                    onOpenFile={openFileInNewTab}
+                  />
                 ))}
               </TableBody>
             </Table>
