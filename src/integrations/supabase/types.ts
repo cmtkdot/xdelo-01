@@ -115,6 +115,7 @@ export type Database = {
       }
       media: {
         Row: {
+          additional_data: Json | null
           caption: string | null
           chat_id: number | null
           created_at: string | null
@@ -128,6 +129,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          additional_data?: Json | null
           caption?: string | null
           chat_id?: number | null
           created_at?: string | null
@@ -141,6 +143,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          additional_data?: Json | null
           caption?: string | null
           chat_id?: number | null
           created_at?: string | null
@@ -162,24 +165,6 @@ export type Database = {
             referencedColumns: ["chat_id"]
           },
         ]
-      }
-      media_tags: {
-        Row: {
-          created_at: string | null
-          media_id: string
-          tag_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          media_id: string
-          tag_id: string
-        }
-        Update: {
-          created_at?: string | null
-          media_id?: string
-          tag_id?: string
-        }
-        Relationships: []
       }
       messages: {
         Row: {
@@ -214,24 +199,6 @@ export type Database = {
           sender_name?: string
           text?: string | null
           user_id?: string
-        }
-        Relationships: []
-      }
-      tags: {
-        Row: {
-          created_at: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          name?: string
         }
         Relationships: []
       }
@@ -305,17 +272,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      add_media_tags: {
-        Args: {
-          p_media_id: string
-          p_tags: string[]
-        }
-        Returns: {
-          created_at: string | null
-          media_id: string
-          tag_id: string
-        }[]
-      }
       get_media_data: {
         Args: Record<PropertyKey, never>
         Returns: Json

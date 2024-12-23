@@ -15,7 +15,6 @@ import { SidebarProvider } from "./components/ui/sidebar";
 
 const queryClient = new QueryClient();
 
-// Protected Route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
@@ -35,10 +34,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <SidebarProvider>
-          <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/40 via-black to-black">
+          <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/40 via-black to-black overflow-hidden">
             {/* Animated background elements */}
             <div className="fixed inset-0 pointer-events-none">
-              <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-40"></div>
               <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float"></div>
               <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
             </div>
@@ -51,7 +50,7 @@ function App() {
                   <ProtectedRoute>
                     <div className="flex flex-col relative z-10">
                       <Navigation />
-                      <main className="flex-1 p-4 md:p-8 mt-16">
+                      <main className="flex-1 p-4 md:p-8 mt-16 container mx-auto">
                         <Routes>
                           <Route path="/" element={<Index />} />
                           <Route path="/messages" element={<Messages />} />
