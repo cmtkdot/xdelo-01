@@ -75,17 +75,17 @@ const MediaTable = () => {
         <MediaTableHeader />
         
         <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg">
-          <ScrollArea className="h-[calc(100vh-16rem)] rounded-lg">
-            <div className="relative min-w-full">
+          <ScrollArea className="h-[calc(100vh-16rem)] w-full" type="always">
+            <div className="min-w-[1400px]"> {/* Increased minimum width */}
               <Table>
                 <TableHeader className="bg-black/60 sticky top-0 z-10">
                   <TableRow>
-                    <TableHead className="text-sky-400 min-w-[150px]">Type</TableHead>
-                    <TableHead className="text-sky-400 min-w-[150px]">Channel</TableHead>
-                    <TableHead className="text-sky-400 min-w-[200px]">Created At</TableHead>
-                    <TableHead className="text-sky-400 min-w-[300px]">Caption</TableHead>
-                    <TableHead className="text-sky-400 min-w-[400px]">File URL</TableHead>
-                    <TableHead className="text-sky-400 text-right min-w-[200px]">Actions</TableHead>
+                    <TableHead className="text-sky-400 w-[150px]">Type</TableHead>
+                    <TableHead className="text-sky-400 w-[150px]">Channel</TableHead>
+                    <TableHead className="text-sky-400 w-[200px]">Created At</TableHead>
+                    <TableHead className="text-sky-400 w-[300px]">Caption</TableHead>
+                    <TableHead className="text-sky-400 w-[400px]">File URL</TableHead>
+                    <TableHead className="text-sky-400 text-right w-[200px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
