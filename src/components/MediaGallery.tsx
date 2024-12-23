@@ -4,13 +4,13 @@ import useMediaSubscription from "./media/hooks/useMediaSubscription";
 import MediaCard from "./media/MediaCard";
 import MediaFilters from "./media/MediaFilters";
 import MediaGallerySkeleton from "./media/MediaGallerySkeleton";
-import { MediaFilter } from "./types";
+import { MediaFilter } from "./media/types";
 import { Image } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
 import WebhookInterface from "./webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
-import { Channel } from "./types";
+import { Channel } from "./media/types";
 
 const MediaGallery = () => {
   const [filter, setFilter] = useState<MediaFilter>({
