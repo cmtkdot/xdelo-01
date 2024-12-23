@@ -19,6 +19,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import GoogleDriveUploader from "@/components/media/GoogleDriveUploader";
 
 const MediaTable = () => {
   const { toast } = useToast();
@@ -92,7 +100,7 @@ const MediaTable = () => {
                   <TableHead className="text-sky-400 min-w-[200px]">Created At</TableHead>
                   <TableHead className="text-sky-400 min-w-[300px]">Caption</TableHead>
                   <TableHead className="text-sky-400 min-w-[400px]">File URL</TableHead>
-                  <TableHead className="text-sky-400 text-right min-w-[100px]">Actions</TableHead>
+                  <TableHead className="text-sky-400 text-right min-w-[200px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -127,7 +135,7 @@ const MediaTable = () => {
                         </span>
                       </button>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-2">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -143,6 +151,25 @@ const MediaTable = () => {
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
+
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <button
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-green-500/20 text-green-400 hover:bg-green-500/30 hover:text-green-300 transition-all duration-200 font-medium"
+                          >
+                            Drive <Upload className="w-4 h-4" />
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Upload to Google Drive</DialogTitle>
+                          </DialogHeader>
+                          <GoogleDriveUploader
+                            fileUrl={item.file_url}
+                            fileName={item.file_name}
+                          />
+                        </DialogContent>
+                      </Dialog>
                     </TableCell>
                   </TableRow>
                 ))}
