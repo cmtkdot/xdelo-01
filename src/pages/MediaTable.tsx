@@ -65,7 +65,7 @@ const MediaTable = () => {
                 <TableHead className="text-sky-400">Channel</TableHead>
                 <TableHead className="text-sky-400">Created At</TableHead>
                 <TableHead className="text-sky-400">Caption</TableHead>
-                <TableHead className="text-sky-400">File URL</TableHead>
+                <TableHead className="text-sky-400 w-48">File URL</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -89,13 +89,13 @@ const MediaTable = () => {
                   <TableCell className="max-w-md truncate text-white/70">
                     {item.caption || 'No caption'}
                   </TableCell>
-                  <TableCell className="text-white/70">
+                  <TableCell>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
                             onClick={() => openFileInNewTab(item.file_url)}
-                            className="flex items-center gap-1 text-sky-400 hover:text-sky-300 transition-colors font-medium"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 hover:text-sky-300 transition-all duration-200 font-medium"
                           >
                             View File <ExternalLink className="w-4 h-4" />
                           </button>
