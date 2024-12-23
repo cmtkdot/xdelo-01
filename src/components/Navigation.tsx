@@ -8,27 +8,84 @@ import {
   LogOut,
   Webhook,
   Menu,
-  Bot
+  Bot,
+  FileSpreadsheet,
+  Download
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useToast } from "./ui/use-toast";
 
 const Navigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { toast } = useToast();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/login");
   };
 
+  const exportToGoogleSheets = async () => {
+    try {
+      const { data: mediaItems, error } = await supabase
+        .from('media')
+        .select(`
+          *,
+          chat:channels(title, username)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Format data for Google Sheets
+      const formattedData = mediaItems.map(item => ({
+        'File Name': item.file_name,
+        'Type': item.media_type,
+        'Channel': item.chat?.title || 'N/A',
+        'Created At': new Date(item.created_at).toLocaleString(),
+        'Caption': item.caption || 'No caption'
+      }));
+
+      // Create CSV content
+      const headers = Object.keys(formattedData[0]);
+      const csvContent = [
+        headers.join(','),
+        ...formattedData.map(row => headers.map(header => `"${row[header]}"`).join(','))
+      ].join('\n');
+
+      // Create and download CSV file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'media_data.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Export Successful",
+        description: "Your media data has been exported to CSV format",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "There was an error exporting your media data",
+        variant: "destructive",
+      });
+    }
+  };
+
   const navItems = [
     { path: "/", icon: Home, label: "Dashboard" },
     { path: "/messages", icon: MessageSquare, label: "Messages" },
     { path: "/media", icon: Image, label: "Media" },
+    { path: "/media-table", icon: FileSpreadsheet, label: "Media Table" },
     { path: "/webhooks", icon: Webhook, label: "Webhooks" },
     { path: "/ai-chat", icon: Bot, label: "AI Chat" },
     { path: "/settings", icon: Settings, label: "Settings" },
@@ -62,6 +119,16 @@ const Navigation = () => {
                   </Button>
                 </Link>
               ))}
+              {location.pathname === '/media-table' && (
+                <Button
+                  variant="ghost"
+                  onClick={exportToGoogleSheets}
+                  className="text-white hover:bg-white/10 transition-colors"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </Button>
+              )}
             </div>
           </div>
           <Button 
@@ -118,6 +185,16 @@ const Navigation = () => {
                 </Button>
               </Link>
             ))}
+            {location.pathname === '/media-table' && (
+              <Button
+                variant="ghost"
+                onClick={exportToGoogleSheets}
+                className="w-full justify-start text-white hover:bg-white/10 mb-1 transition-colors"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            )}
           </div>
 
           <div className="p-4">
