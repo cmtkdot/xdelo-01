@@ -13,12 +13,12 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const isVideo = item.media_type === "video";
 
   return (
-    <Card className="group relative overflow-hidden glass-card hover:neo-glow transition-all duration-300">
+    <Card className="group relative overflow-hidden backdrop-blur-xl bg-black/40 border border-white/10 hover:bg-black/50 transition-all duration-300">
       <div className="absolute top-2 left-2 z-10">
         <Checkbox
           checked={isSelected}
           onCheckedChange={() => onToggleSelect(item.id)}
-          className="bg-white/10 border-white/20 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+          className="bg-white/20 border-white/30 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
         />
       </div>
       
@@ -41,14 +41,14 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
           )}
         </div>
         
-        <div className="p-2 md:p-3 space-y-1.5 flex-1 flex flex-col bg-black/40 backdrop-blur-sm">
+        <div className="p-2 md:p-3 space-y-1.5 flex-1 flex flex-col bg-black/60 backdrop-blur-sm">
           {item.caption && (
-            <p className="text-xs md:text-sm text-white line-clamp-2 flex-1">
+            <p className="text-xs md:text-sm text-white/90 font-medium line-clamp-2 flex-1">
               {item.caption}
             </p>
           )}
           
-          <div className="flex justify-between items-center text-[10px] md:text-xs text-white/80 mt-auto">
+          <div className="flex justify-between items-center text-[10px] md:text-xs text-white/90 mt-auto font-medium">
             <span className="truncate max-w-[100px] md:max-w-[120px]">
               {item.chat?.title || "Unknown Channel"}
             </span>

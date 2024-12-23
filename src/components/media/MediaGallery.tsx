@@ -69,18 +69,18 @@ const MediaGallery = () => {
 
   return (
     <div className="w-full max-w-[2000px] mx-auto space-y-4">
-      <div className="flex items-center gap-2 glass-card p-4">
+      <div className="flex items-center gap-2 backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
         <Image className="w-6 h-6 text-purple-400" />
-        <h2 className="text-lg md:text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 text-transparent bg-clip-text">
+        <h2 className="text-lg md:text-xl font-bold text-white/90">
           Media Gallery
         </h2>
       </div>
       
-      <div className="glass-card p-4 md:p-6">
+      <div className="backdrop-blur-xl bg-black/40 border border-white/10 p-4 md:p-6 rounded-lg">
         <WebhookInterface selectedMedia={getSelectedMediaData()} />
       </div>
       
-      <div className="glass-card p-4 md:p-6">
+      <div className="backdrop-blur-xl bg-black/40 border border-white/10 p-4 md:p-6 rounded-lg">
         <MediaFilters
           selectedChannel={filter.selectedChannel}
           setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
@@ -91,8 +91,8 @@ const MediaGallery = () => {
       </div>
 
       {!mediaItems || mediaItems.length === 0 ? (
-        <div className="glass-card p-4 md:p-6 text-center">
-          <p className="text-white/80 text-sm md:text-base">
+        <div className="backdrop-blur-xl bg-black/40 border border-white/10 p-4 md:p-6 rounded-lg text-center">
+          <p className="text-white/90 text-sm md:text-base font-medium">
             No media files yet. Send some media to your Telegram bot!
           </p>
         </div>
