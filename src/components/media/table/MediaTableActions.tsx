@@ -23,22 +23,6 @@ interface MediaTableActionsProps {
 export const MediaTableActions = ({ fileUrl, fileName, onView }: MediaTableActionsProps) => {
   return (
     <div className="text-right space-x-2 whitespace-nowrap">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onView}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 hover:text-sky-300 transition-all duration-200 font-medium"
-            >
-              View <ExternalLink className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Open file in new tab</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
       <Dialog>
         <DialogTrigger asChild>
           <button
@@ -57,6 +41,22 @@ export const MediaTableActions = ({ fileUrl, fileName, onView }: MediaTableActio
           />
         </DialogContent>
       </Dialog>
+
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onView}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 hover:text-sky-300 transition-all duration-200 font-medium"
+            >
+              View <ExternalLink className="w-4 h-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Open file in new tab</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 };
