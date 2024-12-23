@@ -1,7 +1,7 @@
 import { useGoogleLogin } from '@react-oauth/google';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Upload } from "lucide-react";
+import { Upload, CloudUpload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const MediaTableHeader = () => {
@@ -16,12 +16,12 @@ export const MediaTableHeader = () => {
       if (error) throw error;
 
       toast({
-        title: "Migration Complete",
-        description: data.message,
+        title: "Migration Started",
+        description: "Files are being migrated to Google Drive. This may take a few minutes.",
       });
 
-      // Refresh the page to show updated data
-      window.location.reload();
+      // Refresh the page to show updated data after a short delay
+      setTimeout(() => window.location.reload(), 5000);
 
     } catch (error) {
       console.error('Error during migration:', error);
@@ -45,9 +45,9 @@ export const MediaTableHeader = () => {
       <h2 className="text-2xl font-semibold text-white">Media Files</h2>
       <Button
         onClick={() => login()}
-        className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+        className="glass-button flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-700 hover:from-green-600 hover:to-emerald-800 text-white font-medium px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
       >
-        <Upload className="w-4 h-4" />
+        <CloudUpload className="w-5 h-5" />
         Migrate All to Google Drive
       </Button>
     </div>
