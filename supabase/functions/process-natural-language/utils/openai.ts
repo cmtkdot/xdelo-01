@@ -44,7 +44,7 @@ export const generateSqlQuery = async (message: string, settings: any, trainingC
           Available tables: media, messages, channels, webhook_urls, webhook_history, ai_training_data.
           Here are some SQL examples and documentation:
           ${trainingContext}
-          Only generate the SQL query, no explanations or markdown formatting.`
+          Return ONLY the raw SQL query without any formatting, quotes, or markdown.`
         },
         { role: 'user', content: message }
       ],
@@ -75,7 +75,8 @@ export const generateWebhookAction = async (message: string, settings: any, trai
           Available webhooks: ${JSON.stringify(webhookUrls)}.
           Here is some context about webhooks and examples:
           ${trainingContext}
-          Return a simple JSON object with webhookId and data properties, no markdown formatting.`
+          Return a raw JSON object with webhookId and data properties. Do not use markdown, code blocks, or any formatting.
+          Example format: {"webhookId": "123", "data": {"key": "value"}}`
         },
         { role: 'user', content: message }
       ],
@@ -92,12 +93,8 @@ export const generateWebhookAction = async (message: string, settings: any, trai
     // Try to parse the response as JSON directly
     return JSON.parse(actionText);
   } catch (error) {
-    // If parsing fails, try to extract JSON from markdown code blocks
-    const jsonMatch = actionText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[1]);
-    }
-    // If no JSON found in markdown, throw error
-    throw new Error('Invalid webhook action format returned from AI');
+    console.error('Error parsing webhook action:', error);
+    console.log('Raw action text:', actionText);
+    throw new Error('Invalid webhook action format returned from AI. Please try again with a clearer request.');
   }
 };
