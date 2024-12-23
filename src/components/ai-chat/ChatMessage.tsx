@@ -7,7 +7,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   metadata?: {
-    type?: 'sql' | 'webhook' | 'image';
+    type?: 'sql';
     query?: string;
     result?: any;
     imageUrl?: string;
@@ -44,31 +44,16 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
     <div
       className={`flex ${
         message.role === 'user' ? 'justify-end' : 'justify-start'
-      }`}
+      } mb-4`}
     >
       <div
-        className={`max-w-[80%] p-3 rounded-lg ${
+        className={`max-w-[80%] p-4 rounded-lg ${
           message.role === 'user'
             ? 'bg-purple-500/20 ml-auto'
             : 'bg-white/5'
         }`}
       >
-        {message.metadata?.type && (
-          <div className="flex items-center gap-2 mb-2 text-sm text-white/60">
-            {message.metadata.type === 'sql' ? (
-              <>Database Query</> 
-            ) : message.metadata.type === 'image' ? (
-              <div className="flex items-center gap-1">
-                <Image className="w-4 h-4" />
-                Image
-              </div>
-            ) : (
-              <>Webhook Action</>
-            )}
-          </div>
-        )}
-        
-        <p className="text-white/90 whitespace-pre-wrap">
+        <p className="text-white/90 whitespace-pre-wrap leading-relaxed">
           {message.content}
         </p>
 
@@ -83,7 +68,7 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
         )}
 
         {hasVisualization && (
-          <div className="mt-2">
+          <div className="mt-4">
             <Button
               variant="ghost"
               size="sm"
@@ -104,7 +89,9 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
             </Button>
             
             {showVisualization && (
-              <QueryResultChart data={message.metadata.result} />
+              <div className="mt-2">
+                <QueryResultChart data={message.metadata.result} />
+              </div>
             )}
           </div>
         )}
