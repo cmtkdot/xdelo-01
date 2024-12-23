@@ -21,7 +21,7 @@ const AiChat = () => {
     const userMessage = input.trim();
     setInput("");
     
-    const newUserMessage = { role: 'user', content: userMessage };
+    const newUserMessage: Message = { role: 'user', content: userMessage };
     setMessages(prev => [...prev, newUserMessage]);
     setIsLoading(true);
 
@@ -40,7 +40,8 @@ const AiChat = () => {
       console.log('Received response from Claude:', data);
 
       if (data.content) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+        const assistantMessage: Message = { role: 'assistant', content: data.content };
+        setMessages(prev => [...prev, assistantMessage]);
       } else {
         throw new Error('Invalid response format from AI');
       }
