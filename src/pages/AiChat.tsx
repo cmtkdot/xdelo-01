@@ -1,21 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Send, Database, Webhook, Settings2, ChartBar } from "lucide-react";
+import { Loader2, Send, Database, Webhook } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Card } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { QueryResultChart } from "@/components/ai-chat/QueryResultChart";
+import { AISettingsPanel, AISettings } from "@/components/ai-chat/AISettings";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -25,12 +13,6 @@ interface Message {
     query?: string;
     result?: any;
   };
-}
-
-interface AISettings {
-  temperature: number;
-  maxTokens: number;
-  streamResponse: boolean;
 }
 
 const AiChat = () => {
@@ -43,41 +25,6 @@ const AiChat = () => {
     streamResponse: true
   });
   const { toast } = useToast();
-
-  const renderChart = (data: any[]) => {
-    if (!Array.isArray(data) || data.length === 0) return null;
-    
-    // Get the first item's keys for chart configuration
-    const keys = Object.keys(data[0]).filter(key => typeof data[0][key] === 'number');
-    
-    return (
-      <div className="mt-4 h-64 w-full">
-        <ChartContainer
-          className="h-full"
-          config={{
-            data: {
-              theme: {
-                light: "#6366f1",
-                dark: "#818cf8"
-              }
-            }
-          }}
-        >
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey={Object.keys(data[0])[0]} className="text-muted-foreground" />
-            <YAxis className="text-muted-foreground" />
-            <Tooltip content={(props) => (
-              <ChartTooltipContent {...props} />
-            )} />
-            {keys.map((key, index) => (
-              <Bar key={key} dataKey={key} fill={`hsl(${index * 40 + 200}, 70%, 50%)`} />
-            ))}
-          </BarChart>
-        </ChartContainer>
-      </div>
-    );
-  };
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,56 +103,7 @@ const AiChat = () => {
               Chat with an AI that understands your data, executes SQL queries, and triggers webhooks
             </p>
           </div>
-          <Sheet>
-            <SheetTrigger asChild>
-              <button className="glass-button">
-                <Settings2 className="w-5 h-5" />
-              </button>
-            </SheetTrigger>
-            <SheetContent>
-              <SheetHeader>
-                <SheetTitle>AI Settings</SheetTitle>
-                <SheetDescription>
-                  Configure how the AI processes your requests
-                </SheetDescription>
-              </SheetHeader>
-              <div className="space-y-6 py-4">
-                <div className="space-y-2">
-                  <Label>Temperature ({settings.temperature})</Label>
-                  <Slider
-                    value={[settings.temperature]}
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    onValueChange={([value]) => 
-                      setSettings(prev => ({ ...prev, temperature: value }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Max Tokens ({settings.maxTokens})</Label>
-                  <Slider
-                    value={[settings.maxTokens]}
-                    min={100}
-                    max={2000}
-                    step={100}
-                    onValueChange={([value]) => 
-                      setSettings(prev => ({ ...prev, maxTokens: value }))
-                    }
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={settings.streamResponse}
-                    onCheckedChange={(checked) =>
-                      setSettings(prev => ({ ...prev, streamResponse: checked }))
-                    }
-                  />
-                  <Label>Stream Response</Label>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
+          <AISettingsPanel settings={settings} onSettingsChange={setSettings} />
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -236,7 +134,7 @@ const AiChat = () => {
                   {message.content}
                 </p>
                 {message.metadata?.type === 'sql' && message.metadata.result && (
-                  renderChart(message.metadata.result)
+                  <QueryResultChart data={message.metadata.result} />
                 )}
               </div>
             </div>
