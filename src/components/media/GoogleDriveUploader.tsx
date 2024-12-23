@@ -1,6 +1,7 @@
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useGoogleLogin } from '@react-oauth/google';
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Upload, AlertCircle } from "lucide-react";
 import {
   Alert,
@@ -12,6 +13,8 @@ interface GoogleDriveUploaderProps {
   fileUrl: string;
   fileName: string;
 }
+
+const GOOGLE_CLIENT_ID = "804361315000-6hnrtp4h4iu598t83ht0r9stjj63d89e.apps.googleusercontent.com";
 
 const GoogleDriveUploader = ({ fileUrl, fileName }: GoogleDriveUploaderProps) => {
   const { toast } = useToast();
