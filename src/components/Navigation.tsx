@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
-import NavigationItems from "./navigation/NavigationItems";
+import { NavigationItems } from "./navigation/NavigationItems";
 import MobileNavigation from "./navigation/MobileNavigation";
 import LogoutButton from "./navigation/LogoutButton";
 import ExportButton from "./navigation/ExportButton";

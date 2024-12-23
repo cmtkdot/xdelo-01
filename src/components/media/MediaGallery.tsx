@@ -8,7 +8,6 @@ import { MediaFilter } from "./types";
 import { Image } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
-import WebhookInterface from "../webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "./types";
 
@@ -58,11 +57,6 @@ const MediaGallery = () => {
     });
   };
 
-  const getSelectedMediaData = () => {
-    if (!mediaItems) return [];
-    return mediaItems.filter(item => selectedMedia.has(item.id));
-  };
-
   if (isLoading) {
     return <MediaGallerySkeleton />;
   }
@@ -74,10 +68,6 @@ const MediaGallery = () => {
         <h2 className="text-lg md:text-xl font-bold text-white/90">
           Media Gallery
         </h2>
-      </div>
-      
-      <div className="backdrop-blur-xl bg-black/40 border border-white/10 p-4 md:p-6 rounded-lg">
-        <WebhookInterface selectedMedia={getSelectedMediaData()} />
       </div>
       
       <div className="backdrop-blur-xl bg-black/40 border border-white/10 p-4 md:p-6 rounded-lg">
