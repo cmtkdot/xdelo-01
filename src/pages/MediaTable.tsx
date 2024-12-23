@@ -11,7 +11,7 @@ import {
 import { MediaItem } from "@/components/media/types";
 import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileSpreadsheet, ExternalLink, Image as ImageIcon, Link } from "lucide-react";
+import { FileSpreadsheet, ExternalLink, Image as ImageIcon, Link2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -90,8 +90,8 @@ const MediaTable = () => {
                 <TableHead className="text-sky-400">Channel</TableHead>
                 <TableHead className="text-sky-400">Created At</TableHead>
                 <TableHead className="text-sky-400">Caption</TableHead>
-                <TableHead className="text-sky-400 w-48">File URL</TableHead>
-                <TableHead className="text-sky-400 w-24">Actions</TableHead>
+                <TableHead className="text-sky-400">File URL</TableHead>
+                <TableHead className="text-sky-400 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -116,25 +116,23 @@ const MediaTable = () => {
                     {item.caption || 'No caption'}
                   </TableCell>
                   <TableCell className="text-white/70">
-                    <div className="flex items-center gap-2">
-                      <Link className="w-4 h-4 text-sky-400" />
-                      <a 
-                        href={item.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sky-400 hover:text-sky-300 truncate max-w-[200px]"
-                      >
+                    <button
+                      onClick={() => openFileInNewTab(item.file_url)}
+                      className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group"
+                    >
+                      <Link2 className="w-4 h-4" />
+                      <span className="truncate max-w-[300px] group-hover:underline">
                         {item.file_url}
-                      </a>
-                    </div>
+                      </span>
+                    </button>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-right">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
                             onClick={() => openFileInNewTab(item.file_url)}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 hover:text-sky-300 transition-all duration-200 font-medium"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 hover:text-sky-300 transition-all duration-200 font-medium"
                           >
                             View <ExternalLink className="w-4 h-4" />
                           </button>
