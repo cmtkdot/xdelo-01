@@ -23,7 +23,9 @@ export const detectIntent = async (message: string, settings: any, trainingConte
   });
 
   const data = await response.json();
-  return data.choices[0].message.content.toLowerCase().trim();
+  const intent = data.choices[0].message.content.toLowerCase().trim();
+  console.log('Detected intent:', intent);
+  return intent;
 };
 
 export const generateSqlQuery = async (message: string, settings: any, trainingContext: string, openaiApiKey: string) => {
@@ -42,7 +44,7 @@ export const generateSqlQuery = async (message: string, settings: any, trainingC
           Available tables: media, messages, channels, webhook_urls, webhook_history, ai_training_data.
           Here are some SQL examples and documentation:
           ${trainingContext}
-          Only generate the SQL query, no explanations.`
+          Only generate the SQL query, no explanations or markdown formatting.`
         },
         { role: 'user', content: message }
       ],
@@ -52,7 +54,9 @@ export const generateSqlQuery = async (message: string, settings: any, trainingC
   });
 
   const data = await response.json();
-  return data.choices[0].message.content;
+  const query = data.choices[0].message.content.trim();
+  console.log('Generated SQL query:', query);
+  return query;
 };
 
 export const generateWebhookAction = async (message: string, settings: any, trainingContext: string, webhookUrls: any, openaiApiKey: string) => {
@@ -71,7 +75,7 @@ export const generateWebhookAction = async (message: string, settings: any, trai
           Available webhooks: ${JSON.stringify(webhookUrls)}.
           Here is some context about webhooks and examples:
           ${trainingContext}
-          Return a JSON object with: { webhookId, data }.`
+          Return a simple JSON object with webhookId and data properties, no markdown formatting.`
         },
         { role: 'user', content: message }
       ],
@@ -81,5 +85,19 @@ export const generateWebhookAction = async (message: string, settings: any, trai
   });
 
   const data = await response.json();
-  return JSON.parse(data.choices[0].message.content);
+  const actionText = data.choices[0].message.content.trim();
+  console.log('Generated webhook action:', actionText);
+  
+  try {
+    // Try to parse the response as JSON directly
+    return JSON.parse(actionText);
+  } catch (error) {
+    // If parsing fails, try to extract JSON from markdown code blocks
+    const jsonMatch = actionText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[1]);
+    }
+    // If no JSON found in markdown, throw error
+    throw new Error('Invalid webhook action format returned from AI');
+  }
 };
