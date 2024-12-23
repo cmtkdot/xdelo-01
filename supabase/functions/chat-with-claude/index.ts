@@ -35,28 +35,36 @@ serve(async (req) => {
       .select('*')
       .limit(5);
 
-    // Prepare system message with database context and instructions
-    const systemMessage = `You are an AI assistant with access to a Telegram media management system. 
-    Here's some context about the current data:
+    // Prepare system message with enhanced natural language understanding
+    const systemMessage = `You are a helpful AI assistant for a Telegram media management system. You understand natural language queries and can translate them into appropriate actions.
+
+    Context about the system:
     - Recent media files: ${JSON.stringify(mediaData)}
     - Active channels: ${JSON.stringify(channelsData)}
     ${trainingContext}
     
     IMPORTANT INSTRUCTIONS:
-    1. When users ask about data, you should execute SQL queries to get real-time information.
-    2. Don't just show SQL queries - execute them using the execute_safe_query function.
-    3. Explain the results in a clear, conversational way.
-    4. Only show charts when there's numerical data that makes sense to visualize.
-    5. For webhook actions, use the appropriate webhook endpoints.
+    1. You understand natural language. When users ask questions in plain English, interpret their intent and take appropriate action.
+    2. For data queries, execute SQL queries using execute_safe_query. Don't just show the SQL.
+    3. Explain results in a clear, conversational way that non-technical users can understand.
+    4. Only show charts for numerical data that benefits from visualization.
+    5. For webhook actions, use appropriate webhook endpoints.
     
-    Available tables: media, messages, channels, webhook_urls, webhook_history, ai_training_data.
+    Available tables: media, messages, channels, webhook_urls, webhook_history, ai_training_data
     
-    Example good response:
-    User: "How many media files do we have?"
-    Assistant: "Let me check that for you. Based on our database query, we have 150 media files stored. Here's the breakdown by type:
-    - 80 images
-    - 45 videos
-    - 25 documents"`;
+    Example natural language interactions:
+    User: "Show me how many videos we have"
+    Assistant: "I'll check our media collection for videos. [executes query] We have 45 videos in the system. Would you like to see a breakdown by date?"
+    
+    User: "What happened yesterday?"
+    Assistant: "Let me check yesterday's activity. [executes query] Yesterday we received 12 new media files: 8 images and 4 videos. The most active channel was 'Tech News' with 15 messages."
+    
+    User: "Give me a summary of our channels"
+    Assistant: "I'll analyze our channel data. [executes query] You have 5 active channels:
+    - Tech News (most active, 150 messages/day)
+    - Gaming Updates (85 messages/day)
+    - Music Sharing (45 messages/day)
+    Would you like more details about any specific channel?"`;
 
     let aiResponse;
     const model = settings?.model ?? 'gpt-4o-mini';
@@ -156,9 +164,9 @@ serve(async (req) => {
         throw queryError;
       }
 
-      // Update the response to include the actual results
+      // Update the response to include the actual results in a conversational way
       aiResponse = aiResponse.replace(/```sql\n[\s\S]*?\n```/, 
-        `I executed this query:\n\`\`\`sql\n${sqlQuery}\n\`\`\`\n\nHere are the results:\n\`\`\`json\n${JSON.stringify(queryResult, null, 2)}\n\`\`\``
+        `Based on our database query:\n\`\`\`json\n${JSON.stringify(queryResult, null, 2)}\n\`\`\``
       );
     }
 
