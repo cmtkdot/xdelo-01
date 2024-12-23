@@ -24,7 +24,7 @@ const Index = () => {
 
       <div className="max-w-7xl mx-auto space-y-6 relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-center glass-card p-4">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 text-transparent bg-clip-text mb-4 md:mb-0">
+          <h1 className="text-2xl font-bold text-white mb-4 md:mb-0">
             Dashboard
           </h1>
           <button

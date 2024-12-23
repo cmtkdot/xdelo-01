@@ -79,12 +79,12 @@ const CommandInterface = () => {
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type a command or message..."
             disabled={isLoading}
-            className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+            className="bg-black/40 border-white/10 text-white placeholder:text-gray-400"
           />
           <Button 
             type="submit" 
             disabled={isLoading}
-            className="bg-[#0088cc] hover:bg-[#0088cc]/80 text-white"
+            className="bg-purple-500 hover:bg-purple-600 text-white"
           >
             Send
           </Button>

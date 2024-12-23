@@ -17,7 +17,7 @@ const BotInfo = () => {
   });
 
   return (
-    <Card className="bg-transparent border-0 shadow-none">
+    <Card className="bg-black/40 border border-white/10 backdrop-blur-xl">
       <CardHeader className="flex flex-row items-center gap-4">
         <div className="p-2 bg-purple-500/20 rounded-full backdrop-blur-md border border-purple-500/30 animate-pulse">
           <Bot className="w-8 h-8 text-purple-400" />

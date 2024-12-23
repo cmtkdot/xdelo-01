@@ -23,27 +23,27 @@ const Stats = () => {
 
   return (
     <>
-      <Card className="backdrop-blur-xl bg-white/5 border-purple-500/20 hover:shadow-purple-500/10 transition-all duration-300">
+      <Card className="bg-black/40 border border-white/10 backdrop-blur-xl hover:shadow-purple-500/10 transition-all duration-300">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-purple-300">Total Media</CardTitle>
+          <CardTitle className="text-sm font-medium text-white">Total Media</CardTitle>
           <Image className="w-4 h-4 text-purple-400" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-white">{stats?.media || '...'}</div>
         </CardContent>
       </Card>
-      <Card className="backdrop-blur-xl bg-white/5 border-purple-500/20 hover:shadow-purple-500/10 transition-all duration-300">
+      <Card className="bg-black/40 border border-white/10 backdrop-blur-xl hover:shadow-purple-500/10 transition-all duration-300">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-purple-300">Messages</CardTitle>
+          <CardTitle className="text-sm font-medium text-white">Messages</CardTitle>
           <MessageSquare className="w-4 h-4 text-purple-400" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-white">{stats?.messages || '...'}</div>
         </CardContent>
       </Card>
-      <Card className="backdrop-blur-xl bg-white/5 border-purple-500/20 hover:shadow-purple-500/10 transition-all duration-300">
+      <Card className="bg-black/40 border border-white/10 backdrop-blur-xl hover:shadow-purple-500/10 transition-all duration-300">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-purple-300">Active Channels</CardTitle>
+          <CardTitle className="text-sm font-medium text-white">Active Channels</CardTitle>
           <Activity className="w-4 h-4 text-purple-400" />
         </CardHeader>
         <CardContent>
