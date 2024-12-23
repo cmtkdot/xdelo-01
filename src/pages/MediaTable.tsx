@@ -62,10 +62,6 @@ const MediaTable = () => {
     );
   }
 
-  const openFileInNewTab = (url: string) => {
-    window.open(url, '_blank');
-  };
-
   return (
     <div className="space-y-6">
       <MediaTableHeader />
