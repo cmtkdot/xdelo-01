@@ -305,6 +305,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      execute_safe_query: {
+        Args: {
+          query_text: string
+        }
+        Returns: Json
+      }
       get_media_data: {
         Args: Record<PropertyKey, never>
         Returns: Json
