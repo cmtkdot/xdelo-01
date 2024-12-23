@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Send, Database, Webhook } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QueryResultChart } from "@/components/ai-chat/QueryResultChart";
 import { AISettingsPanel, AISettings } from "@/components/ai-chat/AISettings";
 import { AITrainingPanel } from "@/components/ai-chat/AITrainingPanel";
-import { MediaDataTable } from "@/components/media/MediaDataTable";
 import { Tables } from "@/integrations/supabase/types";
 
 interface Message {
@@ -29,7 +28,6 @@ const AiChat = () => {
   });
   const { toast } = useToast();
 
-  // Fetch training data to include in context
   const getTrainingContext = async () => {
     const { data: trainingData, error } = await supabase
       .from('ai_training_data')
@@ -148,9 +146,9 @@ const AiChat = () => {
                 {message.metadata?.type && (
                   <div className="flex items-center gap-2 mb-2 text-sm text-white/60">
                     {message.metadata.type === 'sql' ? (
-                      <><Database className="w-4 h-4" /> SQL Query</>
+                      <>Database Query</> 
                     ) : (
-                      <><Webhook className="w-4 h-4" /> Webhook Action</>
+                      <>Webhook Action</>
                     )}
                   </div>
                 )}
@@ -173,10 +171,6 @@ const AiChat = () => {
         </div>
 
         <div className="p-4 border-t border-white/10">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-white mb-2">Media Data</h2>
-            <MediaDataTable />
-          </div>
           <AITrainingPanel />
           <form onSubmit={sendMessage} className="mt-4">
             <div className="flex gap-2">

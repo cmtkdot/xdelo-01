@@ -1,9 +1,14 @@
-import MediaGallery from "@/components/media/MediaGallery";
+import { MediaDataTable } from "@/components/media/MediaDataTable";
 
 const Media = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-4 md:p-8">
-      <MediaGallery />
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold text-white">Media Library</h1>
+      </div>
+      <div className="bg-black/20 rounded-lg p-6">
+        <MediaDataTable />
+      </div>
     </div>
   );
 };
