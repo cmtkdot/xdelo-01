@@ -12,14 +12,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Save } from "lucide-react";
+import { TablesInsert } from "@/integrations/supabase/types";
 
-interface TrainingData {
-  id: string;
-  category: string;
-  title: string;
-  content: string;
-  metadata: any;
-}
+type TrainingDataInsert = TablesInsert<'ai_training_data'>;
 
 export const AITrainingPanel = () => {
   const [isAdding, setIsAdding] = useState(false);
@@ -41,11 +36,14 @@ export const AITrainingPanel = () => {
 
     setIsSaving(true);
     try {
-      const { error } = await supabase.from("ai_training_data").insert({
-        category,
-        title,
-        content,
-      });
+      const { error } = await supabase
+        .from('ai_training_data')
+        .insert<TrainingDataInsert>({
+          category,
+          title,
+          content,
+          user_id: (await supabase.auth.getUser()).data.user?.id as string,
+        });
 
       if (error) throw error;
 

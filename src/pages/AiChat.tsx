@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { QueryResultChart } from "@/components/ai-chat/QueryResultChart";
 import { AISettingsPanel, AISettings } from "@/components/ai-chat/AISettings";
 import { AITrainingPanel } from "@/components/ai-chat/AITrainingPanel";
+import { Tables } from "@/integrations/supabase/types";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -31,17 +32,16 @@ const AiChat = () => {
   const getTrainingContext = async () => {
     const { data: trainingData, error } = await supabase
       .from('ai_training_data')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*') as { data: Tables<'ai_training_data'>[] | null, error: any };
 
     if (error) {
       console.error('Error fetching training data:', error);
       return '';
     }
 
-    return trainingData.map(item => 
+    return trainingData?.map(item => 
       `${item.category.toUpperCase()}: ${item.title}\n${item.content}\n---\n`
-    ).join('\n');
+    ).join('\n') || '';
   };
 
   const sendMessage = async (e: React.FormEvent) => {

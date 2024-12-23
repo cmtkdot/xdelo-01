@@ -6,9 +6,66 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+interface BaseTable {
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+interface AITrainingData extends BaseTable {
+  id: string;
+  user_id: string;
+  category: string;
+  title: string;
+  content: string;
+  metadata?: Json | null;
+}
+
+interface BotActivity extends BaseTable {
+  id: string;
+  event_type: string;
+  chat_id: number;
+  user_id?: string | null;
+  message_id?: number | null;
+  details?: Json | null;
+  message_type?: string | null;
+}
+
 export type Database = {
   public: {
     Tables: {
+      ai_training_data: {
+        Row: {
+          category: string
+          content: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category: string
+          content: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_activities: {
         Row: {
           chat_id: number
@@ -47,7 +104,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "channels"
             referencedColumns: ["chat_id"]
-          },
+          }
         ]
       }
       bot_users: {
@@ -163,7 +220,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "channels"
             referencedColumns: ["chat_id"]
-          },
+          }
         ]
       }
       messages: {
@@ -237,7 +294,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "webhook_urls"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       webhook_urls: {
