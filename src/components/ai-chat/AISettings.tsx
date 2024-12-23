@@ -60,7 +60,17 @@ export const AISettingsPanel = ({ settings, onSettingsChange }: AISettingsProps)
               <SelectContent>
                 <SelectItem value="gpt-4o">GPT-4 Optimized</SelectItem>
                 <SelectItem value="gpt-4o-mini">GPT-4 Mini</SelectItem>
-                <SelectItem value="claude-3">Claude 3</SelectItem>
+                <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
+                <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
+                <SelectItem value="claude-3-5-sonnet">Claude 3.5 Sonnet</SelectItem>
+                <SelectItem value="claude-3-5-haiku">Claude 3.5 Haiku</SelectItem>
+                <SelectItem value="gemini-2-flash">Gemini 2.0 Flash</SelectItem>
+                <SelectItem value="gemini-1-5-flash">Gemini 1.5 Flash</SelectItem>
+                <SelectItem value="gemini-1-5-flash-8b">Gemini 1.5 Flash-8B</SelectItem>
+                <SelectItem value="gemini-1-5-pro">Gemini 1.5 Pro</SelectItem>
+                <SelectItem value="ol">OL</SelectItem>
+                <SelectItem value="ol-mini">OL Mini</SelectItem>
               </SelectContent>
             </Select>
           </div>
