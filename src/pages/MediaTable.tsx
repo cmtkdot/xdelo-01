@@ -95,7 +95,7 @@ const MediaTable = () => {
                         <TooltipTrigger asChild>
                           <button
                             onClick={() => openFileInNewTab(item.file_url)}
-                            className="flex items-center gap-1 text-sky-400 hover:text-sky-300 transition-colors"
+                            className="flex items-center gap-1 text-sky-400 hover:text-sky-300 transition-colors font-medium"
                           >
                             View File <ExternalLink className="w-4 h-4" />
                           </button>

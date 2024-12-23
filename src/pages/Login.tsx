@@ -70,9 +70,12 @@ const Login = () => {
               },
               className: {
                 container: "text-white",
-                label: "text-white/80",
+                label: "text-white",
                 button: "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white transition-all duration-200",
-                input: "bg-black/20 border-white/10 text-white placeholder:text-white/30 focus:border-blue-500/50 transition-all duration-200",
+                input: "bg-black/20 border-white/10 text-white placeholder:text-white/50 focus:border-blue-500/50 transition-all duration-200",
+                anchor: "text-blue-400 hover:text-blue-300 transition-colors",
+                divider: "text-white/50",
+                message: "text-white",
               },
             }}
             providers={[]}
