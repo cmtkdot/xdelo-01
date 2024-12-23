@@ -11,18 +11,27 @@ import {
 import { MediaItem } from "@/components/media/types";
 import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileSpreadsheet, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { FileSpreadsheet, ExternalLink, Image as ImageIcon, Link } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useToast } from "@/components/ui/use-toast";
 
 const MediaTable = () => {
-  const { data: mediaItems, isLoading } = useQuery({
+  const { toast } = useToast();
+  
+  const { data: mediaItems, isLoading, error } = useQuery({
     queryKey: ['media-table'],
     queryFn: async () => {
+      const { data: session } = await supabase.auth.getSession();
+      
+      if (!session?.session) {
+        throw new Error('You must be logged in to view media');
+      }
+
       const { data, error } = await supabase
         .from('media')
         .select(`
@@ -31,10 +40,26 @@ const MediaTable = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Error fetching media",
+          description: error.message,
+        });
+        throw error;
+      }
+      
       return data as MediaItem[];
     },
   });
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-12rem)]">
+        <div className="text-red-400">Error: {(error as Error).message}</div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -66,6 +91,7 @@ const MediaTable = () => {
                 <TableHead className="text-sky-400">Created At</TableHead>
                 <TableHead className="text-sky-400">Caption</TableHead>
                 <TableHead className="text-sky-400 w-48">File URL</TableHead>
+                <TableHead className="text-sky-400 w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -89,6 +115,19 @@ const MediaTable = () => {
                   <TableCell className="max-w-md truncate text-white/70">
                     {item.caption || 'No caption'}
                   </TableCell>
+                  <TableCell className="text-white/70">
+                    <div className="flex items-center gap-2">
+                      <Link className="w-4 h-4 text-sky-400" />
+                      <a 
+                        href={item.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sky-400 hover:text-sky-300 truncate max-w-[200px]"
+                      >
+                        {item.file_url}
+                      </a>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <TooltipProvider>
                       <Tooltip>
@@ -97,7 +136,7 @@ const MediaTable = () => {
                             onClick={() => openFileInNewTab(item.file_url)}
                             className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 hover:text-sky-300 transition-all duration-200 font-medium"
                           >
-                            View File <ExternalLink className="w-4 h-4" />
+                            View <ExternalLink className="w-4 h-4" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>
