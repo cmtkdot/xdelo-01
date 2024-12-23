@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import Navigation from "./components/Navigation";
 import Index from "./pages/Index";
 import Messages from "./pages/Messages";
@@ -35,46 +36,48 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <SidebarProvider>
-          <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-900 via-black to-black overflow-hidden">
-            {/* Animated background elements */}
-            <div className="fixed inset-0 pointer-events-none">
-              <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-40"></div>
-              <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl animate-float"></div>
-              <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <Router>
+          <SidebarProvider>
+            <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-900 via-black to-black dark:from-sky-950 dark:via-gray-900 dark:to-gray-950 overflow-hidden">
+              {/* Animated background elements */}
+              <div className="fixed inset-0 pointer-events-none">
+                <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-40"></div>
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl animate-float"></div>
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
+              </div>
+              
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/*"
+                  element={
+                    <ProtectedRoute>
+                      <div className="flex flex-col relative z-10">
+                        <Navigation />
+                        <main className="flex-1 p-4 md:p-8 mt-16 container mx-auto">
+                          <Routes>
+                            <Route path="/" element={<Index />} />
+                            <Route path="/messages" element={<Messages />} />
+                            <Route path="/media" element={<Media />} />
+                            <Route path="/media-table" element={<MediaTable />} />
+                            <Route path="/media-data" element={<MediaData />} />
+                            <Route path="/webhooks" element={<Webhooks />} />
+                            <Route path="/settings" element={<Settings />} />
+                            <Route path="/ai-chat" element={<AiChat />} />
+                            <Route path="*" element={<Navigate to="/" replace />} />
+                          </Routes>
+                        </main>
+                      </div>
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+              <Toaster />
             </div>
-            
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/*"
-                element={
-                  <ProtectedRoute>
-                    <div className="flex flex-col relative z-10">
-                      <Navigation />
-                      <main className="flex-1 p-4 md:p-8 mt-16 container mx-auto">
-                        <Routes>
-                          <Route path="/" element={<Index />} />
-                          <Route path="/messages" element={<Messages />} />
-                          <Route path="/media" element={<Media />} />
-                          <Route path="/media-table" element={<MediaTable />} />
-                          <Route path="/media-data" element={<MediaData />} />
-                          <Route path="/webhooks" element={<Webhooks />} />
-                          <Route path="/settings" element={<Settings />} />
-                          <Route path="/ai-chat" element={<AiChat />} />
-                          <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                      </main>
-                    </div>
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-            <Toaster />
-          </div>
-        </SidebarProvider>
-      </Router>
+          </SidebarProvider>
+        </Router>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

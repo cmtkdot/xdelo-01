@@ -4,6 +4,7 @@ import NavigationItems from "./navigation/NavigationItems";
 import MobileNavigation from "./navigation/MobileNavigation";
 import LogoutButton from "./navigation/LogoutButton";
 import ExportButton from "./navigation/ExportButton";
+import { ThemeToggle } from "./ThemeToggle";
 
 const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -29,7 +30,10 @@ const Navigation = () => {
               )}
             </div>
           </div>
-          <LogoutButton />
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
+            <LogoutButton />
+          </div>
         </div>
       </div>
 

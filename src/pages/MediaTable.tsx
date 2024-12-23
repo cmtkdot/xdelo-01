@@ -82,71 +82,73 @@ const MediaTable = () => {
       
       <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg">
         <ScrollArea className="h-[calc(100vh-16rem)] rounded-lg">
-          <Table>
-            <TableHeader className="bg-black/60 sticky top-0">
-              <TableRow>
-                <TableHead className="text-sky-400">File Name</TableHead>
-                <TableHead className="text-sky-400">Type</TableHead>
-                <TableHead className="text-sky-400">Channel</TableHead>
-                <TableHead className="text-sky-400">Created At</TableHead>
-                <TableHead className="text-sky-400">Caption</TableHead>
-                <TableHead className="text-sky-400">File URL</TableHead>
-                <TableHead className="text-sky-400 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mediaItems?.map((item) => (
-                <TableRow key={item.id} className="hover:bg-white/5">
-                  <TableCell className="font-medium text-white/90">
-                    <div className="flex items-center gap-2">
-                      {item.media_type.includes('image') ? (
-                        <ImageIcon className="w-4 h-4 text-sky-400" />
-                      ) : (
-                        <FileSpreadsheet className="w-4 h-4 text-sky-400" />
-                      )}
-                      {item.file_name}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-white/70">{item.media_type}</TableCell>
-                  <TableCell className="text-white/70">{item.chat?.title || 'N/A'}</TableCell>
-                  <TableCell className="text-white/70">
-                    {item.created_at ? format(new Date(item.created_at), 'PPpp') : 'N/A'}
-                  </TableCell>
-                  <TableCell className="max-w-md truncate text-white/70">
-                    {item.caption || 'No caption'}
-                  </TableCell>
-                  <TableCell className="text-white/70">
-                    <button
-                      onClick={() => openFileInNewTab(item.file_url)}
-                      className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group"
-                    >
-                      <Link2 className="w-4 h-4" />
-                      <span className="truncate max-w-[300px] group-hover:underline">
-                        {item.file_url}
-                      </span>
-                    </button>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => openFileInNewTab(item.file_url)}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 hover:text-sky-300 transition-all duration-200 font-medium"
-                          >
-                            View <ExternalLink className="w-4 h-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Open file in new tab</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-black/60 sticky top-0">
+                <TableRow>
+                  <TableHead className="text-sky-400 min-w-[200px]">File Name</TableHead>
+                  <TableHead className="text-sky-400 min-w-[150px]">Type</TableHead>
+                  <TableHead className="text-sky-400 min-w-[150px]">Channel</TableHead>
+                  <TableHead className="text-sky-400 min-w-[200px]">Created At</TableHead>
+                  <TableHead className="text-sky-400 min-w-[300px]">Caption</TableHead>
+                  <TableHead className="text-sky-400 min-w-[400px]">File URL</TableHead>
+                  <TableHead className="text-sky-400 text-right min-w-[100px]">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {mediaItems?.map((item) => (
+                  <TableRow key={item.id} className="hover:bg-white/5">
+                    <TableCell className="font-medium text-white/90">
+                      <div className="flex items-center gap-2">
+                        {item.media_type.includes('image') ? (
+                          <ImageIcon className="w-4 h-4 text-sky-400" />
+                        ) : (
+                          <FileSpreadsheet className="w-4 h-4 text-sky-400" />
+                        )}
+                        {item.file_name}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-white/70">{item.media_type}</TableCell>
+                    <TableCell className="text-white/70">{item.chat?.title || 'N/A'}</TableCell>
+                    <TableCell className="text-white/70">
+                      {item.created_at ? format(new Date(item.created_at), 'PPpp') : 'N/A'}
+                    </TableCell>
+                    <TableCell className="max-w-md truncate text-white/70">
+                      {item.caption || 'No caption'}
+                    </TableCell>
+                    <TableCell className="text-white/70">
+                      <button
+                        onClick={() => openFileInNewTab(item.file_url)}
+                        className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group"
+                      >
+                        <Link2 className="w-4 h-4" />
+                        <span className="truncate max-w-[300px] group-hover:underline">
+                          {item.file_url}
+                        </span>
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => openFileInNewTab(item.file_url)}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 hover:text-sky-300 transition-all duration-200 font-medium"
+                            >
+                              View <ExternalLink className="w-4 h-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Open file in new tab</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </ScrollArea>
       </div>
     </div>
