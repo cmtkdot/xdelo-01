@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const TELEGRAM_MEDIA_FOLDER_ID = "1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet";
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -32,6 +34,7 @@ serve(async (req) => {
     const metadata = {
       name: fileName,
       mimeType: blob.type,
+      parents: [TELEGRAM_MEDIA_FOLDER_ID] // Specify the folder ID here
     }
 
     // Create form data for the Google Drive API
@@ -49,6 +52,8 @@ serve(async (req) => {
     })
 
     if (!uploadResponse.ok) {
+      const errorData = await uploadResponse.text()
+      console.error('Google Drive API Error:', errorData)
       throw new Error('Failed to upload to Google Drive')
     }
 
