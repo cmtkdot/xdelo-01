@@ -46,6 +46,10 @@ const MediaTable = () => {
     },
   });
 
+  const openFileInNewTab = (url: string) => {
+    window.open(url, '_blank');
+  };
+
   if (error) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-12rem)]">
