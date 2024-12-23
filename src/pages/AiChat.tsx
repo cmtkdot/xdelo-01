@@ -6,6 +6,9 @@ import { AISettingsPanel, AISettings } from "@/components/ai-chat/AISettings";
 import { AITrainingPanel } from "@/components/ai-chat/AITrainingPanel";
 import { ChatInput } from "@/components/ai-chat/ChatInput";
 import { ChatMessages } from "@/components/ai-chat/ChatMessages";
+import WebhookUrlManager from "@/components/webhook/WebhookUrlManager";
+import { Button } from "@/components/ui/button";
+import { Bot, Webhook } from "lucide-react";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -21,6 +24,7 @@ const AiChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showWebhookConfig, setShowWebhookConfig] = useState(false);
   const [settings, setSettings] = useState<AISettings>({
     temperature: 0.7,
     maxTokens: 500,
@@ -99,6 +103,7 @@ const AiChat = () => {
         if (!handleWebhookError(nlError)) {
           throw nlError;
         }
+        setShowWebhookConfig(true);
         return;
       }
 
@@ -152,9 +157,33 @@ const AiChat = () => {
               Chat with an AI that understands your data, executes SQL queries, and triggers webhooks
             </p>
           </div>
-          <AISettingsPanel settings={settings} onSettingsChange={setSettings} />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/10 hover:bg-white/5"
+              onClick={() => setShowWebhookConfig(!showWebhookConfig)}
+            >
+              <Webhook className="w-4 h-4 mr-2" />
+              Webhooks
+            </Button>
+            <AISettingsPanel settings={settings} onSettingsChange={setSettings} />
+          </div>
         </div>
         
+        {showWebhookConfig && (
+          <div className="p-4 border-b border-white/10 bg-black/20">
+            <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+              <Bot className="w-5 h-5" />
+              Configure Webhooks
+            </h2>
+            <p className="text-white/60 text-sm mb-4">
+              Add webhook URLs to allow the AI to send data to external services
+            </p>
+            <WebhookUrlManager onUrlSelect={() => setShowWebhookConfig(false)} />
+          </div>
+        )}
+
         <ChatMessages messages={messages} isLoading={isLoading} />
 
         <div className="p-4 border-t border-white/10">
