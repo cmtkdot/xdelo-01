@@ -3,7 +3,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ThreeDVisualization, D3Visualization, HighchartsVisualization } from './visualizations';
 import { Button } from "@/components/ui/button";
-import { Cube, BarChart as BarChartIcon, LineChart } from 'lucide-react';
+import { Box, BarChart as BarChartIcon, LineChart } from 'lucide-react';
 
 interface QueryResultChartProps {
   data: any[];
@@ -32,7 +32,7 @@ export const QueryResultChart = ({ data }: QueryResultChartProps) => {
           onClick={() => setVisualizationType('three')}
           className="glass-button"
         >
-          <Cube className="w-4 h-4 mr-2" />
+          <Box className="w-4 h-4 mr-2" />
           3D
         </Button>
         <Button
