@@ -4,13 +4,13 @@ import useMediaSubscription from "./media/hooks/useMediaSubscription";
 import MediaCard from "./media/MediaCard";
 import MediaFilters from "./media/MediaFilters";
 import MediaGallerySkeleton from "./media/MediaGallerySkeleton";
-import { MediaFilter } from "./media/types";
+import { MediaFilter } from "./types";
 import { Image } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
 import WebhookInterface from "./webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
-import { Channel } from "./media/types";
+import { Channel } from "./types";
 
 const MediaGallery = () => {
   const [filter, setFilter] = useState<MediaFilter>({
@@ -18,6 +18,7 @@ const MediaGallery = () => {
     selectedType: "all",
   });
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   const { data: mediaItems, isLoading } = useMediaData(filter);
@@ -45,6 +46,23 @@ const MediaGallery = () => {
     fetchChannels();
   }, []);
 
+  const handleToggleSelect = (id: string) => {
+    setSelectedMedia(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const getSelectedMediaData = () => {
+    if (!mediaItems) return [];
+    return mediaItems.filter(item => selectedMedia.has(item.id));
+  };
+
   if (isLoading) {
     return <MediaGallerySkeleton />;
   }
@@ -57,7 +75,7 @@ const MediaGallery = () => {
       </div>
       
       <div className="w-full overflow-x-auto">
-        <WebhookInterface />
+        <WebhookInterface selectedMedia={getSelectedMediaData()} />
       </div>
       
       <div className="w-full overflow-x-auto">
@@ -78,9 +96,14 @@ const MediaGallery = () => {
         </div>
       ) : (
         <ScrollArea className="h-[calc(100vh-16rem)] w-full px-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6">
+          <div className="grid grid-cols-2 gap-4 pb-6">
             {mediaItems.map((item) => (
-              <MediaCard key={item.id} item={item} />
+              <MediaCard 
+                key={item.id} 
+                item={item}
+                isSelected={selectedMedia.has(item.id)}
+                onToggleSelect={handleToggleSelect}
+              />
             ))}
           </div>
         </ScrollArea>
