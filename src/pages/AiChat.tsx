@@ -6,6 +6,7 @@ import { QueryResultChart } from "@/components/ai-chat/QueryResultChart";
 import { AISettingsPanel, AISettings } from "@/components/ai-chat/AISettings";
 import { AITrainingPanel } from "@/components/ai-chat/AITrainingPanel";
 import { Tables } from "@/integrations/supabase/types";
+import { useNavigate } from "react-router-dom";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -27,6 +28,7 @@ const AiChat = () => {
     streamResponse: true
   });
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const getTrainingContext = async () => {
     const { data: trainingData, error } = await supabase
@@ -41,6 +43,36 @@ const AiChat = () => {
     return trainingData?.map(item => 
       `${item.category.toUpperCase()}: ${item.title}\n${item.content}\n---\n`
     ).join('\n') || '';
+  };
+
+  const handleWebhookError = (error: any) => {
+    if (error.body && typeof error.body === 'string') {
+      try {
+        const parsedError = JSON.parse(error.body);
+        if (parsedError.error === 'No webhook URLs configured. Please add a webhook URL first.') {
+          toast({
+            title: "Webhook Configuration Required",
+            description: (
+              <div className="flex flex-col gap-2">
+                <p>No webhook URLs are configured. Please add a webhook URL first.</p>
+                <button
+                  onClick={() => navigate('/webhooks')}
+                  className="text-blue-500 hover:text-blue-600 underline"
+                >
+                  Go to Webhook Configuration
+                </button>
+              </div>
+            ),
+            variant: "destructive",
+          });
+          return true;
+        }
+      } catch (e) {
+        // If JSON parsing fails, fall through to default error handling
+        console.error('Error parsing error body:', e);
+      }
+    }
+    return false;
   };
 
   const sendMessage = async (e: React.FormEvent) => {
@@ -67,7 +99,13 @@ const AiChat = () => {
         },
       });
 
-      if (nlError) throw nlError;
+      if (nlError) {
+        // Check if this is a webhook configuration error
+        if (!handleWebhookError(nlError)) {
+          throw nlError;
+        }
+        return;
+      }
 
       if (nlData) {
         // Create assistant message with metadata
