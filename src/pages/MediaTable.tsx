@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -13,11 +14,17 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { MediaTableHeader } from "@/components/media/table/MediaTableHeader";
 import { MediaTableRow } from "@/components/media/table/MediaTableRow";
+import { GoogleSheetsConfig } from "@/components/media/GoogleSheetsConfig";
+import useMediaSubscription from "@/components/media/hooks/useMediaSubscription";
 
 const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
 const MediaTable = () => {
   const { toast } = useToast();
+  const [spreadsheetId, setSpreadsheetId] = useState<string>();
+  
+  // Enable real-time updates with Google Sheets sync
+  useMediaSubscription(spreadsheetId);
   
   const { data: mediaItems, isLoading, error } = useQuery({
     queryKey: ['media-table'],
@@ -74,9 +81,13 @@ const MediaTable = () => {
       <div className="space-y-6">
         <MediaTableHeader />
         
+        <div className="mb-6">
+          <GoogleSheetsConfig onSpreadsheetIdSet={setSpreadsheetId} />
+        </div>
+        
         <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg">
           <ScrollArea className="h-[calc(100vh-16rem)] w-full" type="always">
-            <div className="min-w-[1400px]"> {/* Increased minimum width */}
+            <div className="min-w-[1400px]">
               <Table>
                 <TableHeader className="bg-black/60 sticky top-0 z-10">
                   <TableRow>
