@@ -21,15 +21,16 @@ interface ChatMessageProps {
 export const ChatMessage = ({ message }: ChatMessageProps) => {
   const [showVisualization, setShowVisualization] = useState(false);
   
-  // Check if the data actually contains numerical values that can be visualized
+  // More strict check for visualizable data
   const hasVisualizableData = () => {
     if (message.metadata?.type !== 'sql' || !message.metadata?.result) return false;
     
     const data = message.metadata.result;
     if (!Array.isArray(data) || data.length === 0) return false;
     
-    // Check if there's at least one numerical value in the first row
-    return Object.values(data[0]).some(value => typeof value === 'number');
+    // Only show visualization if there are multiple numeric values to compare
+    const numericValues = Object.values(data[0]).filter(value => typeof value === 'number');
+    return numericValues.length > 1 && data.length > 1;
   };
   
   const hasVisualization = hasVisualizableData();

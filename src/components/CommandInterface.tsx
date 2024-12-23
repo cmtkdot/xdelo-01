@@ -40,7 +40,15 @@ const CommandInterface = () => {
       if (messageError) throw messageError;
 
       const { data, error } = await supabase.functions.invoke("process-message", {
-        body: { message },
+        body: { 
+          message,
+          settings: {
+            model: "claude-3-5-sonnet",
+            temperature: 0.7,
+            maxTokens: 500,
+            streamResponse: true
+          }
+        },
       });
 
       if (error) throw error;
