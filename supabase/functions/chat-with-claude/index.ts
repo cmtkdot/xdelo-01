@@ -29,6 +29,8 @@ serve(async (req) => {
       throw new Error("Messages must be an array");
     }
 
+    console.log('Received messages:', messages);
+
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -92,15 +94,19 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error('Anthropic API error:', error);
-      throw new Error(`Anthropic API error: ${error}`);
+      const errorText = await response.text();
+      console.error('Anthropic API error response:', errorText);
+      throw new Error(`Anthropic API error: ${errorText}`);
     }
 
     const result = await response.json();
     console.log('Claude response:', result);
 
-    return new Response(JSON.stringify(result.content), {
+    if (!result.content || !result.content[0]) {
+      throw new Error('Invalid response format from Claude API');
+    }
+
+    return new Response(JSON.stringify({ content: result.content[0].text }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

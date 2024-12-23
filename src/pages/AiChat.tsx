@@ -26,12 +26,19 @@ const AiChat = () => {
     setIsLoading(true);
 
     try {
+      console.log('Sending messages to Claude:', [...messages, newUserMessage]);
+      
       const { data, error } = await supabase.functions.invoke('chat-with-claude', {
         body: { messages: [...messages, newUserMessage] },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
       
+      console.log('Received response from Claude:', data);
+
       if (data.content) {
         setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
       } else {
