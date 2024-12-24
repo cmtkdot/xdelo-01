@@ -39,12 +39,12 @@ function App() {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <Router>
           <SidebarProvider>
-            <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] dark:from-blue-900 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
-              {/* Animated background elements */}
+            <div className="min-h-screen w-full bg-gradient-to-br from-blue-50/80 via-white to-blue-50/80 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] dark:from-blue-900 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
+              {/* Animated background elements - subtle in light mode */}
               <div className="fixed inset-0 pointer-events-none">
-                <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.1)_1px,transparent_1px)] dark:bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-40"></div>
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-teal-500/5 dark:bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 dark:bg-teal-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
+                <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-40"></div>
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-100/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-100/20 dark:bg-teal-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
               </div>
               
               <Routes>

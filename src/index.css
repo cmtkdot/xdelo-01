@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    /* Light theme by default */
-    --background: 210 50% 98%;
+    /* Light theme colors - optimized for readability */
+    --background: 210 40% 98%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
@@ -13,11 +13,11 @@
     --popover-foreground: 222 47% 11%;
     --primary: 199 89% 48%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 197 64% 96%;
+    --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
-    --muted: 199 64% 96%;
+    --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 199 89% 48%;
+    --accent: 210 40% 96%;
     --accent-foreground: 222 47% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -28,6 +28,7 @@
   }
 
   .dark {
+    /* Keep existing dark theme colors */
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
     --card: 222 47% 11%;
@@ -59,27 +60,33 @@
   }
 }
 
-/* Glass Morphism Components */
+/* Glass Morphism Components - Improved for light mode */
 @layer components {
   .glass-card {
-    @apply backdrop-blur-xl bg-white/80 dark:bg-white/10 
+    @apply backdrop-blur-xl 
+           bg-white/90 dark:bg-white/10 
            border border-white/20 rounded-lg shadow-lg
            hover:shadow-sky-500/10 transition-all duration-300;
   }
 
   .glass-button {
-    @apply backdrop-blur-md bg-white/80 hover:bg-white/90 
+    @apply backdrop-blur-md 
+           bg-white/90 hover:bg-white/95 
            dark:bg-white/10 dark:hover:bg-white/20 
-           border border-white/20 text-foreground dark:text-white 
+           border border-white/20 
+           text-foreground dark:text-white 
            rounded-lg px-4 py-2 transition-all duration-300
            hover:shadow-[0_0_15px_rgba(14,165,233,0.2)];
   }
 
   .glass-input {
-    @apply bg-white/80 dark:bg-white/5 border border-white/20 
-           rounded-lg px-4 py-2 focus:outline-none focus:ring-2 
-           focus:ring-sky-500/50 text-foreground dark:text-white 
-           placeholder:text-gray-500 dark:placeholder:text-white/50;
+    @apply bg-white/90 dark:bg-white/5 
+           border border-white/20 
+           rounded-lg px-4 py-2 
+           focus:outline-none focus:ring-2 
+           focus:ring-sky-500/50 
+           text-foreground dark:text-white 
+           placeholder:text-gray-600 dark:placeholder:text-white/50;
   }
 }
 
