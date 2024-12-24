@@ -29,7 +29,7 @@ export const MediaTableHeader = ({ selectedMedia }: MediaTableHeaderProps) => {
 
       toast({
         title: "Migration Started",
-        description: "Files are being migrated to Google Drive. This may take a few minutes.",
+        description: `Started migrating ${selectedMedia.length} files to Google Drive. This may take a few minutes.`,
       });
 
       // Refresh the page to show updated data after a short delay
@@ -63,11 +63,18 @@ export const MediaTableHeader = ({ selectedMedia }: MediaTableHeaderProps) => {
 
   return (
     <div className="flex justify-between items-center mb-6">
-      <h2 className="text-2xl font-semibold text-white">Media Files</h2>
+      <div className="space-y-1">
+        <h2 className="text-2xl font-semibold text-white">Media Files</h2>
+        {selectedMedia.length > 0 && (
+          <p className="text-sm text-white/60">
+            {selectedMedia.length} file{selectedMedia.length !== 1 ? 's' : ''} selected
+          </p>
+        )}
+      </div>
       <Button
         onClick={() => login()}
         disabled={selectedMedia.length === 0}
-        className="glass-button flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-700 hover:from-green-600 hover:to-emerald-800 text-white font-medium px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="glass-button flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-700 hover:from-green-600 hover:to-emerald-800 text-white font-medium px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
       >
         <CloudUpload className="w-5 h-5" />
         {selectedMedia.length > 0 

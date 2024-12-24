@@ -3,18 +3,33 @@ import { Link2 } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { MediaItem } from "../types";
 import { MediaTableActions } from "./MediaTableActions";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface MediaTableRowProps {
   item: MediaItem;
   onOpenFile: (url: string) => void;
+  isSelected: boolean;
+  onToggleSelect: () => void;
 }
 
-export const MediaTableRow = ({ item, onOpenFile }: MediaTableRowProps) => {
+export const MediaTableRow = ({ 
+  item, 
+  onOpenFile, 
+  isSelected,
+  onToggleSelect 
+}: MediaTableRowProps) => {
   // Prioritize Google Drive URL if available
   const fileUrl = item.google_drive_url || item.file_url;
   
   return (
     <TableRow className="hover:bg-white/5">
+      <TableCell>
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={onToggleSelect}
+          className="bg-white/20 border-white/30 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+        />
+      </TableCell>
       <TableCell className="text-white/70 whitespace-nowrap">{item.media_type}</TableCell>
       <TableCell className="text-white/70 whitespace-nowrap">{item.chat?.title || 'N/A'}</TableCell>
       <TableCell className="text-white/70 whitespace-nowrap">
