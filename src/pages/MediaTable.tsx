@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { MediaItem } from "@/components/media/types";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { MediaTableHeader } from "@/components/media/table/MediaTableHeader";
 import { MediaTableRow } from "@/components/media/table/MediaTableRow";
@@ -25,7 +25,6 @@ const MediaTable = () => {
   const [spreadsheetId, setSpreadsheetId] = useState<string>();
   const [selectedMedia, setSelectedMedia] = useState<MediaItem[]>([]);
   
-  // Enable real-time updates with Google Sheets sync
   useMediaSubscription(spreadsheetId);
   
   const { data: mediaItems, isLoading, error } = useQuery({
@@ -92,42 +91,41 @@ const MediaTable = () => {
           <GoogleSheetsConfig onSpreadsheetIdSet={setSpreadsheetId} />
         </div>
         
-        <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg">
+        <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg overflow-hidden">
           {isLoading ? (
             <div className="flex items-center justify-center h-[400px]">
               <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
             </div>
           ) : (
-            <div className="relative overflow-hidden">
-              <ScrollArea className="h-[calc(100vh-16rem)]" type="always">
-                <div className="min-w-[1400px] w-full">
-                  <Table>
-                    <TableHeader className="bg-black/60 sticky top-0 z-10">
-                      <TableRow>
-                        <TableHead className="text-sky-400 w-[100px]">Select</TableHead>
-                        <TableHead className="text-sky-400 w-[150px]">Type</TableHead>
-                        <TableHead className="text-sky-400 w-[150px]">Channel</TableHead>
-                        <TableHead className="text-sky-400 w-[200px]">Created At</TableHead>
-                        <TableHead className="text-sky-400 w-[300px]">Caption</TableHead>
-                        <TableHead className="text-sky-400 w-[400px]">File URL</TableHead>
-                        <TableHead className="text-sky-400 text-right w-[200px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {mediaItems?.map((item) => (
-                        <MediaTableRow
-                          key={item.id}
-                          item={item}
-                          onOpenFile={openFileInNewTab}
-                          isSelected={selectedMedia.some(media => media.id === item.id)}
-                          onToggleSelect={() => handleToggleSelect(item)}
-                        />
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </ScrollArea>
-            </div>
+            <ScrollArea className="h-[calc(100vh-16rem)]" type="always">
+              <div className="min-w-[1400px]">
+                <Table>
+                  <TableHeader className="bg-black/60 sticky top-0 z-10">
+                    <TableRow>
+                      <TableHead className="text-sky-400 w-[100px]">Select</TableHead>
+                      <TableHead className="text-sky-400 w-[150px]">Type</TableHead>
+                      <TableHead className="text-sky-400 w-[150px]">Channel</TableHead>
+                      <TableHead className="text-sky-400 w-[200px]">Created At</TableHead>
+                      <TableHead className="text-sky-400 w-[300px]">Caption</TableHead>
+                      <TableHead className="text-sky-400 w-[400px]">File URL</TableHead>
+                      <TableHead className="text-sky-400 text-right w-[200px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {mediaItems?.map((item) => (
+                      <MediaTableRow
+                        key={item.id}
+                        item={item}
+                        onOpenFile={openFileInNewTab}
+                        isSelected={selectedMedia.some(media => media.id === item.id)}
+                        onToggleSelect={() => handleToggleSelect(item)}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
           )}
         </div>
       </div>
