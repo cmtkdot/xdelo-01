@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Light theme colors - optimized for readability */
+    /* Light theme colors - blending blue, purple, and teal */
     --background: 210 40% 98%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
@@ -13,11 +13,11 @@
     --popover-foreground: 222 47% 11%;
     --primary: 199 89% 48%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
+    --secondary: 252 87% 67%;
     --secondary-foreground: 222 47% 11%;
     --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
+    --accent: 183 100% 35%;
     --accent-foreground: 222 47% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -28,7 +28,7 @@
   }
 
   .dark {
-    /* Keep existing dark theme colors */
+    /* Dark theme colors - deep blend of blue, purple, and teal */
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
     --card: 222 47% 11%;
@@ -37,11 +37,11 @@
     --popover-foreground: 210 40% 98%;
     --primary: 199 89% 48%;
     --primary-foreground: 222 47% 11%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 252 87% 67%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 183 100% 35%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
@@ -60,13 +60,16 @@
   }
 }
 
-/* Glass Morphism Components - Improved for light mode */
+/* Glass Morphism Components */
 @layer components {
   .glass-card {
     @apply backdrop-blur-xl 
            bg-white/90 dark:bg-white/10 
-           border border-white/20 rounded-lg shadow-lg
-           hover:shadow-sky-500/10 transition-all duration-300;
+           border border-white/20 
+           rounded-lg shadow-lg
+           hover:shadow-[0_0_15px_rgba(14,165,233,0.2)] 
+           dark:hover:shadow-[0_0_15px_rgba(139,92,246,0.2)]
+           transition-all duration-300;
   }
 
   .glass-button {
@@ -76,7 +79,8 @@
            border border-white/20 
            text-foreground dark:text-white 
            rounded-lg px-4 py-2 transition-all duration-300
-           hover:shadow-[0_0_15px_rgba(14,165,233,0.2)];
+           hover:shadow-[0_0_15px_rgba(14,165,233,0.2)]
+           dark:hover:shadow-[0_0_15px_rgba(139,92,246,0.2)];
   }
 
   .glass-input {
@@ -84,7 +88,7 @@
            border border-white/20 
            rounded-lg px-4 py-2 
            focus:outline-none focus:ring-2 
-           focus:ring-sky-500/50 
+           focus:ring-sky-500/50 dark:focus:ring-purple-500/50
            text-foreground dark:text-white 
            placeholder:text-gray-600 dark:placeholder:text-white/50;
   }
