@@ -98,34 +98,36 @@ const MediaTable = () => {
               <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
             </div>
           ) : (
-            <ScrollArea className="h-[calc(100vh-16rem)] w-full" type="always">
-              <div className="min-w-[1400px]">
-                <Table>
-                  <TableHeader className="bg-black/60 sticky top-0 z-10">
-                    <TableRow>
-                      <TableHead className="text-sky-400 w-[100px]">Select</TableHead>
-                      <TableHead className="text-sky-400 w-[150px]">Type</TableHead>
-                      <TableHead className="text-sky-400 w-[150px]">Channel</TableHead>
-                      <TableHead className="text-sky-400 w-[200px]">Created At</TableHead>
-                      <TableHead className="text-sky-400 w-[300px]">Caption</TableHead>
-                      <TableHead className="text-sky-400 w-[400px]">File URL</TableHead>
-                      <TableHead className="text-sky-400 text-right w-[200px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mediaItems?.map((item) => (
-                      <MediaTableRow
-                        key={item.id}
-                        item={item}
-                        onOpenFile={openFileInNewTab}
-                        isSelected={selectedMedia.some(media => media.id === item.id)}
-                        onToggleSelect={() => handleToggleSelect(item)}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </ScrollArea>
+            <div className="relative overflow-hidden">
+              <ScrollArea className="h-[calc(100vh-16rem)]" type="always">
+                <div className="min-w-[1400px] w-full">
+                  <Table>
+                    <TableHeader className="bg-black/60 sticky top-0 z-10">
+                      <TableRow>
+                        <TableHead className="text-sky-400 w-[100px]">Select</TableHead>
+                        <TableHead className="text-sky-400 w-[150px]">Type</TableHead>
+                        <TableHead className="text-sky-400 w-[150px]">Channel</TableHead>
+                        <TableHead className="text-sky-400 w-[200px]">Created At</TableHead>
+                        <TableHead className="text-sky-400 w-[300px]">Caption</TableHead>
+                        <TableHead className="text-sky-400 w-[400px]">File URL</TableHead>
+                        <TableHead className="text-sky-400 text-right w-[200px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {mediaItems?.map((item) => (
+                        <MediaTableRow
+                          key={item.id}
+                          item={item}
+                          onOpenFile={openFileInNewTab}
+                          isSelected={selectedMedia.some(media => media.id === item.id)}
+                          onToggleSelect={() => handleToggleSelect(item)}
+                        />
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </ScrollArea>
+            </div>
           )}
         </div>
       </div>
