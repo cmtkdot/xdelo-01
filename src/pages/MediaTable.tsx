@@ -22,6 +22,7 @@ const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.goo
 const MediaTable = () => {
   const { toast } = useToast();
   const [spreadsheetId, setSpreadsheetId] = useState<string>();
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem[]>([]);
   
   // Enable real-time updates with Google Sheets sync
   useMediaSubscription(spreadsheetId);
@@ -79,7 +80,7 @@ const MediaTable = () => {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <div className="space-y-6">
-        <MediaTableHeader />
+        <MediaTableHeader selectedMedia={selectedMedia} />
         
         <div className="mb-6">
           <GoogleSheetsConfig onSpreadsheetIdSet={setSpreadsheetId} />
