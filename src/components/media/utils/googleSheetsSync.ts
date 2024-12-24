@@ -1,4 +1,5 @@
 import { MediaItem } from "../types";
+import { supabase } from "@/integrations/supabase/client";
 
 // This function formats media data for Google Sheets
 const formatMediaForSheets = (items: MediaItem[]) => {
@@ -17,6 +18,12 @@ const formatMediaForSheets = (items: MediaItem[]) => {
 // Function to sync data with Google Sheets
 export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: MediaItem[]) => {
   try {
+    const { data: { GOOGLE_API_KEY } } = await supabase.functions.invoke('get-google-api-key');
+    
+    if (!GOOGLE_API_KEY) {
+      throw new Error('Google API key not found');
+    }
+
     const formattedData = formatMediaForSheets(mediaItems);
     
     // Ensure Google API is loaded
@@ -45,6 +52,13 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
 // Initialize Google Sheets API
 export const initGoogleSheetsAPI = async () => {
   try {
+    // Get API key from Supabase
+    const { data: { GOOGLE_API_KEY } } = await supabase.functions.invoke('get-google-api-key');
+    
+    if (!GOOGLE_API_KEY) {
+      throw new Error('Google API key not found');
+    }
+
     // Load the Google API client
     await new Promise<void>((resolve, reject) => {
       const script = document.createElement('script');
@@ -64,7 +78,7 @@ export const initGoogleSheetsAPI = async () => {
 
     // Initialize the Sheets API
     await window.gapi.client.init({
-      apiKey: 'GOOGLE_API_KEY', // This should be replaced with the actual API key from Supabase secrets
+      apiKey: GOOGLE_API_KEY,
       discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
     });
 
