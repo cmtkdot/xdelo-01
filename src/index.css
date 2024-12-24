@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Light theme colors - blending blue, purple, and teal */
+    /* Light theme - blend of blue, purple, and teal */
     --background: 210 40% 98%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
@@ -28,7 +28,6 @@
   }
 
   .dark {
-    /* Dark theme colors - deep blend of blue, purple, and teal */
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
     --card: 222 47% 11%;
@@ -60,7 +59,6 @@
   }
 }
 
-/* Glass Morphism Components */
 @layer components {
   .glass-card {
     @apply backdrop-blur-xl 
@@ -94,7 +92,6 @@
   }
 }
 
-/* Animations */
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
