@@ -15,7 +15,7 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 bg-black/90 border-white/10">
+      <DialogContent className="max-w-[80vw] md:max-w-[70vw] lg:max-w-[60vw] max-h-[80vh] p-0 bg-black/90 border-white/10">
         <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-50"
@@ -24,11 +24,11 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
           <span className="sr-only">Close</span>
         </button>
         
-        <div className="relative w-full h-full min-h-[300px] flex items-center justify-center p-4">
+        <div className="relative w-full h-full min-h-[200px] flex items-center justify-center p-4">
           {isVideo ? (
             <video
               src={item.file_url}
-              className="max-w-full max-h-[80vh] rounded-lg"
+              className="max-w-full max-h-[70vh] rounded-lg"
               controls
               autoPlay
             />
@@ -36,7 +36,7 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
             <img
               src={item.file_url}
               alt={item.caption || "Media"}
-              className="max-w-full max-h-[80vh] rounded-lg object-contain"
+              className="max-w-full max-h-[70vh] rounded-lg object-contain"
             />
           )}
         </div>
