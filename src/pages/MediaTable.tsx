@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -24,6 +24,7 @@ const MediaTable = () => {
   const { toast } = useToast();
   const [spreadsheetId, setSpreadsheetId] = useState<string>();
   const [selectedMedia, setSelectedMedia] = useState<MediaItem[]>([]);
+  const lastSelectedIndex = useRef<number>(-1);
   
   useMediaSubscription(spreadsheetId);
   
@@ -57,14 +58,44 @@ const MediaTable = () => {
     },
   });
 
-  const handleToggleSelect = (item: MediaItem) => {
+  const handleToggleSelect = (item: MediaItem, index: number, event?: React.MouseEvent) => {
     setSelectedMedia(prev => {
+      let newSelection = [...prev];
       const isSelected = prev.some(media => media.id === item.id);
-      if (isSelected) {
-        return prev.filter(media => media.id !== item.id);
+
+      if (event?.shiftKey && lastSelectedIndex.current !== -1 && mediaItems) {
+        // Handle shift+click for range selection
+        const start = Math.min(lastSelectedIndex.current, index);
+        const end = Math.max(lastSelectedIndex.current, index);
+        const itemsInRange = mediaItems.slice(start, end + 1);
+        
+        if (isSelected) {
+          // If the clicked item was selected, remove the range
+          newSelection = newSelection.filter(
+            media => !itemsInRange.some(rangeItem => rangeItem.id === media.id)
+          );
+        } else {
+          // If the clicked item wasn't selected, add the range
+          itemsInRange.forEach(rangeItem => {
+            if (!newSelection.some(media => media.id === rangeItem.id)) {
+              newSelection.push(rangeItem);
+            }
+          });
+        }
+      } else if (event?.ctrlKey || event?.metaKey) {
+        // Handle ctrl/cmd+click for individual toggle
+        if (isSelected) {
+          newSelection = newSelection.filter(media => media.id !== item.id);
+        } else {
+          newSelection.push(item);
+        }
       } else {
-        return [...prev, item];
+        // Normal click - replace selection
+        newSelection = isSelected ? [] : [item];
       }
+
+      lastSelectedIndex.current = index;
+      return newSelection;
     });
   };
 
@@ -112,13 +143,13 @@ const MediaTable = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mediaItems?.map((item) => (
+                    {mediaItems?.map((item, index) => (
                       <MediaTableRow
                         key={item.id}
                         item={item}
                         onOpenFile={openFileInNewTab}
                         isSelected={selectedMedia.some(media => media.id === item.id)}
-                        onToggleSelect={() => handleToggleSelect(item)}
+                        onToggleSelect={(e) => handleToggleSelect(item, index, e)}
                       />
                     ))}
                   </TableBody>

@@ -9,7 +9,7 @@ interface MediaTableRowProps {
   item: MediaItem;
   onOpenFile: (url: string) => void;
   isSelected: boolean;
-  onToggleSelect: () => void;
+  onToggleSelect: (e?: React.MouseEvent) => void;
 }
 
 export const MediaTableRow = ({ 
@@ -21,12 +21,26 @@ export const MediaTableRow = ({
   // Prioritize Google Drive URL if available
   const fileUrl = item.google_drive_url || item.file_url;
   
+  const handleRowClick = (e: React.MouseEvent) => {
+    // Prevent row click when clicking on buttons or links
+    if (
+      e.target instanceof HTMLElement && 
+      (e.target.closest('button') || e.target.closest('a'))
+    ) {
+      return;
+    }
+    onToggleSelect(e);
+  };
+
   return (
-    <TableRow className="hover:bg-white/5">
-      <TableCell>
+    <TableRow 
+      className={`hover:bg-white/5 cursor-pointer ${isSelected ? 'bg-white/10' : ''}`}
+      onClick={handleRowClick}
+    >
+      <TableCell onClick={(e) => e.stopPropagation()}>
         <Checkbox
           checked={isSelected}
-          onCheckedChange={onToggleSelect}
+          onCheckedChange={() => onToggleSelect()}
           className="bg-white/20 border-white/30 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
         />
       </TableCell>
@@ -42,7 +56,10 @@ export const MediaTableRow = ({
       </TableCell>
       <TableCell className="text-white/70">
         <button
-          onClick={() => onOpenFile(fileUrl)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenFile(fileUrl);
+          }}
           className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group"
         >
           <Link2 className="w-4 h-4 flex-shrink-0" />
