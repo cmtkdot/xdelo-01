@@ -19,30 +19,15 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
   try {
     const formattedData = formatMediaForSheets(mediaItems);
     
-    // Load the Google Sheets API
-    await new Promise((resolve, reject) => {
-      if (typeof gapi !== 'undefined' && gapi.client?.sheets) {
-        resolve(true);
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://apis.google.com/js/api.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => reject(new Error('Failed to load Google Sheets API'));
-      document.body.appendChild(script);
-    });
-
-    // Initialize the Sheets API
-    await gapi.client.init({
-      apiKey: 'YOUR_API_KEY',
-      discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-    });
+    // Ensure Google API is loaded
+    if (!window.gapi || !window.gapi.client) {
+      throw new Error('Google API not loaded');
+    }
 
     // Update the sheet
-    const response = await gapi.client.sheets.spreadsheets.values.update({
+    const response = await window.gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Supabase!A2:H',
+      range: 'Media Data!A2:H',
       valueInputOption: 'RAW',
       resource: {
         values: formattedData
@@ -60,28 +45,30 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
 // Initialize Google Sheets API
 export const initGoogleSheetsAPI = async () => {
   try {
-    // Load the Google Sheets API
-    await new Promise((resolve, reject) => {
-      if (typeof gapi !== 'undefined') {
-        resolve(true);
-        return;
-      }
-
+    // Load the Google API client
+    await new Promise<void>((resolve, reject) => {
       const script = document.createElement('script');
       script.src = 'https://apis.google.com/js/api.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => reject(new Error('Failed to load Google Sheets API'));
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Google API'));
       document.body.appendChild(script);
     });
 
-    await gapi.load('client', async () => {
-      await gapi.client.init({
-        apiKey: 'YOUR_API_KEY',
-        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+    // Load the client library
+    await new Promise<void>((resolve, reject) => {
+      window.gapi.load('client', {
+        callback: resolve,
+        onerror: () => reject(new Error('Failed to load Google client')),
       });
     });
-    
-    console.log('Google Sheets API initialized');
+
+    // Initialize the Sheets API
+    await window.gapi.client.init({
+      apiKey: 'GOOGLE_API_KEY', // This should be replaced with the actual API key from Supabase secrets
+      discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+    });
+
+    console.log('Google Sheets API initialized successfully');
     return true;
   } catch (error) {
     console.error('Error initializing Google Sheets API:', error);
