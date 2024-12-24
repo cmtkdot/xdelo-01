@@ -3,16 +3,26 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CloudUpload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { MediaItem } from "../types";
 
-export const MediaTableHeader = () => {
+interface MediaTableHeaderProps {
+  selectedMedia: MediaItem[];
+}
+
+export const MediaTableHeader = ({ selectedMedia }: MediaTableHeaderProps) => {
   const { toast } = useToast();
 
   const migrateToGoogleDrive = async (accessToken: string) => {
     try {
       console.log('Starting migration with access token:', accessToken);
       
+      const selectedIds = selectedMedia.map(item => item.id);
+      
       const { data, error } = await supabase.functions.invoke('migrate-to-drive', {
-        body: { accessToken }
+        body: { 
+          accessToken,
+          selectedIds
+        }
       });
 
       if (error) throw error;
@@ -56,10 +66,13 @@ export const MediaTableHeader = () => {
       <h2 className="text-2xl font-semibold text-white">Media Files</h2>
       <Button
         onClick={() => login()}
-        className="glass-button flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-700 hover:from-green-600 hover:to-emerald-800 text-white font-medium px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+        disabled={selectedMedia.length === 0}
+        className="glass-button flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-700 hover:from-green-600 hover:to-emerald-800 text-white font-medium px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <CloudUpload className="w-5 h-5" />
-        Migrate All to Google Drive
+        {selectedMedia.length > 0 
+          ? `Migrate ${selectedMedia.length} Selected to Google Drive`
+          : 'Select files to migrate'}
       </Button>
     </div>
   );

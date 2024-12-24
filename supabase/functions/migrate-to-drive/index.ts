@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-import { corsHeaders, createJWT, uploadFileToDrive, deleteFromSupabase } from './utils.ts'
+import { corsHeaders, uploadFileToDrive, deleteFromSupabase } from './utils.ts'
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -23,7 +23,7 @@ serve(async (req) => {
       );
     }
 
-    const { accessToken } = requestBody;
+    const { accessToken, selectedIds } = requestBody;
     if (!accessToken) {
       return new Response(
         JSON.stringify({ error: 'Access token is required' }),
@@ -36,19 +36,36 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
-    
-    if (!credentials.client_email || !credentials.private_key) {
-      console.error('Invalid service account credentials');
-      throw new Error('Invalid service account credentials');
+    const credentials = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
+    if (!credentials) {
+      console.error('No Google service account credentials found');
+      throw new Error('No Google service account credentials found');
     }
 
-    console.log('Starting migration with service account:', credentials.client_email);
+    let parsedCredentials;
+    try {
+      parsedCredentials = JSON.parse(credentials);
+    } catch (error) {
+      console.error('Error parsing Google credentials:', error);
+      throw new Error('Invalid Google service account credentials format');
+    }
 
-    const { data: mediaFiles, error: fetchError } = await supabase
+    if (!parsedCredentials.client_email || !parsedCredentials.private_key) {
+      console.error('Invalid service account credentials structure');
+      throw new Error('Invalid service account credentials structure');
+    }
+
+    let query = supabase
       .from('media')
       .select('*')
-      .is('google_drive_id', null)
+      .is('google_drive_id', null);
+
+    // If specific IDs are provided, only migrate those
+    if (selectedIds && selectedIds.length > 0) {
+      query = query.in('id', selectedIds);
+    }
+
+    const { data: mediaFiles, error: fetchError } = await query;
 
     if (fetchError) {
       console.error('Failed to fetch media files:', fetchError);
@@ -61,6 +78,7 @@ serve(async (req) => {
     
     for (const file of mediaFiles || []) {
       try {
+        console.log(`Processing file: ${file.file_name}`);
         const result = await uploadFileToDrive(file, accessToken);
         console.log(`Successfully uploaded to Google Drive: ${file.file_name}, ID: ${result.id}`);
 
