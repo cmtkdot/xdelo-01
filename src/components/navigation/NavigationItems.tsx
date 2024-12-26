@@ -17,6 +17,7 @@ export const navItems = [
   { path: "/messages", icon: MessageSquare, label: "Messages" },
   { path: "/media", icon: Image, label: "Media" },
   { path: "/media-table", icon: FileSpreadsheet, label: "Media Table" },
+  { path: "/google-sheet", icon: FileSpreadsheet, label: "Google Sheet" },
   { path: "/webhooks", icon: Webhook, label: "Webhooks" },
   { path: "/ai-chat", icon: Bot, label: "AI Chat" },
   { path: "/database-chat", icon: Database, label: "Database Chat" },

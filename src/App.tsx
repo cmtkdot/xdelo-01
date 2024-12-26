@@ -10,6 +10,7 @@ import Messages from "./pages/Messages";
 import Media from "./pages/Media";
 import MediaTable from "./pages/MediaTable";
 import MediaData from "./pages/MediaData";
+import GoogleSheet from "./pages/GoogleSheet";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Webhooks from "./pages/Webhooks";
@@ -63,6 +64,7 @@ function App() {
                             <Route path="/media" element={<Media />} />
                             <Route path="/media-table" element={<MediaTable />} />
                             <Route path="/media-data" element={<MediaData />} />
+                            <Route path="/google-sheet" element={<GoogleSheet />} />
                             <Route path="/webhooks" element={<Webhooks />} />
                             <Route path="/settings" element={<Settings />} />
                             <Route path="/ai-chat" element={<AiChat />} />
