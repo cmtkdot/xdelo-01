@@ -49,7 +49,7 @@ export const checkForDuplicateMedia = async (supabase: any, telegramFileId: stri
   
   const { data, error } = await supabase
     .from('media')
-    .select('id, file_name')
+    .select('id, file_name, caption')
     .filter('metadata->telegram_file_id', 'eq', telegramFileId)
     .maybeSingle();
 
@@ -67,6 +67,68 @@ export const checkForDuplicateMedia = async (supabase: any, telegramFileId: stri
   return data;
 };
 
+export const updateDuplicateMedia = async (supabase: any, mediaId: string, newCaption: string | null) => {
+  console.log(`Updating duplicate media ${mediaId} with new caption: "${newCaption}"`);
+  
+  const { data, error } = await supabase
+    .from('media')
+    .update({ caption: newCaption })
+    .eq('id', mediaId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating duplicate media:', error);
+    throw error;
+  }
+
+  console.log(`Successfully updated media ${mediaId} with new caption`);
+  return data;
+};
+
+export const deleteDuplicateMedia = async (supabase: any, telegramFileId: string, keepNewest: boolean = true) => {
+  console.log(`Finding duplicates for Telegram file ID: ${telegramFileId}`);
+  
+  // Get all duplicates ordered by creation date
+  const { data: duplicates, error: fetchError } = await supabase
+    .from('media')
+    .select('id, file_name, created_at')
+    .filter('metadata->telegram_file_id', 'eq', telegramFileId)
+    .order('created_at', { ascending: !keepNewest }); // Order based on which version to keep
+
+  if (fetchError) {
+    console.error('Error fetching duplicates:', fetchError);
+    throw fetchError;
+  }
+
+  if (!duplicates || duplicates.length <= 1) {
+    console.log('No duplicates found to delete');
+    return null;
+  }
+
+  // Keep the first item (either newest or oldest based on keepNewest parameter)
+  const [keepItem, ...itemsToDelete] = duplicates;
+  
+  console.log(`Keeping media item ${keepItem.id}, deleting ${itemsToDelete.length} duplicates`);
+
+  // Delete all duplicates except the one we're keeping
+  const { error: deleteError } = await supabase
+    .from('media')
+    .delete()
+    .in('id', itemsToDelete.map(item => item.id));
+
+  if (deleteError) {
+    console.error('Error deleting duplicates:', deleteError);
+    throw deleteError;
+  }
+
+  console.log(`Successfully deleted ${itemsToDelete.length} duplicate items`);
+  return {
+    kept: keepItem,
+    deleted: itemsToDelete
+  };
+};
+
 export const saveMedia = async (
   supabase: any,
   userId: string,
@@ -82,7 +144,15 @@ export const saveMedia = async (
   const existingMedia = await checkForDuplicateMedia(supabase, metadata.telegram_file_id);
   
   if (existingMedia) {
-    console.log(`Skipping duplicate media upload for file ID: ${metadata.telegram_file_id}`);
+    console.log(`Found duplicate media with file ID: ${metadata.telegram_file_id}`);
+    
+    // If there's a new caption, update the existing media
+    if (caption !== null && caption !== existingMedia.caption) {
+      console.log(`Updating caption for existing media from "${existingMedia.caption}" to "${caption}"`);
+      return await updateDuplicateMedia(supabase, existingMedia.id, caption);
+    }
+    
+    console.log(`Skipping duplicate media upload and keeping existing caption: "${existingMedia.caption}"`);
     return existingMedia;
   }
 
