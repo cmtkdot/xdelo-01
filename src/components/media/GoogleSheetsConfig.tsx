@@ -59,16 +59,30 @@ export const GoogleSheetsConfig = ({
   useEffect(() => {
     const syncData = async (spreadsheetId: string, gid?: string) => {
       const sheet = spreadsheets.find(s => s.id === spreadsheetId);
-      if (!sheet?.isHeadersMapped || !allMedia) return;
+      // Only sync if headers are mapped and autoSync is enabled
+      if (!sheet?.isHeadersMapped || !sheet.autoSync || !allMedia) {
+        console.log('Skipping sync - conditions not met:', {
+          isHeadersMapped: sheet?.isHeadersMapped,
+          autoSync: sheet?.autoSync,
+          hasMedia: Boolean(allMedia)
+        });
+        return;
+      }
 
       try {
         await syncWithGoogleSheets(spreadsheetId, allMedia, gid);
         console.log(`Auto-synced with spreadsheet: ${spreadsheetId}${gid ? ` (GID: ${gid})` : ''}`);
       } catch (error) {
         console.error('Auto-sync error:', error);
+        toast({
+          title: "Sync Error",
+          description: "Failed to sync with Google Sheets. Please ensure headers are mapped correctly.",
+          variant: "destructive",
+        });
       }
     };
 
+    // Only set up subscriptions for sheets that have headers mapped
     const channels = spreadsheets
       .filter(sheet => sheet.autoSync && sheet.isHeadersMapped)
       .map(sheet => {
@@ -87,7 +101,7 @@ export const GoogleSheetsConfig = ({
     return () => {
       channels.forEach(channel => channel.unsubscribe());
     };
-  }, [spreadsheets, allMedia]);
+  }, [spreadsheets, allMedia, toast]);
 
   useEffect(() => {
     localStorage.setItem('spreadsheets', JSON.stringify(spreadsheets));
@@ -144,9 +158,9 @@ export const GoogleSheetsConfig = ({
         : sheet
     ));
 
-    // Only sync after headers are mapped
-    if (allMedia) {
-      const sheet = spreadsheets.find(s => s.id === spreadsheetId);
+    // Only sync after headers are mapped and if autoSync is enabled
+    const sheet = spreadsheets.find(s => s.id === spreadsheetId);
+    if (sheet?.autoSync && allMedia) {
       syncWithGoogleSheets(spreadsheetId, allMedia, sheet?.gid)
         .then(() => {
           toast({
