@@ -1,6 +1,25 @@
 import { MediaItem } from "../types";
 import { supabase } from "@/integrations/supabase/client";
 
+declare global {
+  interface Window {
+    gapi: any;
+    google: {
+      accounts: {
+        oauth2: {
+          initTokenClient: (config: {
+            client_id: string;
+            scope: string;
+            callback: (response: google.accounts.oauth2.TokenResponse) => void;
+          }) => {
+            requestAccessToken: () => void;
+          };
+        };
+      };
+    };
+  }
+}
+
 const SHEET_NAME = 'MediaData';
 const BASE_HEADERS = [
   'File Name',
@@ -72,11 +91,11 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
   try {
     // Get OAuth2 token from Google Drive component
     const tokenResponse = await new Promise<google.accounts.oauth2.TokenResponse>((resolve, reject) => {
-      const tokenClient = google.accounts.oauth2.initTokenClient({
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com",
         scope: 'https://www.googleapis.com/auth/spreadsheets',
         callback: (response) => {
-          if (response.error) {
+          if ('error' in response) {
             reject(response);
           } else {
             resolve(response);
