@@ -146,45 +146,6 @@ export type Database = {
         }
         Relationships: []
       }
-      google_sheets_config: {
-        Row: {
-          auto_sync: boolean | null
-          created_at: string | null
-          header_mapping: Json | null
-          id: string
-          is_headers_mapped: boolean | null
-          sheet_gid: string | null
-          sheet_name: string | null
-          spreadsheet_id: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          auto_sync?: boolean | null
-          created_at?: string | null
-          header_mapping?: Json | null
-          id?: string
-          is_headers_mapped?: boolean | null
-          sheet_gid?: string | null
-          sheet_name?: string | null
-          spreadsheet_id: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          auto_sync?: boolean | null
-          created_at?: string | null
-          header_mapping?: Json | null
-          id?: string
-          is_headers_mapped?: boolean | null
-          sheet_gid?: string | null
-          sheet_name?: string | null
-          spreadsheet_id?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       media: {
         Row: {
           additional_data: Json | null

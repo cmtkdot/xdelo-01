@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from 'lucide-react';
-import { useHeaderMapping } from './google-sheets/header-mapping/hooks/useHeaderMapping';
-import { HeaderMappingContent } from './google-sheets/header-mapping/HeaderMappingContent';
-import { HeaderMappingActions } from './google-sheets/header-mapping/HeaderMappingActions';
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Save, Loader2 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 interface HeaderMappingProps {
   spreadsheetId: string;
@@ -12,21 +14,14 @@ interface HeaderMappingProps {
 
 const DEFAULT_DB_COLUMNS = [
   'id',
-  'user_id',
-  'chat_id',
   'file_name',
   'file_url',
   'media_type',
   'caption',
-  'metadata',
   'created_at',
   'updated_at',
-  'media_group_id',
-  'additional_data',
   'google_drive_id',
-  'google_drive_url',
-  'chat.title',
-  'chat.username'
+  'google_drive_url'
 ];
 
 export const GoogleSheetsHeaderMapping = ({ 
@@ -34,19 +29,78 @@ export const GoogleSheetsHeaderMapping = ({
   sheetGid,
   onMappingComplete 
 }: HeaderMappingProps) => {
-  const {
-    sheetHeaders,
-    mapping,
-    isLoading,
-    handleMappingChange,
-    handleSelectAll,
-    handleSaveMapping,
-    isAllColumnsMapped,
-  } = useHeaderMapping({
-    spreadsheetId,
-    sheetGid,
-    onMappingComplete,
-  });
+  const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchHeaders = async () => {
+      try {
+        let range;
+        if (sheetGid) {
+          const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
+            spreadsheetId,
+          });
+          
+          const targetSheet = spreadsheet.result.sheets?.find(
+            (s: any) => s.properties?.sheetId === parseInt(sheetGid)
+          );
+          
+          if (!targetSheet) {
+            throw new Error(`Sheet with GID ${sheetGid} not found`);
+          }
+          
+          range = `${targetSheet.properties?.title}!A1:K1`;
+        } else {
+          range = 'A1:K1';
+        }
+        
+        const response = await window.gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range,
+        });
+
+        if (response.result.values?.[0]) {
+          setSheetHeaders(response.result.values[0]);
+          
+          const savedMapping = localStorage.getItem(`headerMapping-${spreadsheetId}-${sheetGid || 'default'}`);
+          if (savedMapping) {
+            setMapping(JSON.parse(savedMapping));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching headers:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch sheet headers",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (window.gapi?.client?.sheets) {
+      fetchHeaders();
+    }
+  }, [spreadsheetId, sheetGid, toast]);
+
+  const handleMappingChange = (sheetHeader: string, dbColumn: string) => {
+    setMapping(prev => ({
+      ...prev,
+      [sheetHeader]: dbColumn
+    }));
+  };
+
+  const handleSaveMapping = () => {
+    localStorage.setItem(`headerMapping-${spreadsheetId}-${sheetGid || 'default'}`, JSON.stringify(mapping));
+    onMappingComplete(mapping);
+    toast({
+      title: "Success",
+      description: "Header mapping saved successfully",
+    });
+  };
 
   if (isLoading) {
     return (
@@ -64,19 +118,38 @@ export const GoogleSheetsHeaderMapping = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <HeaderMappingContent
-          sheetHeaders={sheetHeaders}
-          mapping={mapping}
-          dbColumns={DEFAULT_DB_COLUMNS}
-          onMappingChange={handleMappingChange}
-        />
-        <div className="mt-4">
-          <HeaderMappingActions
-            onSave={handleSaveMapping}
-            onSelectAll={() => handleSelectAll(DEFAULT_DB_COLUMNS)}
-            isSelectAllDisabled={isAllColumnsMapped(DEFAULT_DB_COLUMNS)}
-          />
-        </div>
+        <ScrollArea className="h-[300px] pr-4">
+          <div className="space-y-4">
+            {sheetHeaders.map((header, index) => (
+              <div key={index} className="flex items-center gap-4">
+                <span className="min-w-[120px] text-sm">{header}</span>
+                <Select
+                  value={mapping[header] || ""}
+                  onValueChange={(value) => handleMappingChange(header, value)}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Map to column" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEFAULT_DB_COLUMNS.map((column) => (
+                      <SelectItem key={column} value={column}>
+                        {column}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+        <Button 
+          onClick={handleSaveMapping}
+          className="mt-4 w-full"
+          variant="outline"
+        >
+          <Save className="mr-2 h-4 w-4" />
+          Save Mapping
+        </Button>
       </CardContent>
     </Card>
   );
