@@ -5,6 +5,15 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
+// Type guard to check if value is a Record<string, string>
+const isValidHeaderMapping = (value: unknown): value is Record<string, string> => {
+  if (typeof value !== 'object' || value === null) return false;
+  
+  return Object.entries(value).every(
+    ([key, val]) => typeof key === 'string' && typeof val === 'string'
+  );
+};
+
 export default function GoogleSheet() {
   const [googleSheetId, setGoogleSheetId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -34,7 +43,15 @@ export default function GoogleSheet() {
         return {};
       }
 
-      return data?.header_mapping || {};
+      const mapping = data?.header_mapping;
+      
+      // Validate the mapping
+      if (mapping && isValidHeaderMapping(mapping)) {
+        return mapping;
+      }
+      
+      // Return empty object if mapping is invalid
+      return {};
     },
     enabled: !!googleSheetId,
   });
