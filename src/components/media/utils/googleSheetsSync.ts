@@ -170,7 +170,8 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
 
     if (configError) throw configError;
     
-    const headerMapping = configData?.header_mapping || {};
+    // Ensure the header mapping is properly typed
+    const headerMapping = (configData?.header_mapping || {}) as Record<string, string>;
     
     // Format data according to the header mapping
     const { headers, data } = formatDataWithMapping(mediaItems, headerMapping);
