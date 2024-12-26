@@ -11,15 +11,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { webhook_url, data } = await req.json();
-    console.log('Forwarding webhook to:', webhook_url, 'with data:', data);
+    const { webhook_url, data, headers = {}, params = {} } = await req.json();
+    console.log('Forwarding webhook to:', webhook_url);
+    console.log('With data:', data);
+    console.log('With headers:', headers);
+    console.log('With query params:', params);
+    
+    // Construct URL with query parameters
+    const url = new URL(webhook_url);
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, value as string);
+    });
     
     // Forward to webhook with proper headers
-    const response = await fetch(webhook_url, {
+    const response = await fetch(url.toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'Supabase Edge Function',
+        ...headers,
       },
       body: JSON.stringify(data),
     });

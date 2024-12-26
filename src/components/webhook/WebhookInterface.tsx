@@ -71,14 +71,23 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         return filtered;
       });
 
-      // Call our Edge Function instead of directly calling the webhook URL
+      // Call our Edge Function with additional parameters
       const { data: response, error } = await supabase.functions.invoke('webhook-forwarder', {
         body: {
           webhook_url: webhookUrl,
           data: {
             data: filteredData,
             timestamp: new Date().toISOString(),
-            total_records: filteredData.length
+            total_records: filteredData.length,
+            selected_fields: selectedFields
+          },
+          headers: {
+            'X-Source': 'Media Gallery',
+            'X-Batch-Size': selectedMedia.length.toString()
+          },
+          params: {
+            source: 'media_gallery',
+            fields: selectedFields.join(',')
           }
         }
       });
