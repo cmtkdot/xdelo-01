@@ -54,15 +54,10 @@ export const useGoogleSheetsAuth = () => {
         document.body.appendChild(script);
       });
 
-      // Get the current origin for the redirect URI
-      const origin = window.location.origin;
-      const redirectUri = `${origin}/oauth/callback`;
-
       // Initialize Google Identity Services client
       const tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
-        redirect_uri: redirectUri,
         callback: async (response) => {
           if (response.error) {
             console.error('Google OAuth error:', response.error);
