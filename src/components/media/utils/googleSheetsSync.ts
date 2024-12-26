@@ -147,46 +147,23 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
     }
 
     const sheetName = targetSheet.properties?.title;
-    const existingData = await window.gapi.client.sheets.spreadsheets.values.get({
+    
+    // Get existing headers first
+    const existingHeadersResponse = await window.gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetName}!A1:${String.fromCharCode(64 + MAX_COLUMNS)}`,
+      range: `${sheetName}!A1:${String.fromCharCode(64 + MAX_COLUMNS)}1`,
     });
 
-    const existingValues = existingData.result.values || [];
-    const existingHeaders = existingValues[0] || [];
+    const existingHeaders = existingHeadersResponse.result.values?.[0] || [];
 
-    const mergedData = data.map((row, rowIndex) => {
-      const existingRow = existingValues[rowIndex + 1] || [];
-      const newRow = [...row];
-
-      for (let i = COLUMN_LIMIT.charCodeAt(0) - 64; i < existingRow.length; i++) {
-        newRow[i] = existingRow[i];
-      }
-
-      return newRow;
-    });
-
-    const mergedHeaders = [...headers];
-    for (let i = headers.length; i < existingHeaders.length; i++) {
-      mergedHeaders[i] = existingHeaders[i];
-    }
-
-    await window.gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${sheetName}!A1:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}1`,
-      valueInputOption: 'RAW',
-      resource: {
-        values: [mergedHeaders]
-      }
-    });
-
-    if (mergedData.length > 0) {
+    // Only update data, preserve existing headers
+    if (data.length > 0) {
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${sheetName}!A2:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}${mergedData.length + 1}`,
+        range: `${sheetName}!A2:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}${data.length + 1}`,
         valueInputOption: 'RAW',
         resource: {
-          values: mergedData
+          values: data
         }
       });
     }
