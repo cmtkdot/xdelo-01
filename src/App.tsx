@@ -38,7 +38,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <Router>
           <SidebarProvider>
             <div className="min-h-screen w-full bg-gradient-to-br from-blue-50/80 via-white to-blue-50/80 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] dark:from-blue-900 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
