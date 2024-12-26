@@ -16,15 +16,22 @@ import { MediaTableHeader } from "@/components/media/table/MediaTableHeader";
 import { MediaTableRow } from "@/components/media/table/MediaTableRow";
 import { GoogleSheetsConfig } from "@/components/media/GoogleSheetsConfig";
 import useMediaSubscription from "@/components/media/hooks/useMediaSubscription";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
+
+type SortConfig = {
+  column: keyof MediaItem | null;
+  direction: 'asc' | 'desc';
+};
 
 const MediaTable = () => {
   const { toast } = useToast();
   const [spreadsheetId, setSpreadsheetId] = useState<string>();
   const [selectedMedia, setSelectedMedia] = useState<MediaItem[]>([]);
   const lastSelectedIndex = useRef<number>(-1);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: null, direction: 'desc' });
   
   useMediaSubscription(spreadsheetId);
   
@@ -103,6 +110,38 @@ const MediaTable = () => {
     window.open(url, '_blank');
   };
 
+  const handleSort = (column: keyof MediaItem) => {
+    setSortConfig(prevConfig => ({
+      column,
+      direction: prevConfig.column === column && prevConfig.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const sortedMediaItems = mediaItems ? [...mediaItems].sort((a, b) => {
+    if (!sortConfig.column) return 0;
+
+    let aValue = a[sortConfig.column];
+    let bValue = b[sortConfig.column];
+
+    // Handle nested chat object for channel title
+    if (sortConfig.column === 'chat_id') {
+      aValue = a.chat?.title || '';
+      bValue = b.chat?.title || '';
+    }
+
+    // Handle date strings
+    if (sortConfig.column === 'created_at') {
+      return sortConfig.direction === 'asc' 
+        ? new Date(aValue as string).getTime() - new Date(bValue as string).getTime()
+        : new Date(bValue as string).getTime() - new Date(aValue as string).getTime();
+    }
+
+    // Handle strings and other types
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  }) : [];
+
   if (error) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-12rem)] text-center">
@@ -112,6 +151,17 @@ const MediaTable = () => {
       </div>
     );
   }
+
+  const renderSortButton = (column: keyof MediaItem, label: string) => (
+    <Button
+      variant="ghost"
+      onClick={() => handleSort(column)}
+      className="h-8 flex items-center gap-1 px-2 hover:bg-white/5"
+    >
+      {label}
+      <ArrowUpDown className="h-4 w-4" />
+    </Button>
+  );
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
@@ -134,16 +184,26 @@ const MediaTable = () => {
                   <TableHeader className="bg-black/60 sticky top-0 z-10">
                     <TableRow>
                       <TableHead className="text-sky-400 w-[100px]">Select</TableHead>
-                      <TableHead className="text-sky-400 w-[150px]">Type</TableHead>
-                      <TableHead className="text-sky-400 w-[150px]">Channel</TableHead>
-                      <TableHead className="text-sky-400 w-[200px]">Created At</TableHead>
-                      <TableHead className="text-sky-400 w-[300px]">Caption</TableHead>
-                      <TableHead className="text-sky-400 w-[400px]">File URL</TableHead>
+                      <TableHead className="text-sky-400 w-[150px]">
+                        {renderSortButton('media_type', 'Type')}
+                      </TableHead>
+                      <TableHead className="text-sky-400 w-[150px]">
+                        {renderSortButton('chat_id', 'Channel')}
+                      </TableHead>
+                      <TableHead className="text-sky-400 w-[200px]">
+                        {renderSortButton('created_at', 'Created At')}
+                      </TableHead>
+                      <TableHead className="text-sky-400 w-[300px]">
+                        {renderSortButton('caption', 'Caption')}
+                      </TableHead>
+                      <TableHead className="text-sky-400 w-[400px]">
+                        {renderSortButton('file_url', 'File URL')}
+                      </TableHead>
                       <TableHead className="text-sky-400 text-right w-[200px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mediaItems?.map((item, index) => (
+                    {sortedMediaItems?.map((item, index) => (
                       <MediaTableRow
                         key={item.id}
                         item={item}
