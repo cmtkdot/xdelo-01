@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,10 +8,10 @@ import { MediaItem } from "../media/types";
 import WebhookUrlManager from "./WebhookUrlManager";
 import WebhookHistoryTable from "./WebhookHistoryTable";
 import { supabase } from "@/integrations/supabase/client";
-import { Info, RefreshCw } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import WebhookMethodSelector, { HttpMethod } from "./WebhookMethodSelector";
+import WebhookDataFetcher from "./WebhookDataFetcher";
+import WebhookRequestDetails from "./WebhookRequestDetails";
 
 interface WebhookInterfaceProps {
   schedule?: "manual" | "hourly" | "daily" | "weekly";
@@ -25,7 +24,7 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [availableFields, setAvailableFields] = useState<string[]>([]);
   const [webhookData, setWebhookData] = useState<any[]>([]);
-  const [method, setMethod] = useState<"GET" | "POST">("POST");
+  const [method, setMethod] = useState<HttpMethod>("POST");
   const { toast } = useToast();
 
   const fetchWebhookData = async () => {
@@ -43,7 +42,7 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
       const { data: response, error } = await supabase.functions.invoke('webhook-forwarder', {
         body: {
           webhook_url: webhookUrl,
-          method: "GET",
+          method: method,
           headers: {
             'Accept': 'application/json'
           }
@@ -95,7 +94,7 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
       return;
     }
 
-    if (selectedMedia.length === 0) {
+    if (selectedMedia.length === 0 && method !== "GET") {
       toast({
         title: "Error",
         description: "Please select at least one media item to send",
@@ -117,13 +116,13 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
       const { data: response, error } = await supabase.functions.invoke('webhook-forwarder', {
         body: {
           webhook_url: webhookUrl,
-          method: "POST",
-          data: {
+          method: method,
+          data: method !== "GET" ? {
             data: filteredData,
             timestamp: new Date().toISOString(),
             total_records: filteredData.length,
             selected_fields: selectedFields
-          },
+          } : undefined,
           headers: {
             'X-Source': 'Media Gallery',
             'X-Batch-Size': selectedMedia.length.toString()
@@ -190,35 +189,16 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
-            <Select
-              value={method}
-              onValueChange={(value: "GET" | "POST") => setMethod(value)}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select method" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="GET">GET</SelectItem>
-                <SelectItem value="POST">POST</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={fetchWebhookData}
-              disabled={isLoading || !webhookUrl}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Fetch Data
-            </Button>
+            <WebhookMethodSelector method={method} onMethodChange={setMethod} />
+            <WebhookDataFetcher
+              isLoading={isLoading}
+              webhookUrl={webhookUrl}
+              method={method}
+              webhookData={webhookData}
+              availableFields={availableFields}
+              onFetch={fetchWebhookData}
+            />
           </div>
-
-          {webhookData.length > 0 && (
-            <Alert>
-              <AlertDescription>
-                Retrieved {webhookData.length} records with {availableFields.length} fields
-              </AlertDescription>
-            </Alert>
-          )}
         </CardContent>
       </Card>
       
@@ -247,27 +227,15 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         </ScrollArea>
       </div>
 
-      <div className="rounded-lg border border-white/10 bg-black/20 p-4">
-        <div className="flex items-start space-x-2">
-          <Info className="w-5 h-5 text-blue-400 mt-0.5" />
-          <div className="space-y-1">
-            <h4 className="text-sm font-medium text-white">Request Details</h4>
-            <p className="text-xs text-white/70">
-              Method: {method}
-            </p>
-            <p className="text-xs text-white/70">
-              Headers: X-Source: Media Gallery, X-Batch-Size: {selectedMedia.length}
-            </p>
-            <p className="text-xs text-white/70">
-              Query Parameters: source=media_gallery, fields={selectedFields.join(',')}
-            </p>
-          </div>
-        </div>
-      </div>
+      <WebhookRequestDetails
+        method={method}
+        selectedMedia={selectedMedia}
+        selectedFields={selectedFields}
+      />
 
       <Button 
         onClick={handleSendWebhook}
-        disabled={isLoading || selectedMedia.length === 0}
+        disabled={isLoading || (method !== "GET" && selectedMedia.length === 0)}
         className="w-full bg-[#0088cc] hover:bg-[#0088cc]/80 text-white"
       >
         {schedule === "manual" ? `Send Selected Media (${selectedMedia.length})` : `Schedule ${schedule} updates`}
