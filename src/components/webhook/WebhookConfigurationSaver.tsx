@@ -65,15 +65,27 @@ const WebhookConfigurationSaver = ({
         parsedBody = [];
       }
 
+      // Convert Header[] to Json format
+      const jsonHeaders = headers.map(header => ({
+        key: header.key,
+        value: header.value
+      })) as Json;
+
+      // Convert QueryParam[] to Json format
+      const jsonParams = params.map(param => ({
+        key: param.key,
+        value: param.value
+      })) as Json;
+
       const { error } = await supabase
         .from('webhook_configurations')
         .insert({
           webhook_url_id: webhookUrlId,
           name: configName,
           method: method,
-          headers: headers as Json,
+          headers: jsonHeaders,
           body_params: parsedBody,
-          query_params: params as Json,
+          query_params: jsonParams,
           user_id: userId
         });
 
