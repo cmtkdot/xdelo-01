@@ -4,15 +4,21 @@ import { Save } from "lucide-react";
 interface HeaderMappingActionsProps {
   onSave: () => void;
   onSelectAll: () => void;
+  isSelectAllDisabled?: boolean;
 }
 
-export const HeaderMappingActions = ({ onSave, onSelectAll }: HeaderMappingActionsProps) => {
+export const HeaderMappingActions = ({ 
+  onSave, 
+  onSelectAll,
+  isSelectAllDisabled = false 
+}: HeaderMappingActionsProps) => {
   return (
     <div className="space-y-2">
       <Button 
         onClick={onSelectAll}
         className="w-full mb-2"
         variant="secondary"
+        disabled={isSelectAllDisabled}
       >
         Map All Headers
       </Button>

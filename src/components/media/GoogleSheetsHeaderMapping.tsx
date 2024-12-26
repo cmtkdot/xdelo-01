@@ -76,7 +76,7 @@ export const GoogleSheetsHeaderMapping = ({
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) throw new Error('User not authenticated');
           
-          // Load existing mapping from Supabase, filtering by both spreadsheet_id and user_id
+          // Load existing mapping from Supabase
           const { data: configData, error } = await supabase
             .from('google_sheets_config')
             .select('header_mapping')
@@ -87,7 +87,6 @@ export const GoogleSheetsHeaderMapping = ({
           if (error) throw error;
           
           if (configData?.header_mapping) {
-            // Ensure we're converting the JSON data to the correct type
             const headerMapping = configData.header_mapping as Record<string, string>;
             setMapping(headerMapping);
           }
@@ -110,32 +109,50 @@ export const GoogleSheetsHeaderMapping = ({
   }, [spreadsheetId, sheetGid, toast]);
 
   const handleMappingChange = (sheetHeader: string, dbColumn: string) => {
-    setMapping(prev => ({
-      ...prev,
-      [sheetHeader]: dbColumn
-    }));
+    // Remove any existing mappings to this dbColumn
+    const newMapping = { ...mapping };
+    Object.keys(newMapping).forEach(key => {
+      if (newMapping[key] === dbColumn) {
+        delete newMapping[key];
+      }
+    });
+    
+    // Add the new mapping
+    newMapping[sheetHeader] = dbColumn;
+    setMapping(newMapping);
   };
 
   const handleSelectAll = () => {
     const newMapping: Record<string, string> = {};
-    sheetHeaders.forEach((header, index) => {
-      // Try to find a matching column name, or use the first available column
+    const usedColumns = new Set<string>();
+    
+    sheetHeaders.forEach(header => {
+      // Try to find a matching column name that hasn't been used yet
       const matchingColumn = DEFAULT_DB_COLUMNS.find(col => 
-        col.toLowerCase() === header.toLowerCase()
-      ) || DEFAULT_DB_COLUMNS[index % DEFAULT_DB_COLUMNS.length];
+        !usedColumns.has(col) && col.toLowerCase() === header.toLowerCase()
+      );
       
-      newMapping[header] = matchingColumn;
+      if (matchingColumn) {
+        newMapping[header] = matchingColumn;
+        usedColumns.add(matchingColumn);
+      } else {
+        // Find the first available unused column
+        const availableColumn = DEFAULT_DB_COLUMNS.find(col => !usedColumns.has(col));
+        if (availableColumn) {
+          newMapping[header] = availableColumn;
+          usedColumns.add(availableColumn);
+        }
+      }
     });
+    
     setMapping(newMapping);
   };
 
   const handleSaveMapping = async () => {
     try {
-      // Get the current user's ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
-      // Save mapping to Supabase
       const { error } = await supabase
         .from('google_sheets_config')
         .update({ 
@@ -160,6 +177,12 @@ export const GoogleSheetsHeaderMapping = ({
         variant: "destructive",
       });
     }
+  };
+
+  // Check if all available columns are mapped
+  const isAllColumnsMapped = () => {
+    const mappedColumns = new Set(Object.values(mapping));
+    return mappedColumns.size >= DEFAULT_DB_COLUMNS.length;
   };
 
   if (isLoading) {
@@ -195,6 +218,7 @@ export const GoogleSheetsHeaderMapping = ({
           <HeaderMappingActions
             onSave={handleSaveMapping}
             onSelectAll={handleSelectAll}
+            isSelectAllDisabled={isAllColumnsMapped()}
           />
         </div>
       </CardContent>
