@@ -6,7 +6,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "./WebhookHeaderManager";
 import { QueryParam } from "./WebhookQueryManager";
-import { Json } from "@/integrations/supabase/types";
 
 interface WebhookConfigurationSaverProps {
   webhookUrlId: string;
@@ -46,48 +45,23 @@ const WebhookConfigurationSaver = ({
     }
 
     try {
-      const user = await supabase.auth.getUser();
-      const userId = user.data.user?.id;
-
-      if (!userId) {
-        toast({
-          title: "Error",
-          description: "User not authenticated",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      let parsedBody: Json;
+      let parsedBody;
       try {
         parsedBody = JSON.parse(body || "[]");
       } catch {
         parsedBody = [];
       }
 
-      // Convert Header[] to Json format
-      const jsonHeaders = headers.map(header => ({
-        key: header.key,
-        value: header.value
-      })) as Json;
-
-      // Convert QueryParam[] to Json format
-      const jsonParams = params.map(param => ({
-        key: param.key,
-        value: param.value
-      })) as Json;
-
       const { error } = await supabase
         .from('webhook_configurations')
-        .insert({
+        .insert([{
           webhook_url_id: webhookUrlId,
           name: configName,
           method: method,
-          headers: jsonHeaders,
+          headers: headers,
           body_params: parsedBody,
-          query_params: jsonParams,
-          user_id: userId
-        });
+          query_params: params
+        }]);
 
       if (error) throw error;
 

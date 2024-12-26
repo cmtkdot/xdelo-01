@@ -2,8 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FileSpreadsheet, CheckCircle } from "lucide-react";
 import { GoogleSheetsConfig } from "../media/GoogleSheetsConfig";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 interface SheetConfigurationProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -16,19 +14,6 @@ export const SheetConfiguration = ({
   googleSheetId, 
   parsedMapping 
 }: SheetConfigurationProps) => {
-  const { data: sheetsConfig } = useQuery({
-    queryKey: ['google-sheets-config'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('google_sheets_config')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
   return (
     <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
       <CardHeader>
@@ -43,9 +28,9 @@ export const SheetConfiguration = ({
       <CardContent className="space-y-4">
         <GoogleSheetsConfig
           onSpreadsheetIdSet={(id) => {
+            localStorage.setItem('googleSheetId', id);
             onSpreadsheetIdSet(id);
           }}
-          sheetsConfig={sheetsConfig}
         />
 
         {googleSheetId && (

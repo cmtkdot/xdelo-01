@@ -13,35 +13,17 @@ serve(async (req) => {
 
   try {
     const { webhook_url, data, headers = {}, params = {}, method = 'POST', body } = await req.json();
-    console.log('Received webhook request:', { webhook_url, method, headers, params, body });
+    console.log('Received webhook request:', { webhook_url, data, headers, params, method, body });
 
     if (!webhook_url) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Webhook URL is required'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400
-        }
-      );
+      throw new Error('Webhook URL is required');
     }
 
     // Validate webhook URL format
     try {
       new URL(webhook_url);
     } catch {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Invalid webhook URL format'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400
-        }
-      );
+      throw new Error('Invalid webhook URL format');
     }
 
     // Add query parameters to URL if they exist
@@ -60,31 +42,17 @@ serve(async (req) => {
 
     // Only add body for methods that typically have one
     if (method !== 'GET' && method !== 'DELETE') {
-      const requestBody = {
-        ...(data || {}),
-        ...(body || {}),
-        timestamp: new Date().toISOString()
-      };
-
-      // For Glide API, ensure appID is present in the body if it's provided
-      if (url.hostname.includes('glideapp.io') && !requestBody.appID) {
-        console.warn('Warning: Glide API request missing appID in body');
-      }
-
-      requestOptions.body = JSON.stringify(requestBody);
-      console.log('Request body:', requestOptions.body);
+      requestOptions.body = JSON.stringify({
+        ...data,
+        ...body,
+        timestamp: new Date().toISOString(),
+        params
+      });
     }
-
-    console.log('Making request to:', url.toString());
-    console.log('Request options:', requestOptions);
 
     const response = await fetch(url.toString(), requestOptions);
     const responseData = await response.json().catch(() => null);
-    console.log('Webhook response:', { 
-      status: response.status, 
-      statusText: response.statusText,
-      data: responseData 
-    });
+    console.log('Webhook response:', { status: response.status, data: responseData });
 
     // Extract headers from response data if it's an array of objects
     let extractedHeaders = [];
@@ -98,18 +66,7 @@ serve(async (req) => {
     }
 
     if (!response.ok) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Webhook request failed with status ${response.status}`,
-          details: responseData,
-          requestBody: method !== 'GET' ? JSON.parse(requestOptions.body as string) : undefined
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: response.status 
-        }
-      );
+      throw new Error(`Webhook request failed with status ${response.status}`);
     }
 
     return new Response(
@@ -130,8 +87,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
-        details: error
+        error: error.message
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

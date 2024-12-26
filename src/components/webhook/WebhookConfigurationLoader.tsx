@@ -4,6 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "./WebhookHeaderManager";
 import { QueryParam } from "./WebhookQueryManager";
+import { Json } from "@/integrations/supabase/types";
 
 interface SavedConfiguration {
   id: string;
@@ -39,28 +40,10 @@ const WebhookConfigurationLoader = ({
 
   const loadConfigurations = async () => {
     try {
-      // First, get the webhook_url id from the urls table
-      const { data: urlData, error: urlError } = await supabase
-        .from('webhook_urls')
-        .select('id')
-        .eq('url', webhookUrlId)
-        .single();
-
-      if (urlError) {
-        console.error('Error finding webhook URL:', urlError);
-        throw urlError;
-      }
-
-      if (!urlData?.id) {
-        setConfigurations([]);
-        return;
-      }
-
-      // Then use that ID to get the configurations
       const { data, error } = await supabase
         .from('webhook_configurations')
         .select('*')
-        .eq('webhook_url_id', urlData.id);
+        .eq('webhook_url_id', webhookUrlId);
 
       if (error) throw error;
       

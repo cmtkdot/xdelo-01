@@ -3,8 +3,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus } from "lucide-react";
 import { Header } from "./WebhookHeaderManager";
 import { QueryParam } from "./WebhookQueryManager";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info } from "lucide-react";
 
 const commonHeaders = [
   { key: "Content-Type", value: "application/json" },
@@ -36,13 +34,6 @@ const WebhookSuggestions = ({
 }: WebhookSuggestionsProps) => {
   return (
     <div className="space-y-4">
-      <Alert className="bg-blue-500/10 border-blue-500/20">
-        <Info className="h-4 w-4 text-blue-500" />
-        <AlertDescription className="text-sm text-blue-100">
-          For Glide API integration, the appID and queries should be included in the request body, not in headers or query parameters.
-        </AlertDescription>
-      </Alert>
-
       <div>
         <h4 className="text-sm font-medium mb-2 text-white">Suggested Headers</h4>
         <ScrollArea className="h-[100px] rounded-md border border-white/10 p-2">
