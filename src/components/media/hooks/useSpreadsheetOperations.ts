@@ -15,6 +15,10 @@ export const useSpreadsheetOperations = (
 
   const initializeSpreadsheet = async (spreadsheetId: string, gid?: string) => {
     try {
+      if (!window.gapi?.client?.sheets) {
+        await initializeGoogleSheetsAPI();
+      }
+
       const response = await window.gapi.client.sheets.spreadsheets.get({
         spreadsheetId,
       });
@@ -36,6 +40,13 @@ export const useSpreadsheetOperations = (
       return true;
     } catch (error) {
       console.error('Error initializing spreadsheet:', error);
+      if (error instanceof Error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   };
@@ -49,7 +60,14 @@ export const useSpreadsheetOperations = (
       await initializeSpreadsheet(id, gid);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "Please sign in to continue",
+          variant: "destructive",
+        });
+        return;
+      }
       
       const { data, error } = await supabase
         .from('google_sheets_config')
@@ -84,7 +102,7 @@ export const useSpreadsheetOperations = (
       console.error('Google Sheets sync error:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to configure Google Sheets integration",
+        description: "Failed to configure Google Sheets integration. Please try again.",
         variant: "destructive",
       });
     }

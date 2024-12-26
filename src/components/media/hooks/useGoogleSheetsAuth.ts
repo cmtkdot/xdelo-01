@@ -15,8 +15,14 @@ export const useGoogleSheetsAuth = () => {
       
       // Load the Google Identity Services script
       await new Promise<void>((resolve, reject) => {
+        if (window.google?.accounts?.oauth2) {
+          resolve();
+          return;
+        }
         const script = document.createElement('script');
         script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
         script.onload = () => resolve();
         script.onerror = () => reject(new Error('Failed to load Google Identity Services'));
         document.body.appendChild(script);
@@ -24,8 +30,14 @@ export const useGoogleSheetsAuth = () => {
 
       // Initialize the Google API client
       await new Promise<void>((resolve, reject) => {
+        if (window.gapi?.client) {
+          resolve();
+          return;
+        }
         const script = document.createElement('script');
         script.src = 'https://apis.google.com/js/api.js';
+        script.async = true;
+        script.defer = true;
         script.onload = () => {
           window.gapi.load('client', async () => {
             try {
@@ -43,7 +55,7 @@ export const useGoogleSheetsAuth = () => {
       });
 
       // Initialize Google Identity Services client
-      const client = google.accounts.oauth2.initTokenClient({
+      const tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
         callback: async (response) => {
@@ -56,17 +68,21 @@ export const useGoogleSheetsAuth = () => {
           setIsInitialized(true);
           
           console.log('Google Sheets API initialized successfully');
+          toast({
+            title: "Success",
+            description: "Connected to Google Sheets successfully",
+          });
         },
       });
 
       // Request user authorization
-      client.requestAccessToken();
+      tokenClient.requestAccessToken({ prompt: 'consent' });
 
     } catch (error) {
       console.error('Error initializing Google Sheets API:', error);
       toast({
-        title: "Error",
-        description: "Failed to initialize Google Sheets API. Please try again.",
+        title: "Connection Error",
+        description: "Please try connecting to Google Sheets again",
         variant: "destructive",
       });
       throw error;

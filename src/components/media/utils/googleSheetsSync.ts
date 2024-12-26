@@ -18,6 +18,10 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
   try {
     console.log('Starting sync with Google Sheets...');
     
+    if (!window.gapi?.client?.sheets) {
+      throw new Error('Google Sheets API not initialized');
+    }
+
     const { data: configData, error: configError } = await supabase
       .from('google_sheets_config')
       .select('header_mapping')
