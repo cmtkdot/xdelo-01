@@ -1,81 +1,78 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { webhook_url, data, headers = {}, params = {} } = await req.json();
-    console.log('Forwarding webhook to:', webhook_url);
-    console.log('With data:', data);
-    console.log('With headers:', headers);
-    console.log('With query params:', params);
-    
-    // Construct URL with query parameters
-    const url = new URL(webhook_url);
-    Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.append(key, value as string);
-    });
-    
-    // Forward to webhook with proper headers
-    const response = await fetch(url.toString(), {
+    console.log('Received webhook request:', { webhook_url, data, headers, params });
+
+    if (!webhook_url) {
+      throw new Error('Webhook URL is required');
+    }
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid data format');
+    }
+
+    // Validate webhook URL format
+    try {
+      new URL(webhook_url);
+    } catch {
+      throw new Error('Invalid webhook URL format');
+    }
+
+    const response = await fetch(webhook_url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Supabase Edge Function',
-        ...headers,
+        ...headers
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        timestamp: new Date().toISOString(),
+        params
+      })
     });
 
+    const responseData = await response.json().catch(() => null);
+    console.log('Webhook response:', { status: response.status, data: responseData });
+
     if (!response.ok) {
-      throw new Error(`Webhook responded with status ${response.status}: ${response.statusText}`);
+      throw new Error(`Webhook request failed with status ${response.status}`);
     }
-
-    let responseData;
-    const contentType = response.headers.get('content-type');
-    
-    if (contentType && contentType.includes('application/json')) {
-      responseData = await response.json();
-    } else {
-      // For non-JSON responses, create a structured response
-      responseData = {
-        status: response.status,
-        statusText: response.statusText,
-        text: await response.text()
-      };
-    }
-
-    console.log('Webhook response:', responseData);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
-        message: 'Webhook forwarded successfully',
-        response: responseData
+        status: response.status,
+        data: responseData
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
+        status: 200 
+      }
     );
   } catch (error) {
-    console.error('Error in webhook forwarder:', error);
+    console.error('Error processing webhook:', error);
+    
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        timestamp: new Date().toISOString()
+      JSON.stringify({
+        success: false,
+        error: error.message
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      },
+        status: error.message.includes('required') || error.message.includes('Invalid') ? 400 : 500
+      }
     );
   }
 });

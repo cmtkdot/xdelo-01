@@ -30,23 +30,44 @@ export const getMediaItem = (message: any): any => {
   return null;
 };
 
-export const formatMediaMetadata = (mediaItem: any, message: any): any => {
-  const metadata: any = {
-    telegram_file_id: mediaItem.file_id,
-    width: mediaItem.width || null,
-    height: mediaItem.height || null,
-    file_size: mediaItem.file_size || null,
-  };
-
-  // Add mime_type if available (usually for documents)
-  if (message.document?.mime_type) {
-    metadata.mime_type = message.document.mime_type;
+export const formatMediaMetadata = (mediaItem: any, message: any): Record<string, any> => {
+  if (!mediaItem || typeof mediaItem !== 'object') {
+    console.error('Invalid mediaItem:', mediaItem);
+    return {};
   }
 
-  // Add original filename if available
-  if (message.document?.file_name) {
-    metadata.original_filename = message.document.file_name;
-  }
+  try {
+    const metadata: Record<string, any> = {
+      telegram_file_id: mediaItem.file_id || null,
+      width: mediaItem.width || null,
+      height: mediaItem.height || null,
+      file_size: mediaItem.file_size || null,
+    };
 
-  return metadata;
+    // Clean up null values
+    Object.keys(metadata).forEach(key => {
+      if (metadata[key] === null) {
+        delete metadata[key];
+      }
+    });
+
+    // Add mime_type if available (usually for documents)
+    if (message.document?.mime_type) {
+      metadata.mime_type = message.document.mime_type;
+    }
+
+    // Add original filename if available
+    if (message.document?.file_name) {
+      metadata.original_filename = message.document.file_name;
+    }
+
+    // Validate the metadata can be stringified
+    JSON.stringify(metadata);
+    
+    console.log('Formatted metadata:', metadata);
+    return metadata;
+  } catch (error) {
+    console.error('Error formatting metadata:', error);
+    return {};
+  }
 };
