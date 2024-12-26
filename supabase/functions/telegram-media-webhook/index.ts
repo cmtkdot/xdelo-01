@@ -149,11 +149,7 @@ serve(async (req) => {
         message.media_group_id
       );
 
-      console.log(`Processing media with caption: "${messageCaption}" and media_group_id: ${message.media_group_id}`);
-
-      if (message.media_group_id && messageCaption) {
-        await syncMediaGroupCaption(supabase, message.media_group_id, messageCaption);
-      }
+      console.log(`Successfully processed media with caption: "${messageCaption}" and media_group_id: ${message.media_group_id}`);
 
       await supabase.from("bot_activities").insert({
         event_type: "media_saved",

@@ -198,6 +198,17 @@ export const saveMedia = async (
       throw mediaError;
     }
 
+    // If this media is part of a group, automatically sync captions
+    if (mediaGroupId && caption) {
+      console.log(`Auto-syncing caption for media group ${mediaGroupId}`);
+      try {
+        await syncMediaGroupCaption(supabase, mediaGroupId, caption);
+      } catch (syncError) {
+        console.error('Error auto-syncing captions:', syncError);
+        // Don't throw the error - we still want to return the saved media
+      }
+    }
+
     return mediaData;
   } catch (error) {
     console.error('Error in saveMedia:', error);
