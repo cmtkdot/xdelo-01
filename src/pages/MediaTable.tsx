@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { MediaItem } from "@/components/media/types";
 import { useToast } from "@/hooks/use-toast";
-import { MediaTableHeader as TableActions } from "@/components/media/table/MediaTableHeader";
 import { GoogleSheetsConfig } from "@/components/media/GoogleSheetsConfig";
 import useMediaSubscription from "@/components/media/hooks/useMediaSubscription";
 import { MediaTableContent } from "@/components/media/table/MediaTableContent";
@@ -75,13 +74,6 @@ const MediaTable = () => {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <div className="space-y-6">
-        <TableActions 
-          onSort={handleSort}
-          onSelectAll={handleSelectAll}
-          allSelected={allSelected}
-          someSelected={someSelected}
-        />
-        
         <div className="mb-6">
           <GoogleSheetsConfig onSpreadsheetIdSet={setSpreadsheetId} />
         </div>
