@@ -28,11 +28,26 @@ const MediaTable = () => {
   const [spreadsheetId, setSpreadsheetId] = useState<string>();
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>("all");
+  const [selectedChannel, setSelectedChannel] = useState<string>("all");
+  const [selectedType, setSelectedType] = useState<string>("all");
   
   useMediaSubscription(spreadsheetId);
   
+  // Fetch channels for the filter
+  const { data: channels } = useQuery({
+    queryKey: ['channels'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('channels')
+        .select('chat_id, title');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+  
   const { data: mediaItems, isLoading, error } = useQuery({
-    queryKey: ['media-table', uploadStatus],
+    queryKey: ['media-table', uploadStatus, selectedChannel, selectedType],
     queryFn: async () => {
       const { data: session } = await supabase.auth.getSession();
       
@@ -52,6 +67,14 @@ const MediaTable = () => {
         query = query.is('google_drive_id', null);
       } else if (uploadStatus === "uploaded") {
         query = query.not('google_drive_id', 'is', null);
+      }
+
+      if (selectedChannel !== "all") {
+        query = query.eq('chat_id', parseInt(selectedChannel));
+      }
+
+      if (selectedType !== "all") {
+        query = query.eq('media_type', selectedType);
       }
 
       const { data, error } = await query;
@@ -100,10 +123,56 @@ const MediaTable = () => {
         </div>
         
         <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg overflow-hidden">
-          <div className="p-4 border-b border-white/10 flex justify-between items-center">
-            <div className="flex items-center gap-4">
+          <div className="p-4 border-b border-white/10">
+            <div className="flex flex-col xs:flex-row gap-3 mb-4">
+              <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                <SelectTrigger className="w-full xs:w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
+                  <SelectValue placeholder="Select Channel" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1A1F2C] border-white/10">
+                  <SelectItem value="all" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+                    All Channels
+                  </SelectItem>
+                  {channels?.map((channel) => (
+                    <SelectItem 
+                      key={channel.chat_id} 
+                      value={channel.chat_id.toString()}
+                      className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]"
+                    >
+                      {channel.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger className="w-full xs:w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
+                  <SelectValue placeholder="Select Media Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1A1F2C] border-white/10">
+                  <SelectItem value="all" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+                    All Types
+                  </SelectItem>
+                  <SelectItem value="photo" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+                    Photos
+                  </SelectItem>
+                  <SelectItem value="video" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+                    Videos
+                  </SelectItem>
+                  <SelectItem value="animation" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+                    Animations
+                  </SelectItem>
+                  <SelectItem value="edited_channel_post" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+                    Edited Posts
+                  </SelectItem>
+                  <SelectItem value="channel_post" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+                    Channel Posts
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
               <Select value={uploadStatus} onValueChange={setUploadStatus}>
-                <SelectTrigger className="w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
+                <SelectTrigger className="w-full xs:w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
                   <SelectValue placeholder="Upload Status" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1A1F2C] border-white/10">
@@ -118,33 +187,36 @@ const MediaTable = () => {
                   </SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex justify-between items-center">
               {selectedMedia.length > 0 && (
                 <span className="text-white/70">
                   {selectedMedia.length} item{selectedMedia.length !== 1 ? 's' : ''} selected
                 </span>
               )}
+              {selectedMedia.length > 0 && (
+                <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload Selected to Drive
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Upload Files to Google Drive</DialogTitle>
+                    </DialogHeader>
+                    <GoogleDriveUploader
+                      selectedFiles={selectedMedia}
+                      onSuccess={() => setIsUploadDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
-            {selectedMedia.length > 0 && (
-              <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                  >
-                    <Upload className="w-4 h-4" />
-                    Upload Selected to Drive
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Upload Files to Google Drive</DialogTitle>
-                  </DialogHeader>
-                  <GoogleDriveUploader
-                    selectedFiles={selectedMedia}
-                    onSuccess={() => setIsUploadDialogOpen(false)}
-                  />
-                </DialogContent>
-              </Dialog>
-            )}
           </div>
           <MediaTableContent
             isLoading={isLoading}
