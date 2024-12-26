@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Database, Loader2, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface SheetRow {
   [key: string]: string;
@@ -21,6 +22,13 @@ export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps
     );
   }
 
+  const getHeaderTooltip = (header: string) => {
+    if (header === 'Row ID') {
+      return 'Unique identifier (UUID) for each media record in the database';
+    }
+    return null;
+  };
+
   return (
     <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
       <CardHeader>
@@ -35,9 +43,23 @@ export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps
             <Table>
               <TableHeader>
                 <TableRow>
-                  {Object.keys(sheetData[0]).map((header) => (
-                    <TableHead key={header}>{header}</TableHead>
-                  ))}
+                  {Object.keys(sheetData[0]).map((header) => {
+                    const tooltip = getHeaderTooltip(header);
+                    return tooltip ? (
+                      <TooltipProvider key={header}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <TableHead className="cursor-help">{header}</TableHead>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{tooltip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <TableHead key={header}>{header}</TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
