@@ -40,6 +40,25 @@ export const GoogleSheetsConfig = ({
   
   const { toast } = useToast();
 
+  // Add the specific spreadsheet ID and GID you want to sync
+  useEffect(() => {
+    const specificSpreadsheetId = "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w";
+    const specificGid = "1908422891";
+    
+    // Check if this sheet is already configured
+    const isConfigured = spreadsheets.some(sheet => 
+      sheet.id === specificSpreadsheetId && sheet.gid === specificGid
+    );
+
+    if (!isConfigured) {
+      handleAddSpreadsheet(
+        "Synced Media Sheet",
+        specificSpreadsheetId,
+        specificGid
+      );
+    }
+  }, []);
+
   const { data: allMedia } = useQuery({
     queryKey: ['all-media'],
     queryFn: async () => {
@@ -109,14 +128,13 @@ export const GoogleSheetsConfig = ({
       console.log('Initializing spreadsheet...');
       await initializeSpreadsheet(id, gid);
 
-      // Get the current user's ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
         .from('google_sheets_config')
         .insert({
-          user_id: user.id, // Add the user_id here
+          user_id: user.id,
           spreadsheet_id: id,
           sheet_name: name,
           sheet_gid: gid,
