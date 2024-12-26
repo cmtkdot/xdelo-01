@@ -4,13 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, X } from "lucide-react";
 import WebhookSuggestionDropdown from "./WebhookSuggestionDropdown";
+import { Suggestion } from "./types/webhookTypes";
 
 export interface QueryParam {
   key: string;
   value: string;
 }
 
-const GLIDE_API_PARAMS = [
+const GLIDE_API_PARAMS: Suggestion[] = [
   { 
     key: "appID", 
     value: "",

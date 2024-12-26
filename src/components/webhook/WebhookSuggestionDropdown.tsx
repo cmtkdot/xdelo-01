@@ -4,7 +4,6 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandInput,
-  CommandItem,
 } from "@/components/ui/command";
 import {
   Popover,
@@ -12,34 +11,21 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Suggestion {
-  key: string;
-  value: string;
-  description?: string;
-}
-
-interface WebhookSuggestionDropdownProps {
-  suggestions: Suggestion[];
-  value?: string;
-  onSelect: (suggestion: Suggestion) => void;
-  placeholder?: string;
-  triggerClassName?: string;
-}
+import SuggestionItem from "./components/SuggestionItem";
+import { SuggestionProps } from "./types/webhookTypes";
 
 const WebhookSuggestionDropdown = ({
-  suggestions = [], // Provide default empty array
-  value = "",      // Provide default empty string
+  suggestions = [],
+  value = "",
   onSelect,
   placeholder = "Select from suggestions...",
   triggerClassName,
-}: WebhookSuggestionDropdownProps) => {
+}: SuggestionProps) => {
   const [open, setOpen] = React.useState(false);
-
-  // Ensure suggestions is always an array
   const validSuggestions = Array.isArray(suggestions) ? suggestions : [];
+  const selectedSuggestion = validSuggestions.find((s) => s.key === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -53,7 +39,7 @@ const WebhookSuggestionDropdown = ({
             triggerClassName
           )}
         >
-          {value ? validSuggestions.find((s) => s.key === value)?.key : placeholder}
+          {selectedSuggestion?.key || placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -66,28 +52,15 @@ const WebhookSuggestionDropdown = ({
           <CommandEmpty>No suggestion found.</CommandEmpty>
           <CommandGroup>
             {validSuggestions.map((suggestion) => (
-              <CommandItem
+              <SuggestionItem
                 key={suggestion.key}
-                value={suggestion.key}
-                onSelect={() => {
-                  onSelect(suggestion);
+                suggestion={suggestion}
+                isSelected={value === suggestion.key}
+                onSelect={(selected) => {
+                  onSelect(selected);
                   setOpen(false);
                 }}
-                className="text-white hover:bg-white/10"
-              >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    value === suggestion.key ? "opacity-100" : "opacity-0"
-                  )}
-                />
-                <div>
-                  <div>{suggestion.key}</div>
-                  {suggestion.description && (
-                    <div className="text-xs text-white/70">{suggestion.description}</div>
-                  )}
-                </div>
-              </CommandItem>
+              />
             ))}
           </CommandGroup>
         </Command>
