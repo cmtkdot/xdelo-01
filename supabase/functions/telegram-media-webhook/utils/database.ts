@@ -24,14 +24,19 @@ export const saveChannel = async (supabase: any, chat: any, userId: string) => {
 };
 
 export const saveMessage = async (supabase: any, chat: any, message: any, userId: string) => {
+  console.log(`Saving message ${message.message_id} from chat ${chat.id}`);
+  
   const { data: messageData, error: messageError } = await supabase
     .from("messages")
-    .insert({
+    .upsert({
       chat_id: chat.id,
       message_id: message.message_id,
       sender_name: message.from?.first_name || "Unknown",
       text: message.text || message.caption || null,
       user_id: userId,
+    }, {
+      onConflict: 'chat_id,message_id',
+      ignoreDuplicates: false // This will update existing records
     })
     .select()
     .single();
@@ -41,6 +46,7 @@ export const saveMessage = async (supabase: any, chat: any, message: any, userId
     throw messageError;
   }
 
+  console.log(`Successfully saved/updated message ${message.message_id}`);
   return messageData;
 };
 
