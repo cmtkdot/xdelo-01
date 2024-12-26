@@ -82,11 +82,25 @@ export const syncMediaGroupCaption = async (supabase: any, mediaGroupId: string,
   try {
     console.log(`Syncing caption "${caption}" for media group ${mediaGroupId}`);
     
+    // First, get all media items in this group
+    const { data: mediaItems, error: fetchError } = await supabase
+      .from('media')
+      .select('id, caption')
+      .eq('media_group_id', mediaGroupId);
+    
+    if (fetchError) {
+      console.error('Error fetching media group items:', fetchError);
+      throw fetchError;
+    }
+
+    console.log(`Found ${mediaItems?.length || 0} items in media group ${mediaGroupId}`);
+
+    // Update all items in the group that either have no caption or a different caption
     const { error: updateError } = await supabase
       .from('media')
       .update({ caption })
       .eq('media_group_id', mediaGroupId)
-      .is('caption', null);
+      .or('caption.is.null,caption.neq.' + caption); // Update if caption is null OR different from new caption
 
     if (updateError) {
       console.error('Error syncing caption to group:', updateError);
