@@ -9,12 +9,23 @@ import useMediaSubscription from "@/components/media/hooks/useMediaSubscription"
 import { MediaTableContent } from "@/components/media/table/MediaTableContent";
 import { useMediaTableSort } from "@/components/media/table/hooks/useMediaTableSort";
 import { useMediaTableSelection } from "@/components/media/table/hooks/useMediaTableSelection";
+import { Button } from "@/components/ui/button";
+import { Upload } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import GoogleDriveUploader from "@/components/media/GoogleDriveUploader";
 
 const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
 const MediaTable = () => {
   const { toast } = useToast();
   const [spreadsheetId, setSpreadsheetId] = useState<string>();
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   
   useMediaSubscription(spreadsheetId);
   
@@ -79,6 +90,32 @@ const MediaTable = () => {
         </div>
         
         <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg overflow-hidden">
+          {selectedMedia.length > 0 && (
+            <div className="p-4 border-b border-white/10 flex justify-between items-center">
+              <span className="text-white/70">
+                {selectedMedia.length} item{selectedMedia.length !== 1 ? 's' : ''} selected
+              </span>
+              <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Upload Selected to Drive
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Upload Files to Google Drive</DialogTitle>
+                  </DialogHeader>
+                  <GoogleDriveUploader
+                    selectedFiles={selectedMedia}
+                    onSuccess={() => setIsUploadDialogOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
           <MediaTableContent
             isLoading={isLoading}
             mediaItems={sortedMediaItems}
