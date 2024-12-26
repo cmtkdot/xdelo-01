@@ -22,7 +22,7 @@ export const GoogleSheetsConfig = ({
   googleSheetId,
   parsedMapping = {}
 }: GoogleSheetsConfigProps) => {
-  const [spreadsheetId, setSpreadsheetId] = useState(googleSheetId || "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w");
+  const [spreadsheetId, setSpreadsheetId] = useState(googleSheetId || "");
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const { toast } = useToast();
@@ -79,15 +79,12 @@ export const GoogleSheetsConfig = ({
     
     try {
       console.log('Initializing Google Sheets API...');
-      // Initialize Google Sheets API
       await initGoogleSheetsAPI();
       
       console.log('Initializing spreadsheet...');
-      // Initialize spreadsheet with headers if needed
       await initializeSpreadsheet(spreadsheetId);
       
       console.log('Syncing media items...');
-      // Sync all media items
       const mediaToSync = selectedMedia.length > 0 ? selectedMedia : allMedia || [];
       await syncWithGoogleSheets(spreadsheetId, mediaToSync);
       
@@ -108,11 +105,6 @@ export const GoogleSheetsConfig = ({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleHeaderMapping = (mapping: Record<string, string>) => {
-    console.log('Header mapping:', mapping);
-    localStorage.setItem('headerMapping', JSON.stringify(mapping));
   };
 
   return (
@@ -145,7 +137,10 @@ export const GoogleSheetsConfig = ({
         <div className="mt-8">
           <GoogleSheetsHeaderMapping
             spreadsheetId={spreadsheetId}
-            onMappingComplete={handleHeaderMapping}
+            onMappingComplete={(mapping) => {
+              console.log('Header mapping:', mapping);
+              localStorage.setItem('headerMapping', JSON.stringify(mapping));
+            }}
           />
         </div>
       )}

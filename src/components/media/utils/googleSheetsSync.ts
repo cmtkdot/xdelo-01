@@ -3,12 +3,13 @@ import { MediaItem } from "../types";
 import { SHEET_NAME, formatMediaForSheets, BASE_HEADERS } from "./googleSheets/formatters";
 import { getGoogleAuthToken } from "./googleSheets/auth";
 
-// Initialize Google Sheets API
+const COLUMN_LIMIT = 'K'; // Limit initial sync to column K
+const MAX_COLUMNS = 26; // Maximum number of columns (A-Z)
+
 export const initGoogleSheetsAPI = async () => {
   try {
     console.log('Starting Google Sheets API initialization...');
     
-    // Load the Google API client
     await new Promise<void>((resolve, reject) => {
       const script = document.createElement('script');
       script.src = 'https://apis.google.com/js/api.js';
@@ -17,9 +18,6 @@ export const initGoogleSheetsAPI = async () => {
       document.body.appendChild(script);
     });
 
-    console.log('Google API script loaded');
-
-    // Load the client library
     await new Promise<void>((resolve, reject) => {
       window.gapi.load('client', {
         callback: resolve,
@@ -27,9 +25,6 @@ export const initGoogleSheetsAPI = async () => {
       });
     });
 
-    console.log('Google client library loaded');
-
-    // Initialize the Sheets API
     await window.gapi.client.init({
       discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
     });
@@ -42,20 +37,16 @@ export const initGoogleSheetsAPI = async () => {
   }
 };
 
-// Initialize spreadsheet with headers if needed
 export const initializeSpreadsheet = async (spreadsheetId: string) => {
   try {
     console.log('Getting Google auth token...');
     const accessToken = await getGoogleAuthToken();
     window.gapi.client.setToken({ access_token: accessToken });
 
-    console.log('Checking spreadsheet existence...');
-    // First, try to get the spreadsheet to check if it exists
     const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
       spreadsheetId,
     });
 
-    // Check if our sheet exists
     let sheetId = 0;
     const sheet = spreadsheet.result.sheets?.find(
       (s: any) => s.properties?.title === SHEET_NAME
@@ -63,7 +54,6 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
 
     if (!sheet) {
       console.log('Sheet not found, creating new sheet...');
-      // Create the sheet if it doesn't exist
       const addSheetResponse = await window.gapi.client.sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         resource: {
@@ -77,25 +67,20 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
         }
       });
 
-      // Get the new sheet ID
       sheetId = addSheetResponse.result.replies?.[0]?.addSheet?.properties?.sheetId || 0;
-      console.log('Created new sheet with ID:', sheetId);
       
-      // Add headers to the new sheet
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${SHEET_NAME}!A1:${String.fromCharCode(65 + BASE_HEADERS.length - 1)}1`,
+        range: `${SHEET_NAME}!A1:${COLUMN_LIMIT}1`,
         valueInputOption: 'RAW',
         resource: {
-          values: [BASE_HEADERS]
+          values: [BASE_HEADERS.slice(0, COLUMN_LIMIT.charCodeAt(0) - 64)] // Convert column letter to number
         }
       });
     } else {
       sheetId = sheet.properties?.sheetId || 0;
-      console.log('Found existing sheet with ID:', sheetId);
     }
 
-    // Set up auto-resizing columns
     await window.gapi.client.sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       resource: {
@@ -105,14 +90,13 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
               sheetId: sheetId,
               dimension: "COLUMNS",
               startIndex: 0,
-              endIndex: BASE_HEADERS.length
+              endIndex: MAX_COLUMNS
             }
           }
         }]
       }
     });
 
-    console.log('Spreadsheet initialized successfully');
     return true;
   } catch (error: any) {
     console.error('Error initializing spreadsheet:', error);
@@ -123,13 +107,11 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
   }
 };
 
-// Function to sync data with Google Sheets
 export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: MediaItem[]) => {
   try {
     console.log('Starting sync with Google Sheets...');
     const { headers, data } = formatMediaForSheets(mediaItems);
     
-    // Get the sheet ID
     const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
       spreadsheetId,
     });
@@ -141,65 +123,55 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
     if (!sheet) {
       throw new Error('Sheet not found. Please initialize the spreadsheet first.');
     }
-    
-    const sheetId = sheet.properties?.sheetId;
 
-    console.log('Clearing existing content...');
-    // Clear existing content
-    await window.gapi.client.sheets.spreadsheets.values.clear({
+    // Get existing sheet data to preserve columns beyond COLUMN_LIMIT
+    const existingData = await window.gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: SHEET_NAME
+      range: `${SHEET_NAME}!A1:${String.fromCharCode(64 + MAX_COLUMNS)}`,
     });
 
-    console.log('Updating headers...');
-    // Update headers first
+    const existingValues = existingData.result.values || [];
+    const existingHeaders = existingValues[0] || [];
+
+    // Merge existing data with new data
+    const mergedData = data.map((row, rowIndex) => {
+      const existingRow = existingValues[rowIndex + 1] || [];
+      const newRow = [...row];
+
+      // Preserve existing data in columns beyond COLUMN_LIMIT
+      for (let i = COLUMN_LIMIT.charCodeAt(0) - 64; i < existingRow.length; i++) {
+        newRow[i] = existingRow[i];
+      }
+
+      return newRow;
+    });
+
+    // Update headers first (preserve custom headers beyond COLUMN_LIMIT)
+    const mergedHeaders = [...headers];
+    for (let i = headers.length; i < existingHeaders.length; i++) {
+      mergedHeaders[i] = existingHeaders[i];
+    }
+
     await window.gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${SHEET_NAME}!A1:${String.fromCharCode(65 + headers.length - 1)}1`,
+      range: `${SHEET_NAME}!A1:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}1`,
       valueInputOption: 'RAW',
       resource: {
-        values: [headers]
+        values: [mergedHeaders]
       }
     });
 
-    console.log('Updating data...');
-    // Then update the data
-    if (data.length > 0) {
+    // Update data
+    if (mergedData.length > 0) {
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${SHEET_NAME}!A2:${String.fromCharCode(65 + headers.length - 1)}${data.length + 1}`,
+        range: `${SHEET_NAME}!A2:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}${mergedData.length + 1}`,
         valueInputOption: 'RAW',
         resource: {
-          values: data
+          values: mergedData
         }
       });
     }
-
-    console.log('Applying formatting...');
-    // Apply formatting
-    await window.gapi.client.sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      resource: {
-        requests: [
-          {
-            repeatCell: {
-              range: {
-                sheetId: sheetId,
-                startRowIndex: 0,
-                endRowIndex: 1
-              },
-              cell: {
-                userEnteredFormat: {
-                  backgroundColor: { red: 0.2, green: 0.2, blue: 0.2 },
-                  textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } }
-                }
-              },
-              fields: "userEnteredFormat(backgroundColor,textFormat)"
-            }
-          }
-        ]
-      }
-    });
 
     console.log('Google Sheets sync successful');
     return true;
