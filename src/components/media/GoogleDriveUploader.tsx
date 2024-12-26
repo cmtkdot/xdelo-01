@@ -22,6 +22,7 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
   const uploadToGoogleDrive = async () => {
     try {
       if (selectedFiles && selectedFiles.length > 0) {
+        // Use Edge Function with service account
         const { data, error } = await supabase.functions.invoke('upload-to-drive', {
           body: { 
             files: selectedFiles.map(file => ({
@@ -41,6 +42,7 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
         onSuccess?.();
         return data;
       } else if (fileUrl && fileName) {
+        // Single file upload using Edge Function
         const { data, error } = await supabase.functions.invoke('upload-to-drive', {
           body: { fileUrl, fileName }
         });
@@ -70,7 +72,7 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Information</AlertTitle>
         <AlertDescription>
-          Files will be automatically uploaded to your Google Drive storage.
+          Files will be automatically uploaded to your Google Drive storage using service account authentication.
         </AlertDescription>
       </Alert>
       
