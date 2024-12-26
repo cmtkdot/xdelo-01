@@ -6,12 +6,13 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const { name, email } = await req.json()
+    const { name, email, chatbotId } = await req.json()
     
     const response = await fetch('https://www.askyourdatabase.com/api/chatbot/v2/session', {
       method: 'POST',
@@ -20,13 +21,18 @@ serve(async (req) => {
         'Authorization': `Bearer ${Deno.env.get('ASKYOURDATABASE_API_KEY')}`,
       },
       body: JSON.stringify({
-        chatbotid: "ffa05499087f66d554e38ff4fadf4972",
+        chatbotid: chatbotId,
         name,
         email,
       }),
     })
 
+    if (!response.ok) {
+      throw new Error(`Failed to create session: ${response.statusText}`)
+    }
+
     const data = await response.json()
+    console.log('Session created successfully:', data)
 
     return new Response(
       JSON.stringify(data),
@@ -38,7 +44,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal Server Error' }),
+      JSON.stringify({ error: error.message || 'Internal Server Error' }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,

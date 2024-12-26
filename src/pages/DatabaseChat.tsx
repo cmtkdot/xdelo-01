@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Database, CheckCircle2, XCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
 
 const DatabaseChat = () => {
   const [iframeUrl, setIframeUrl] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'success' | 'error'>('checking');
+  const { toast } = useToast();
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -19,50 +21,52 @@ const DatabaseChat = () => {
 
         if (dbError) throw dbError;
         setConnectionStatus('success');
-      } catch (err) {
-        console.error('Database connection error:', err);
-        setConnectionStatus('error');
-        return;
-      }
-    };
-
-    checkConnection();
-  }, []);
-
-  useEffect(() => {
-    const initializeChat = async () => {
-      try {
-        if (connectionStatus !== 'success') return;
-
-        const { data: { session } } = await supabase.auth.getSession();
         
+        // Only proceed with session creation if connection is successful
+        const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
           setError("Please login to use the database chat");
           setIsLoading(false);
           return;
         }
 
-        const { data, error: functionError } = await supabase.functions.invoke('create-chatbot-session', {
+        const { data: sessionData, error: functionError } = await supabase.functions.invoke('create-chatbot-session', {
           body: {
             name: session.user.email,
-            email: session.user.email
+            email: session.user.email,
+            chatbotId: "ffa05499087f66d554e38ff4fadf4972"
           }
         });
 
-        if (functionError) throw functionError;
-        if (!data?.url) throw new Error("Failed to get chat URL");
+        if (functionError) {
+          throw functionError;
+        }
 
-        setIframeUrl(data.url);
+        if (!sessionData?.url) {
+          throw new Error("Failed to get chat URL");
+        }
+
+        setIframeUrl(sessionData.url);
+        toast({
+          title: "Connection Successful",
+          description: "Database chat is ready to use",
+        });
       } catch (err) {
-        console.error('Error initializing chat:', err);
+        console.error('Error:', err);
+        setConnectionStatus('error');
         setError("Failed to initialize chat. Please try again later.");
+        toast({
+          variant: "destructive",
+          title: "Connection Error",
+          description: "Failed to connect to the database chat service",
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeChat();
-  }, [connectionStatus]);
+    checkConnection();
+  }, [toast]);
 
   const renderConnectionStatus = () => {
     switch (connectionStatus) {
