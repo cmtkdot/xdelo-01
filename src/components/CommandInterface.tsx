@@ -4,12 +4,19 @@ import { Input } from "./ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { AISettingsPanel, AISettings } from "./ai-chat/AISettings";
 
 const CommandInterface = () => {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [settings, setSettings] = useState<AISettings>({
+    temperature: 0.7,
+    maxTokens: 500,
+    streamResponse: true,
+    model: "claude-3-sonnet"
+  });
 
   useEffect(() => {
     const checkInitialAuth = async () => {
@@ -21,14 +28,12 @@ const CommandInterface = () => {
 
     checkInitialAuth();
 
-    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("Auth state changed:", event, "Session:", session ? "exists" : "null");
       
       if (event === 'SIGNED_OUT' || !session) {
         handleAuthError();
       } else if (event === 'TOKEN_REFRESHED') {
-        // Validate the refreshed session
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         if (error || !currentSession) {
           console.error("Session validation failed after token refresh:", error);
@@ -67,7 +72,6 @@ const CommandInterface = () => {
         return false;
       }
       
-      // Verify the session is still valid
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         console.error("User verification failed:", userError);
@@ -115,26 +119,55 @@ const CommandInterface = () => {
 
       if (messageError) throw messageError;
 
-      const { data, error } = await supabase.functions.invoke("process-message", {
-        body: { 
-          message,
-          settings: {
-            model: "claude-3-5-sonnet",
-            temperature: 0.7,
-            maxTokens: 500,
-            streamResponse: true
-          }
-        },
-      });
+      // First try to detect if this is a SQL query
+      const isSqlQuery = message.toLowerCase().trim().startsWith('select') || 
+                        message.toLowerCase().includes('from') ||
+                        message.toLowerCase().includes('where');
 
-      if (error) throw error;
+      let response;
+      if (isSqlQuery) {
+        // Handle SQL query
+        const { data: queryResult, error: queryError } = await supabase.rpc('execute_safe_query', {
+          query_text: message
+        });
 
-      if (data?.response) {
+        if (queryError) throw queryError;
+
+        response = {
+          type: 'sql',
+          query: message,
+          result: queryResult.data
+        };
+      } else {
+        // Handle NLP/Chat response
+        const { data, error } = await supabase.functions.invoke("process-message", {
+          body: { 
+            message,
+            settings: {
+              model: settings.model,
+              temperature: settings.temperature,
+              maxTokens: settings.maxTokens,
+              streamResponse: settings.streamResponse
+            }
+          },
+        });
+
+        if (error) throw error;
+        response = data;
+      }
+
+      if (response) {
+        const botResponse = typeof response === 'string' ? response : 
+          response.type === 'sql' ? 
+            `I executed the following SQL query:\n\`\`\`sql\n${response.query}\n\`\`\`\n\nResults:\n\`\`\`json\n${JSON.stringify(response.result, null, 2)}\n\`\`\`` :
+            response.response;
+
         const { error: botMessageError } = await supabase.from("messages").insert({
           user_id: user.id,
           sender_name: "Bot",
-          text: data.response,
+          text: botResponse,
           message_id: messageId + 1,
+          metadata: response.type === 'sql' ? { type: 'sql', query: response.query, result: response.result } : undefined
         });
 
         if (botMessageError) throw botMessageError;
@@ -164,13 +197,16 @@ const CommandInterface = () => {
 
   return (
     <div className="bg-transparent rounded-lg">
-      <h2 className="text-xl font-semibold mb-4 text-white">Command Interface</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-white">Command Interface</h2>
+        <AISettingsPanel settings={settings} onSettingsChange={setSettings} />
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex gap-2">
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type a command or message..."
+            placeholder="Ask a question, run a SQL query, or trigger a webhook..."
             disabled={isLoading}
             className="bg-black/40 border-white/10 text-white placeholder:text-gray-400"
           />

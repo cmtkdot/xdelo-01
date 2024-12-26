@@ -1,91 +1,103 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.1.0";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log("Processing message request");
-    const { message } = await req.json();
+    const { message, settings } = await req.json();
     
-    // Validate message
-    if (!message || typeof message !== "string") {
-      console.error("Invalid message format received:", message);
-      return new Response(
-        JSON.stringify({ error: "Invalid message format" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    // Get API keys based on selected model
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+
+    let response;
+    
+    if (settings.model.startsWith('claude')) {
+      // Claude API call
+      response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': anthropicApiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: settings.model,
+          max_tokens: settings.maxTokens,
+          messages: [{ role: 'user', content: message }],
+          temperature: settings.temperature,
+        }),
+      });
+      
+      const data = await response.json();
+      return new Response(JSON.stringify({ response: data.content[0].text }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } 
+    else if (settings.model.startsWith('gemini')) {
+      // Gemini API call
+      const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${settings.model}:generateContent?key=${geminiApiKey}`;
+      response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: message }] }],
+          generationConfig: {
+            temperature: settings.temperature,
+            maxOutputTokens: settings.maxTokens,
+          },
+        }),
+      });
+      
+      const data = await response.json();
+      return new Response(JSON.stringify({ 
+        response: data.candidates[0].content.parts[0].text 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    else if (settings.model.startsWith('gpt')) {
+      // OpenAI API call
+      response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: settings.model,
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: message }
+          ],
+          temperature: settings.temperature,
+          max_tokens: settings.maxTokens,
+        }),
+      });
+      
+      const data = await response.json();
+      return new Response(JSON.stringify({ 
+        response: data.choices[0].message.content 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Get OpenAI API key
-    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiApiKey) {
-      console.error("OpenAI API key not configured");
-      return new Response(
-        JSON.stringify({ error: "OpenAI API key not configured" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Initialize OpenAI
-    const configuration = new Configuration({
-      apiKey: openaiApiKey,
-    });
-    const openai = new OpenAIApi(configuration);
-
-    console.log("Sending request to OpenAI");
-    
-    // Process message with OpenAI
-    const completion = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are a helpful Telegram bot assistant. Keep responses concise and friendly.",
-        },
-        {
-          role: "user",
-          content: message,
-        },
-      ],
-    });
-
-    const response = completion.data.choices[0]?.message?.content || "I'm sorry, I couldn't process that request.";
-    console.log("Successfully processed message");
-
-    return new Response(
-      JSON.stringify({ response }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    throw new Error('Unsupported model selected');
   } catch (error) {
-    console.error("Error processing message:", error);
-    // Return a more detailed error response
-    return new Response(
-      JSON.stringify({ 
-        error: "Internal server error",
-        details: error.message,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    console.error('Error in process-message function:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
