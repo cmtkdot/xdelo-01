@@ -1,6 +1,20 @@
 import { supabase } from "@/integrations/supabase/client";
 import { AISettings } from "./AISettings";
 
+interface SqlQueryResult {
+  data: any[];
+  query: string;
+  timestamp: string;
+}
+
+interface SqlErrorResult {
+  error: string;
+  detail: string;
+  query: string;
+}
+
+type QueryResponse = SqlQueryResult | SqlErrorResult;
+
 export const handleAIResponse = async (
   message: string,
   settings: AISettings,
@@ -18,6 +32,15 @@ export const handleAIResponse = async (
     });
 
     if (queryError) throw queryError;
+
+    // Type guard to check if we have an error response
+    const isErrorResponse = (response: QueryResponse): response is SqlErrorResult => {
+      return 'error' in response;
+    };
+
+    if (isErrorResponse(queryResult)) {
+      throw new Error(queryResult.error);
+    }
 
     const response = {
       type: 'sql',
