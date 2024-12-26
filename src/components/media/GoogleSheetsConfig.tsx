@@ -6,6 +6,8 @@ import { SpreadsheetCard } from "./google-sheets/SpreadsheetCard";
 import { useSpreadsheetOperations } from "./hooks/useSpreadsheetOperations";
 import { GoogleSheetsConfigProps } from "./types/googleSheets";
 import { MediaItem } from "./types";
+import { syncWithGoogleSheets } from "./utils/googleSheetsSync";
+import { useToast } from "@/components/ui/use-toast";
 
 export const GoogleSheetsConfig = ({ 
   onSpreadsheetIdSet, 
@@ -19,6 +21,7 @@ export const GoogleSheetsConfig = ({
     toggleAutoSync,
     removeSpreadsheet,
   } = useSpreadsheetOperations(onSpreadsheetIdSet);
+  const { toast } = useToast();
 
   const { data: allMedia } = useQuery({
     queryKey: ['all-media'],

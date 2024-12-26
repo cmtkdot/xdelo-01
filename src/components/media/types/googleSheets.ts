@@ -1,3 +1,5 @@
+import { MediaItem } from "../types";
+
 export interface SpreadsheetConfig {
   id: string;
   name: string;
