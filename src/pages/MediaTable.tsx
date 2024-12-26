@@ -48,7 +48,7 @@ const MediaTable = () => {
     },
   });
 
-  const { sortedMediaItems, handleSort } = useMediaTableSort(mediaItems);
+  const { sortedMediaItems, handleSort, sortConfig } = useMediaTableSort(mediaItems);
   const {
     selectedMedia,
     handleToggleSelect,
@@ -89,6 +89,7 @@ const MediaTable = () => {
             selectedMedia={selectedMedia}
             onToggleSelect={handleToggleSelect}
             onOpenFile={openFileInNewTab}
+            sortConfig={sortConfig}
           />
         </div>
       </div>

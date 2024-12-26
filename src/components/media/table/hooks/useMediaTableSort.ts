@@ -7,7 +7,7 @@ export type SortConfig = {
 };
 
 export const useMediaTableSort = (mediaItems: MediaItem[] | undefined) => {
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: null, direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'created_at', direction: 'desc' });
 
   const handleSort = (column: keyof MediaItem) => {
     setSortConfig(prevConfig => ({
@@ -44,5 +44,6 @@ export const useMediaTableSort = (mediaItems: MediaItem[] | undefined) => {
   return {
     sortedMediaItems,
     handleSort,
+    sortConfig,
   };
 };

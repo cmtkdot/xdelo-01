@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { MediaItem } from "../types";
 import { MediaTableHeader } from "./MediaTableHeader";
 import { MediaTableRow } from "./MediaTableRow";
+import { SortConfig } from "./hooks/useMediaTableSort";
 
 interface MediaTableContentProps {
   isLoading: boolean;
@@ -15,6 +16,7 @@ interface MediaTableContentProps {
   selectedMedia: MediaItem[];
   onToggleSelect: (item: MediaItem, index: number, event?: React.MouseEvent) => void;
   onOpenFile: (url: string) => void;
+  sortConfig: SortConfig;
 }
 
 export const MediaTableContent = ({
@@ -27,6 +29,7 @@ export const MediaTableContent = ({
   selectedMedia,
   onToggleSelect,
   onOpenFile,
+  sortConfig,
 }: MediaTableContentProps) => {
   if (isLoading) {
     return (
@@ -45,6 +48,7 @@ export const MediaTableContent = ({
             onSelectAll={onSelectAll}
             allSelected={allSelected}
             someSelected={someSelected}
+            sortConfig={sortConfig}
           />
           <TableBody>
             {mediaItems?.map((item, index) => (
