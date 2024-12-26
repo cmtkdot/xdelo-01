@@ -10,13 +10,15 @@ interface MediaTableRowProps {
   onOpenFile: (url: string) => void;
   isSelected: boolean;
   onToggleSelect: (e?: React.MouseEvent) => void;
+  onDelete: () => void;
 }
 
 export const MediaTableRow = ({ 
   item, 
   onOpenFile, 
   isSelected,
-  onToggleSelect 
+  onToggleSelect,
+  onDelete
 }: MediaTableRowProps) => {
   // Prioritize Google Drive URL if available
   const fileUrl = item.google_drive_url || item.file_url;
@@ -95,10 +97,12 @@ export const MediaTableRow = ({
       </TableCell>
       <TableCell>
         <MediaTableActions
+          id={item.id}
           fileUrl={item.file_url}
           fileName={item.file_name}
           onView={() => onOpenFile(fileUrl)}
           hasGoogleDrive={!!item.google_drive_url}
+          onDelete={onDelete}
         />
       </TableCell>
     </TableRow>

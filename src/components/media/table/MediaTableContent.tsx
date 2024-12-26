@@ -17,6 +17,7 @@ interface MediaTableContentProps {
   onToggleSelect: (item: MediaItem, index: number, event?: React.MouseEvent) => void;
   onOpenFile: (url: string) => void;
   sortConfig: SortConfig;
+  onRefetch: () => void;
 }
 
 export const MediaTableContent = ({
@@ -30,6 +31,7 @@ export const MediaTableContent = ({
   onToggleSelect,
   onOpenFile,
   sortConfig,
+  onRefetch,
 }: MediaTableContentProps) => {
   if (isLoading) {
     return (
@@ -58,6 +60,7 @@ export const MediaTableContent = ({
                 onOpenFile={onOpenFile}
                 isSelected={selectedMedia.some(media => media.id === item.id)}
                 onToggleSelect={(e) => onToggleSelect(item, index, e)}
+                onDelete={onRefetch}
               />
             ))}
           </TableBody>
