@@ -79,7 +79,7 @@ const MediaGallery = () => {
         <WebhookInterface selectedMedia={getSelectedMediaData()} />
       </div>
       
-      <div className="w-full">
+      <div className="w-full backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
         <MediaFilters
           selectedChannel={filter.selectedChannel}
           setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}

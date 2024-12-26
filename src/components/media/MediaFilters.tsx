@@ -21,9 +21,9 @@ const MediaFilters = ({
   channels = [],
 }: MediaFiltersProps) => {
   return (
-    <div className="flex flex-col xs:flex-row gap-3">
+    <div className="flex flex-wrap md:flex-nowrap items-center gap-3">
       <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-        <SelectTrigger className="w-full xs:w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
+        <SelectTrigger className="w-full md:w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
           <SelectValue placeholder="Select Channel" />
         </SelectTrigger>
         <SelectContent className="bg-[#1A1F2C] border-white/10">
@@ -43,7 +43,7 @@ const MediaFilters = ({
       </Select>
 
       <Select value={selectedType} onValueChange={setSelectedType}>
-        <SelectTrigger className="w-full xs:w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
+        <SelectTrigger className="w-full md:w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
           <SelectValue placeholder="Select Media Type" />
         </SelectTrigger>
         <SelectContent className="bg-[#1A1F2C] border-white/10">
@@ -69,7 +69,7 @@ const MediaFilters = ({
       </Select>
 
       <Select value={uploadStatus} onValueChange={setUploadStatus}>
-        <SelectTrigger className="w-full xs:w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
+        <SelectTrigger className="w-full md:w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
           <SelectValue placeholder="Upload Status" />
         </SelectTrigger>
         <SelectContent className="bg-[#1A1F2C] border-white/10">
