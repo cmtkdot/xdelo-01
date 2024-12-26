@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Loader2, XCircle, Save } from "lucide-react";
+import { Database, Loader2, XCircle, Save, Maximize2, Minimize2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -20,6 +20,7 @@ interface SheetDataDisplayProps {
 export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps) => {
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; header: string } | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
 
   if (isLoading) {
@@ -63,17 +64,35 @@ export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps
     }
   };
 
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   return (
     <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Database className="h-6 w-6" />
-          Sheet Data
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-6 w-6" />
+            Sheet Data
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleExpand}
+            className="h-8 w-8"
+          >
+            {isExpanded ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {sheetData.length > 0 ? (
-          <ScrollArea className="h-[600px] rounded-md border border-white/10">
+          <ScrollArea className={`${isExpanded ? 'h-[calc(100vh-12rem)]' : 'h-[600px]'} rounded-md border border-white/10`}>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
