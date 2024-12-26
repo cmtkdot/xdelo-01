@@ -119,10 +119,60 @@ export const initializeSpreadsheet = async (spreadsheetId: string, gid?: string)
   }
 };
 
+const formatDataWithMapping = (mediaItems: MediaItem[], headerMapping: Record<string, string>) => {
+  // Convert header mapping from sheet header -> db field to db field -> sheet header
+  const reverseMapping: Record<string, string> = {};
+  Object.entries(headerMapping).forEach(([sheetHeader, dbField]) => {
+    reverseMapping[dbField] = sheetHeader;
+  });
+
+  // Get all mapped sheet headers in their original order
+  const mappedHeaders = Object.keys(headerMapping);
+
+  // Format data according to mapping
+  const formattedData = mediaItems.map(item => {
+    const row: string[] = new Array(mappedHeaders.length).fill('');
+    
+    mappedHeaders.forEach((sheetHeader, index) => {
+      const dbField = headerMapping[sheetHeader];
+      if (dbField) {
+        let value = '';
+        
+        // Handle nested properties (e.g., chat.title)
+        if (dbField.includes('.')) {
+          const [parent, child] = dbField.split('.');
+          value = item[parent as keyof MediaItem]?.[child] || '';
+        } else {
+          value = (item[dbField as keyof MediaItem] || '').toString();
+        }
+        
+        row[index] = value;
+      }
+    });
+    
+    return row;
+  });
+
+  return { headers: mappedHeaders, data: formattedData };
+};
+
 export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: MediaItem[], gid?: string) => {
   try {
     console.log('Starting sync with Google Sheets...');
-    const { headers, data } = formatMediaForSheets(mediaItems);
+    
+    // Get the header mapping from the database
+    const { data: configData, error: configError } = await supabase
+      .from('google_sheets_config')
+      .select('header_mapping')
+      .eq('spreadsheet_id', spreadsheetId)
+      .single();
+
+    if (configError) throw configError;
+    
+    const headerMapping = configData?.header_mapping || {};
+    
+    // Format data according to the header mapping
+    const { headers, data } = formatDataWithMapping(mediaItems, headerMapping);
     
     const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
       spreadsheetId,
@@ -148,24 +198,29 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
 
     const sheetName = targetSheet.properties?.title;
     
-    // Get existing headers first
-    const existingHeadersResponse = await window.gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${sheetName}!A1:${String.fromCharCode(64 + MAX_COLUMNS)}1`,
-    });
-
-    const existingHeaders = existingHeadersResponse.result.values?.[0] || [];
-
-    // Only update data, preserve existing headers
-    if (data.length > 0) {
+    // Update headers and data
+    if (headers.length > 0) {
+      // Update headers
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${sheetName}!A2:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}${data.length + 1}`,
+        range: `${sheetName}!A1:${String.fromCharCode(64 + headers.length)}1`,
         valueInputOption: 'RAW',
         resource: {
-          values: data
+          values: [headers]
         }
       });
+
+      // Update data
+      if (data.length > 0) {
+        await window.gapi.client.sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `${sheetName}!A2:${String.fromCharCode(64 + headers.length)}${data.length + 1}`,
+          valueInputOption: 'RAW',
+          resource: {
+            values: data
+          }
+        });
+      }
     }
 
     console.log('Google Sheets sync successful');

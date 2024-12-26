@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Save, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from "@/integrations/supabase/client";
 
 interface HeaderMappingProps {
   spreadsheetId: string;
@@ -26,7 +27,9 @@ const DEFAULT_DB_COLUMNS = [
   'media_group_id',
   'additional_data',
   'google_drive_id',
-  'google_drive_url'
+  'google_drive_url',
+  'chat.title',
+  'chat.username'
 ];
 
 export const GoogleSheetsHeaderMapping = ({ 
@@ -38,9 +41,6 @@ export const GoogleSheetsHeaderMapping = ({
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-
-  // Create a unique key for this specific sheet's mapping
-  const getMappingKey = () => `headerMapping-${spreadsheetId}-${sheetGid || 'default'}`;
 
   useEffect(() => {
     const fetchHeaders = async () => {
@@ -59,9 +59,9 @@ export const GoogleSheetsHeaderMapping = ({
             throw new Error(`Sheet with GID ${sheetGid} not found`);
           }
           
-          range = `${targetSheet.properties?.title}!A1:Z1`;  // Extended range to Z1 to capture more columns
+          range = `${targetSheet.properties?.title}!A1:Z1`;
         } else {
-          range = 'A1:Z1';  // Extended range to Z1
+          range = 'A1:Z1';
         }
         
         const response = await window.gapi.client.sheets.spreadsheets.values.get({
@@ -72,10 +72,15 @@ export const GoogleSheetsHeaderMapping = ({
         if (response.result.values?.[0]) {
           setSheetHeaders(response.result.values[0]);
           
-          // Load saved mapping specific to this sheet
-          const savedMapping = localStorage.getItem(getMappingKey());
-          if (savedMapping) {
-            setMapping(JSON.parse(savedMapping));
+          // Load existing mapping from Supabase
+          const { data: configData } = await supabase
+            .from('google_sheets_config')
+            .select('header_mapping')
+            .eq('spreadsheet_id', spreadsheetId)
+            .single();
+          
+          if (configData?.header_mapping) {
+            setMapping(configData.header_mapping);
           }
         }
       } catch (error) {
@@ -102,14 +107,32 @@ export const GoogleSheetsHeaderMapping = ({
     }));
   };
 
-  const handleSaveMapping = () => {
-    // Save mapping specific to this sheet
-    localStorage.setItem(getMappingKey(), JSON.stringify(mapping));
-    onMappingComplete(mapping);
-    toast({
-      title: "Success",
-      description: "Header mapping saved successfully",
-    });
+  const handleSaveMapping = async () => {
+    try {
+      // Save mapping to Supabase
+      const { error } = await supabase
+        .from('google_sheets_config')
+        .update({ 
+          header_mapping: mapping,
+          is_headers_mapped: true 
+        })
+        .eq('spreadsheet_id', spreadsheetId);
+
+      if (error) throw error;
+      
+      onMappingComplete(mapping);
+      toast({
+        title: "Success",
+        description: "Header mapping saved successfully",
+      });
+    } catch (error) {
+      console.error('Error saving mapping:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save header mapping",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
