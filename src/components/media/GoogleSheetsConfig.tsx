@@ -7,6 +7,7 @@ import { MediaItem } from "./types";
 import { Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { GoogleSheetsHeaderMapping } from "./GoogleSheetsHeaderMapping";
 
 interface GoogleSheetsConfigProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -16,6 +17,7 @@ interface GoogleSheetsConfigProps {
 export const GoogleSheetsConfig = ({ onSpreadsheetIdSet, selectedMedia = [] }: GoogleSheetsConfigProps) => {
   const [spreadsheetId, setSpreadsheetId] = useState("1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w");
   const [isLoading, setIsLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const { toast } = useToast();
 
   // Query to fetch all media items
@@ -85,6 +87,7 @@ export const GoogleSheetsConfig = ({ onSpreadsheetIdSet, selectedMedia = [] }: G
         description: `Connected and synced ${mediaToSync.length} media items to Google Sheets`,
       });
       
+      setIsConnected(true);
       onSpreadsheetIdSet(spreadsheetId);
     } catch (error) {
       console.error('Google Sheets sync error:', error);
@@ -98,29 +101,45 @@ export const GoogleSheetsConfig = ({ onSpreadsheetIdSet, selectedMedia = [] }: G
     }
   };
 
+  const handleHeaderMapping = (mapping: Record<string, string>) => {
+    console.log('Header mapping:', mapping);
+    // Here you can implement the logic to save the mapping and use it for future syncs
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-4">
-      <Input
-        type="text"
-        placeholder="Enter Google Spreadsheet ID"
-        value={spreadsheetId}
-        onChange={(e) => setSpreadsheetId(e.target.value)}
-        className="max-w-sm"
-      />
-      <Button 
-        type="submit" 
-        variant="outline"
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Connecting...
-          </>
-        ) : (
-          "Connect Spreadsheet"
-        )}
-      </Button>
-    </form>
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="flex items-center gap-4">
+        <Input
+          type="text"
+          placeholder="Enter Google Spreadsheet ID"
+          value={spreadsheetId}
+          onChange={(e) => setSpreadsheetId(e.target.value)}
+          className="max-w-sm"
+        />
+        <Button 
+          type="submit" 
+          variant="outline"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Connecting...
+            </>
+          ) : (
+            "Connect Spreadsheet"
+          )}
+        </Button>
+      </form>
+
+      {isConnected && (
+        <div className="mt-8">
+          <GoogleSheetsHeaderMapping
+            spreadsheetId={spreadsheetId}
+            onMappingComplete={handleHeaderMapping}
+          />
+        </div>
+      )}
+    </div>
   );
 };
