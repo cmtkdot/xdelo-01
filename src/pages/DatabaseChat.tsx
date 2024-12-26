@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Database, CheckCircle2, XCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 const DatabaseChat = () => {
   const [iframeUrl, setIframeUrl] = useState("");
@@ -121,16 +121,24 @@ const DatabaseChat = () => {
     <div className="container mx-auto p-4">
       <div className="glass-card p-4">
         <h1 className="text-2xl font-bold mb-4 text-white">Database Chat</h1>
-        {renderConnectionStatus()}
-        <div className="relative rounded-lg overflow-hidden bg-black/20 backdrop-blur-sm">
-          {connectionStatus === 'success' && iframeUrl && (
-            <iframe
-              className="w-full border-0"
-              style={{ height: "600px" }}
-              src={iframeUrl}
-              allow="clipboard-write"
-            />
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Left side - Connection status */}
+          <div className="md:col-span-1">
+            {renderConnectionStatus()}
+          </div>
+          {/* Right side - Chat iframe */}
+          <div className="md:col-span-3">
+            <div className="relative rounded-lg overflow-hidden bg-black/20 backdrop-blur-sm">
+              {connectionStatus === 'success' && iframeUrl && (
+                <iframe
+                  className="w-full border-0"
+                  style={{ height: "600px" }}
+                  src={iframeUrl}
+                  allow="clipboard-write"
+                />
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
