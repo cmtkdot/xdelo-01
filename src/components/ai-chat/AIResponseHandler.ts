@@ -42,10 +42,16 @@ export const handleAIResponse = async (
       throw new Error(queryResult.error);
     }
 
+    // Cast the response to SqlQueryResult after validating its structure
+    const sqlResult = queryResult as unknown as SqlQueryResult;
+    if (!sqlResult.data || !sqlResult.query || !sqlResult.timestamp) {
+      throw new Error('Invalid SQL query response structure');
+    }
+
     const response = {
       type: 'sql',
       query: message,
-      result: (queryResult as SqlQueryResult).data
+      result: sqlResult.data
     };
 
     await saveBotResponse(response, user_id, messageId);
