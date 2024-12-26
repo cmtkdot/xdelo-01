@@ -48,13 +48,14 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
     });
 
     // Check if our sheet exists
+    let sheetId = 0;
     const sheet = spreadsheet.result.sheets?.find(
       (s: any) => s.properties?.title === SHEET_NAME
     );
 
     if (!sheet) {
       // Create the sheet if it doesn't exist
-      await window.gapi.client.sheets.spreadsheets.batchUpdate({
+      const addSheetResponse = await window.gapi.client.sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         resource: {
           requests: [{
@@ -66,7 +67,12 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
           }]
         }
       });
-      console.log('Created new sheet:', SHEET_NAME);
+
+      // Get the new sheet ID
+      sheetId = addSheetResponse.result.replies?.[0]?.addSheet?.properties?.sheetId || 0;
+      console.log('Created new sheet with ID:', sheetId);
+    } else {
+      sheetId = sheet.properties?.sheetId || 0;
     }
 
     // Set up auto-resizing columns
@@ -76,7 +82,7 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
         requests: [{
           autoResizeDimensions: {
             dimensions: {
-              sheetId: sheet?.properties?.sheetId || 0,
+              sheetId: sheetId,
               dimension: "COLUMNS",
               startIndex: 0,
               endIndex: BASE_HEADERS.length
@@ -102,6 +108,21 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
   try {
     const { headers, data } = formatMediaForSheets(mediaItems);
     
+    // Get the sheet ID
+    const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
+      spreadsheetId,
+    });
+    
+    const sheet = spreadsheet.result.sheets?.find(
+      (s: any) => s.properties?.title === SHEET_NAME
+    );
+    
+    if (!sheet) {
+      throw new Error('Sheet not found. Please initialize the spreadsheet first.');
+    }
+    
+    const sheetId = sheet.properties?.sheetId;
+
     // Clear existing content
     await window.gapi.client.sheets.spreadsheets.values.clear({
       spreadsheetId,
@@ -138,7 +159,7 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
           {
             repeatCell: {
               range: {
-                sheetId: 0,
+                sheetId: sheetId,
                 startRowIndex: 0,
                 endRowIndex: 1
               },
