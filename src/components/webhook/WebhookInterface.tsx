@@ -1,26 +1,27 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { MediaItem } from "../media/types";
 import WebhookUrlManager from "./WebhookUrlManager";
 import WebhookHistoryTable from "./WebhookHistoryTable";
 import { supabase } from "@/integrations/supabase/client";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import WebhookMethodSelector, { HttpMethod } from "./WebhookMethodSelector";
-import WebhookDataFetcher from "./WebhookDataFetcher";
+import { HttpMethod } from "./WebhookMethodSelector";
 import WebhookRequestDetails from "./WebhookRequestDetails";
-import WebhookHeaderManager, { Header } from "./WebhookHeaderManager";
-import WebhookQueryManager, { QueryParam } from "./WebhookQueryManager";
+import { Header } from "./WebhookHeaderManager";
+import { QueryParam } from "./WebhookQueryManager";
+import WebhookScheduleSelector from "./WebhookScheduleSelector";
+import WebhookFieldSelector from "./WebhookFieldSelector";
+import WebhookConfigurationPanel from "./WebhookConfigurationPanel";
 
 interface WebhookInterfaceProps {
   schedule?: "manual" | "hourly" | "daily" | "weekly";
   selectedMedia?: MediaItem[];
 }
 
-const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookInterfaceProps) => {
+const WebhookInterface = ({ 
+  schedule: initialSchedule = "manual", 
+  selectedMedia = [] 
+}: WebhookInterfaceProps) => {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
@@ -29,6 +30,7 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
   const [method, setMethod] = useState<HttpMethod>("POST");
   const [headers, setHeaders] = useState<Header[]>([]);
   const [params, setParams] = useState<QueryParam[]>([]);
+  const [schedule, setSchedule] = useState(initialSchedule);
   const { toast } = useToast();
 
   const fetchWebhookData = async () => {
@@ -175,57 +177,31 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
     <div className="space-y-4">
       <WebhookUrlManager onUrlSelect={setWebhookUrl} />
       
-      <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Webhook Configuration
-          </CardTitle>
-          <CardDescription>
-            Configure webhook method and fetch data
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <WebhookMethodSelector method={method} onMethodChange={setMethod} />
-            <WebhookDataFetcher
-              isLoading={isLoading}
-              webhookUrl={webhookUrl}
-              method={method}
-              webhookData={webhookData}
-              availableFields={availableFields}
-              onFetch={fetchWebhookData}
-            />
-          </div>
+      <WebhookScheduleSelector 
+        schedule={schedule}
+        onScheduleChange={setSchedule}
+      />
 
-          <WebhookHeaderManager headers={headers} onHeadersChange={setHeaders} />
-          <WebhookQueryManager params={params} onParamsChange={setParams} />
-        </CardContent>
-      </Card>
+      <WebhookConfigurationPanel
+        method={method}
+        onMethodChange={setMethod}
+        isLoading={isLoading}
+        webhookUrl={webhookUrl}
+        webhookData={webhookData}
+        availableFields={availableFields}
+        onFetch={fetchWebhookData}
+        headers={headers}
+        onHeadersChange={setHeaders}
+        params={params}
+        onParamsChange={setParams}
+      />
       
-      <div className="space-y-2">
-        <Label className="text-white">Select Fields to Send ({selectedMedia.length} items selected)</Label>
-        <ScrollArea className="h-[200px] rounded-md border border-white/10 p-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {availableFields.map((field) => (
-              <div key={field} className="flex items-center space-x-2">
-                <Checkbox
-                  id={field}
-                  checked={selectedFields.includes(field)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedFields([...selectedFields, field]);
-                    } else {
-                      setSelectedFields(selectedFields.filter(f => f !== field));
-                    }
-                  }}
-                  className="border-white/10"
-                />
-                <Label htmlFor={field} className="text-white">{field}</Label>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
+      <WebhookFieldSelector
+        availableFields={availableFields}
+        selectedFields={selectedFields}
+        onFieldsChange={setSelectedFields}
+        selectedMediaCount={selectedMedia.length}
+      />
 
       <WebhookRequestDetails
         method={method}
