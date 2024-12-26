@@ -3,14 +3,13 @@ import { GoogleSheetsConfig } from "@/components/media/GoogleSheetsConfig";
 import { SheetDataDisplay } from "@/components/google-sheets/SheetDataDisplay";
 import { initGoogleSheetsAPI } from "@/components/media/utils/googleSheetsSync";
 import { useToast } from "@/components/ui/use-toast";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
-interface SheetRow {
-  [key: string]: string;
-}
+const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
 const GoogleSheet = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [sheetData, setSheetData] = useState<SheetRow[]>([]);
+  const [sheetData, setSheetData] = useState<Record<string, string>[]>([]);
   const { toast } = useToast();
   const [googleSheetId, setGoogleSheetId] = useState<string | null>(
     localStorage.getItem('googleSheetId')
@@ -67,22 +66,24 @@ const GoogleSheet = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="grid gap-6">
-        <GoogleSheetsConfig
-          onSpreadsheetIdSet={handleSpreadsheetIdSet}
-          googleSheetId={googleSheetId}
-          parsedMapping={parsedMapping}
-        />
-        
-        {googleSheetId && (
-          <SheetDataDisplay
-            isLoading={isLoading}
-            sheetData={sheetData}
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="grid gap-6">
+          <GoogleSheetsConfig
+            onSpreadsheetIdSet={handleSpreadsheetIdSet}
+            googleSheetId={googleSheetId}
+            parsedMapping={parsedMapping}
           />
-        )}
+          
+          {googleSheetId && (
+            <SheetDataDisplay
+              isLoading={isLoading}
+              sheetData={sheetData}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </GoogleOAuthProvider>
   );
 };
 
