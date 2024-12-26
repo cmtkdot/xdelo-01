@@ -11,20 +11,48 @@ const CommandInterface = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check authentication on component mount
+  // Check authentication on component mount and set up auth state listener
   useEffect(() => {
     checkAuth();
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
+        handleAuthError();
+      }
+    });
+
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
+  const handleAuthError = () => {
+    toast({
+      title: "Authentication Required",
+      description: "Please log in to continue",
+      variant: "destructive",
+    });
+    navigate("/login");
+  };
+
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to use this feature",
-        variant: "destructive",
-      });
-      navigate("/login");
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) throw error;
+      
+      if (!session) {
+        handleAuthError();
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Auth error:", error);
+      handleAuthError();
+      return false;
     }
   };
 
@@ -34,17 +62,19 @@ const CommandInterface = () => {
 
     setIsLoading(true);
     try {
+      // Check auth before proceeding
+      const isAuthenticated = await checkAuth();
+      if (!isAuthenticated) return;
+
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
 
+      if (userError) throw userError;
+
       if (!user) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to send messages",
-          variant: "destructive",
-        });
-        navigate("/login");
+        handleAuthError();
         return;
       }
 
@@ -87,6 +117,13 @@ const CommandInterface = () => {
       setMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
+      
+      // Check if it's an auth error
+      if (error instanceof Error && error.message.includes('auth')) {
+        handleAuthError();
+        return;
+      }
+      
       toast({
         title: "Error",
         description: "Failed to send message. Please try again.",
