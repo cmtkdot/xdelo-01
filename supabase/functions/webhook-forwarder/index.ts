@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
 serve(async (req) => {
@@ -12,15 +13,11 @@ serve(async (req) => {
   }
 
   try {
-    const { webhook_url, data, headers = {}, params = {} } = await req.json();
-    console.log('Received webhook request:', { webhook_url, data, headers, params });
+    const { webhook_url, data, headers = {}, params = {}, method = 'POST' } = await req.json();
+    console.log('Received webhook request:', { webhook_url, data, headers, params, method });
 
     if (!webhook_url) {
       throw new Error('Webhook URL is required');
-    }
-
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid data format');
     }
 
     // Validate webhook URL format
@@ -30,21 +27,41 @@ serve(async (req) => {
       throw new Error('Invalid webhook URL format');
     }
 
-    const response = await fetch(webhook_url, {
-      method: 'POST',
+    // Add query parameters to URL if they exist
+    const url = new URL(webhook_url);
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, String(value));
+    });
+
+    const requestOptions: RequestInit = {
+      method,
       headers: {
         'Content-Type': 'application/json',
         ...headers
-      },
-      body: JSON.stringify({
+      }
+    };
+
+    // Only add body for POST requests
+    if (method === 'POST' && data) {
+      requestOptions.body = JSON.stringify({
         ...data,
         timestamp: new Date().toISOString(),
         params
-      })
-    });
+      });
+    }
 
+    const response = await fetch(url.toString(), requestOptions);
     const responseData = await response.json().catch(() => null);
     console.log('Webhook response:', { status: response.status, data: responseData });
+
+    // Extract headers from response data if it's an array of objects
+    let extractedHeaders = [];
+    if (Array.isArray(responseData)) {
+      const firstItem = responseData[0];
+      if (firstItem && typeof firstItem === 'object') {
+        extractedHeaders = Object.keys(firstItem);
+      }
+    }
 
     if (!response.ok) {
       throw new Error(`Webhook request failed with status ${response.status}`);
@@ -54,7 +71,8 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         status: response.status,
-        data: responseData
+        data: responseData,
+        headers: extractedHeaders
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

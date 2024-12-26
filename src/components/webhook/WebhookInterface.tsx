@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -9,7 +9,10 @@ import { MediaItem } from "../media/types";
 import WebhookUrlManager from "./WebhookUrlManager";
 import WebhookHistoryTable from "./WebhookHistoryTable";
 import { supabase } from "@/integrations/supabase/client";
-import { Info } from "lucide-react";
+import { Info, RefreshCw } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface WebhookInterfaceProps {
   schedule?: "manual" | "hourly" | "daily" | "weekly";
@@ -20,19 +23,58 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
   const [webhookUrl, setWebhookUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const [availableFields, setAvailableFields] = useState<string[]>([]);
+  const [webhookData, setWebhookData] = useState<any[]>([]);
+  const [method, setMethod] = useState<"GET" | "POST">("POST");
   const { toast } = useToast();
 
-  const availableFields = [
-    { id: "file_url", label: "File URL" },
-    { id: "media_type", label: "Media Type" },
-    { id: "caption", label: "Caption" },
-    { id: "metadata", label: "Metadata" },
-    { id: "created_at", label: "Created Date" },
-    { id: "google_drive_url", label: "Google Drive URL" },
-    { id: "google_drive_id", label: "Google Drive ID" },
-    { id: "file_name", label: "File Name" },
-    { id: "media_group_id", label: "Media Group ID" }
-  ];
+  const fetchWebhookData = async () => {
+    if (!webhookUrl.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter or select a webhook URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data: response, error } = await supabase.functions.invoke('webhook-forwarder', {
+        body: {
+          webhook_url: webhookUrl,
+          method: "GET",
+          headers: {
+            'Accept': 'application/json'
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (response.headers && Array.isArray(response.headers)) {
+        setAvailableFields(response.headers);
+      }
+
+      if (response.data) {
+        setWebhookData(Array.isArray(response.data) ? response.data : [response.data]);
+      }
+
+      toast({
+        title: "Success",
+        description: "Successfully fetched webhook data",
+      });
+    } catch (error) {
+      console.error('Error fetching webhook data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch webhook data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSendWebhook = async () => {
     if (!webhookUrl.trim()) {
@@ -72,10 +114,10 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         return filtered;
       });
 
-      // Call our Edge Function with additional parameters
       const { data: response, error } = await supabase.functions.invoke('webhook-forwarder', {
         body: {
           webhook_url: webhookUrl,
+          method: "POST",
           data: {
             data: filteredData,
             timestamp: new Date().toISOString(),
@@ -95,7 +137,6 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
 
       if (error) throw error;
 
-      // Get the webhook URL record ID
       const { data: webhookUrlData } = await supabase
         .from('webhook_urls')
         .select('id')
@@ -103,7 +144,6 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         .single();
 
       if (webhookUrlData) {
-        // Store webhook history
         const { error: historyError } = await supabase
           .from('webhook_history')
           .insert([{
@@ -139,27 +179,72 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
     <div className="space-y-4">
       <WebhookUrlManager onUrlSelect={setWebhookUrl} />
       
+      <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Webhook Configuration
+          </CardTitle>
+          <CardDescription>
+            Configure webhook method and fetch data
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Select
+              value={method}
+              onValueChange={(value: "GET" | "POST") => setMethod(value)}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Select method" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="GET">GET</SelectItem>
+                <SelectItem value="POST">POST</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={fetchWebhookData}
+              disabled={isLoading || !webhookUrl}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Fetch Data
+            </Button>
+          </div>
+
+          {webhookData.length > 0 && (
+            <Alert>
+              <AlertDescription>
+                Retrieved {webhookData.length} records with {availableFields.length} fields
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+      
       <div className="space-y-2">
         <Label className="text-white">Select Fields to Send ({selectedMedia.length} items selected)</Label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {availableFields.map((field) => (
-            <div key={field.id} className="flex items-center space-x-2">
-              <Checkbox
-                id={field.id}
-                checked={selectedFields.includes(field.id)}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    setSelectedFields([...selectedFields, field.id]);
-                  } else {
-                    setSelectedFields(selectedFields.filter(f => f !== field.id));
-                  }
-                }}
-                className="border-white/10"
-              />
-              <Label htmlFor={field.id} className="text-white">{field.label}</Label>
-            </div>
-          ))}
-        </div>
+        <ScrollArea className="h-[200px] rounded-md border border-white/10 p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {availableFields.map((field) => (
+              <div key={field} className="flex items-center space-x-2">
+                <Checkbox
+                  id={field}
+                  checked={selectedFields.includes(field)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedFields([...selectedFields, field]);
+                    } else {
+                      setSelectedFields(selectedFields.filter(f => f !== field));
+                    }
+                  }}
+                  className="border-white/10"
+                />
+                <Label htmlFor={field} className="text-white">{field}</Label>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
       </div>
 
       <div className="rounded-lg border border-white/10 bg-black/20 p-4">
@@ -167,6 +252,9 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
           <Info className="w-5 h-5 text-blue-400 mt-0.5" />
           <div className="space-y-1">
             <h4 className="text-sm font-medium text-white">Request Details</h4>
+            <p className="text-xs text-white/70">
+              Method: {method}
+            </p>
             <p className="text-xs text-white/70">
               Headers: X-Source: Media Gallery, X-Batch-Size: {selectedMedia.length}
             </p>
