@@ -20,6 +20,7 @@ export const GoogleSheetsConfig = ({
     handleAddSpreadsheet,
     toggleAutoSync,
     removeSpreadsheet,
+    loadSpreadsheets
   } = useSpreadsheetOperations(onSpreadsheetIdSet);
   const { toast } = useToast();
 
@@ -39,6 +40,11 @@ export const GoogleSheetsConfig = ({
     },
   });
 
+  // Load existing spreadsheets on component mount
+  useEffect(() => {
+    loadSpreadsheets();
+  }, []);
+
   // Add the specific spreadsheet ID and GID you want to sync
   useEffect(() => {
     const specificSpreadsheetId = "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w";
@@ -56,7 +62,7 @@ export const GoogleSheetsConfig = ({
         specificGid
       );
     }
-  }, []);
+  }, [spreadsheets]);
 
   const handleHeaderMappingComplete = async (spreadsheetId: string, mapping: Record<string, string>) => {
     try {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { SpreadsheetConfig } from '../types/googleSheets';
@@ -12,6 +12,37 @@ export const useSpreadsheetOperations = (
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConfig[]>([]);
   const { isInitialized, initializeGoogleSheetsAPI } = useGoogleSheetsAuth();
   const { toast } = useToast();
+
+  const loadSpreadsheets = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('google_sheets_config')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      if (data) {
+        setSpreadsheets(data.map(config => ({
+          id: config.spreadsheet_id,
+          name: config.sheet_name || `Sheet ${config.id}`,
+          autoSync: config.auto_sync || false,
+          gid: config.sheet_gid,
+          isHeadersMapped: config.is_headers_mapped
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading spreadsheets:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load spreadsheet configurations",
+        variant: "destructive",
+      });
+    }
+  };
 
   const initializeSpreadsheet = async (spreadsheetId: string, gid?: string) => {
     try {
@@ -182,5 +213,6 @@ export const useSpreadsheetOperations = (
     handleAddSpreadsheet,
     toggleAutoSync,
     removeSpreadsheet,
+    loadSpreadsheets,
   };
 };
