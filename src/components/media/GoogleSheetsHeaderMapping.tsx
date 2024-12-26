@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 interface HeaderMappingProps {
   spreadsheetId: string;
+  sheetGid?: string;
   onMappingComplete: (mapping: Record<string, string>) => void;
 }
 
@@ -23,7 +24,11 @@ const DEFAULT_DB_COLUMNS = [
   'google_drive_url'
 ];
 
-export const GoogleSheetsHeaderMapping = ({ spreadsheetId, onMappingComplete }: HeaderMappingProps) => {
+export const GoogleSheetsHeaderMapping = ({ 
+  spreadsheetId, 
+  sheetGid,
+  onMappingComplete 
+}: HeaderMappingProps) => {
   const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -32,9 +37,12 @@ export const GoogleSheetsHeaderMapping = ({ spreadsheetId, onMappingComplete }: 
   useEffect(() => {
     const fetchHeaders = async () => {
       try {
+        // If GID is provided, use it to specify the sheet
+        const range = sheetGid ? `gid=${sheetGid}!A1:K1` : 'A1:K1';
+        
         const response = await window.gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId,
-          range: 'A1:K1',
+          range,
         });
 
         if (response.result.values?.[0]) {
@@ -61,7 +69,7 @@ export const GoogleSheetsHeaderMapping = ({ spreadsheetId, onMappingComplete }: 
     if (window.gapi?.client?.sheets) {
       fetchHeaders();
     }
-  }, [spreadsheetId, toast]);
+  }, [spreadsheetId, sheetGid, toast]);
 
   const handleMappingChange = (sheetHeader: string, dbColumn: string) => {
     setMapping(prev => ({

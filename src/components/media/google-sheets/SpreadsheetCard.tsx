@@ -4,11 +4,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { GoogleSheetsHeaderMapping } from "../GoogleSheetsHeaderMapping";
+import { Badge } from "@/components/ui/badge";
 
 interface SpreadsheetConfig {
   id: string;
   name: string;
   autoSync: boolean;
+  gid?: string;
 }
 
 interface SpreadsheetCardProps {
@@ -25,7 +27,14 @@ export const SpreadsheetCard = ({
   return (
     <Card key={sheet.id}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-medium">{sheet.name}</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-medium">{sheet.name}</CardTitle>
+          {sheet.gid && (
+            <Badge variant="secondary" className="ml-2">
+              GID: {sheet.gid}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between">
@@ -48,6 +57,7 @@ export const SpreadsheetCard = ({
         </div>
         <GoogleSheetsHeaderMapping
           spreadsheetId={sheet.id}
+          sheetGid={sheet.gid}
           onMappingComplete={(mapping) => {
             console.log('Header mapping:', mapping);
             localStorage.setItem(`headerMapping-${sheet.id}`, JSON.stringify(mapping));
