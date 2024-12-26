@@ -2,7 +2,7 @@ import { MediaItem } from "../types";
 import { supabase } from "@/integrations/supabase/client";
 
 const SHEET_NAME = 'MediaData';
-const SHEET_HEADERS = [
+const BASE_HEADERS = [
   'File Name',
   'Media Type',
   'Channel',
@@ -19,25 +19,78 @@ const SHEET_HEADERS = [
 
 // Format media data for Google Sheets
 const formatMediaForSheets = (items: MediaItem[]) => {
-  return items.map(item => ([
-    item.file_name,
-    item.media_type,
-    item.chat?.title || 'N/A',
-    new Date(item.created_at || '').toLocaleString(),
-    item.caption || 'No caption',
-    item.file_url,
-    item.google_drive_url || 'Not uploaded',
-    item.google_drive_id || 'N/A',
-    item.metadata?.message_id || 'N/A',
-    item.media_group_id || 'N/A',
-    item.metadata?.file_size ? `${Math.round(item.metadata.file_size / 1024)} KB` : 'N/A',
-    item.metadata?.width && item.metadata?.height ? `${item.metadata.width}x${item.metadata.height}` : 'N/A'
-  ]));
+  // Get all possible keys from the items' metadata and additional_data
+  const extraKeys = new Set<string>();
+  items.forEach(item => {
+    if (item.metadata) {
+      Object.keys(item.metadata).forEach(key => extraKeys.add(`metadata_${key}`));
+    }
+    if (item.additional_data) {
+      Object.keys(item.additional_data).forEach(key => extraKeys.add(`additional_${key}`));
+    }
+  });
+
+  // Combine base headers with any extra fields found
+  const allHeaders = [...BASE_HEADERS, ...Array.from(extraKeys)];
+
+  // Format the data according to all headers
+  const formattedData = items.map(item => {
+    const baseData = [
+      item.file_name,
+      item.media_type,
+      item.chat?.title || 'N/A',
+      new Date(item.created_at || '').toLocaleString(),
+      item.caption || 'No caption',
+      item.file_url,
+      item.google_drive_url || 'Not uploaded',
+      item.google_drive_id || 'N/A',
+      item.metadata?.message_id || 'N/A',
+      item.media_group_id || 'N/A',
+      item.metadata?.file_size ? `${Math.round(item.metadata.file_size / 1024)} KB` : 'N/A',
+      item.metadata?.width && item.metadata?.height ? `${item.metadata.width}x${item.metadata.height}` : 'N/A'
+    ];
+
+    // Add extra fields in the same order as extraKeys
+    Array.from(extraKeys).forEach(key => {
+      if (key.startsWith('metadata_')) {
+        const metaKey = key.replace('metadata_', '');
+        baseData.push(item.metadata?.[metaKey]?.toString() || 'N/A');
+      } else if (key.startsWith('additional_')) {
+        const addKey = key.replace('additional_', '');
+        baseData.push(item.additional_data?.[addKey]?.toString() || 'N/A');
+      }
+    });
+
+    return baseData;
+  });
+
+  return { headers: allHeaders, data: formattedData };
 };
 
 // Initialize spreadsheet with headers if needed
 export const initializeSpreadsheet = async (spreadsheetId: string) => {
   try {
+    // Get OAuth2 token from Google Drive component
+    const tokenResponse = await new Promise<google.accounts.oauth2.TokenResponse>((resolve, reject) => {
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com",
+        scope: 'https://www.googleapis.com/auth/spreadsheets',
+        callback: (response) => {
+          if (response.error) {
+            reject(response);
+          } else {
+            resolve(response);
+          }
+        },
+      });
+      tokenClient.requestAccessToken();
+    });
+
+    // Set the access token for subsequent requests
+    window.gapi.client.setToken({
+      access_token: tokenResponse.access_token,
+    });
+
     // First, try to get the spreadsheet to check if it exists
     const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
       spreadsheetId,
@@ -65,67 +118,45 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
       console.log('Created new sheet:', SHEET_NAME);
     }
 
-    // Check if headers exist
-    const response = await window.gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${SHEET_NAME}!A1:L1`,
-    });
-
-    const currentHeaders = response.result.values?.[0] || [];
-    
-    // If no headers or headers are different, update them
-    if (currentHeaders.length === 0 || !arraysEqual(currentHeaders, SHEET_HEADERS)) {
-      await window.gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: `${SHEET_NAME}!A1:L1`,
-        valueInputOption: 'RAW',
-        resource: {
-          values: [SHEET_HEADERS]
-        }
-      });
-      console.log('Sheet headers initialized');
-    }
+    console.log('Spreadsheet initialized successfully');
+    return true;
   } catch (error: any) {
     console.error('Error initializing spreadsheet:', error);
     if (error?.result?.error?.status === 'PERMISSION_DENIED') {
       throw new Error('Permission denied. Please make sure you have edit access to this spreadsheet.');
     }
-    throw new Error(error?.result?.error?.message || 'Failed to initialize spreadsheet headers');
+    throw new Error(error?.result?.error?.message || 'Failed to initialize spreadsheet');
   }
-};
-
-// Helper function to compare arrays
-const arraysEqual = (a: any[], b: any[]) => {
-  return a.length === b.length && a.every((val, index) => val === b[index]);
 };
 
 // Function to sync data with Google Sheets
 export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: MediaItem[]) => {
   try {
-    const { data: { GOOGLE_API_KEY } } = await supabase.functions.invoke('get-google-api-key');
+    const { headers, data } = formatMediaForSheets(mediaItems);
     
-    if (!GOOGLE_API_KEY) {
-      throw new Error('Google API key not found');
-    }
-
-    const formattedData = formatMediaForSheets(mediaItems);
-    
-    // Ensure Google API is loaded
-    if (!window.gapi || !window.gapi.client) {
-      throw new Error('Google API not loaded');
-    }
-
-    // Update the sheet starting from row 2 (after headers)
-    const response = await window.gapi.client.sheets.spreadsheets.values.update({
+    // Update headers first
+    await window.gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${SHEET_NAME}!A2:L`,
+      range: `${SHEET_NAME}!A1:${String.fromCharCode(65 + headers.length - 1)}1`,
       valueInputOption: 'RAW',
       resource: {
-        values: formattedData
+        values: [headers]
       }
     });
 
-    console.log('Google Sheets sync successful:', response);
+    // Then update the data
+    if (data.length > 0) {
+      await window.gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${SHEET_NAME}!A2:${String.fromCharCode(65 + headers.length - 1)}${data.length + 1}`,
+        valueInputOption: 'RAW',
+        resource: {
+          values: data
+        }
+      });
+    }
+
+    console.log('Google Sheets sync successful');
     return true;
   } catch (error) {
     console.error('Error syncing with Google Sheets:', error);
@@ -136,13 +167,6 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
 // Initialize Google Sheets API
 export const initGoogleSheetsAPI = async () => {
   try {
-    // Get API key from Supabase
-    const { data: { GOOGLE_API_KEY } } = await supabase.functions.invoke('get-google-api-key');
-    
-    if (!GOOGLE_API_KEY) {
-      throw new Error('Google API key not found');
-    }
-
     // Load the Google API client
     await new Promise<void>((resolve, reject) => {
       const script = document.createElement('script');
@@ -162,7 +186,6 @@ export const initGoogleSheetsAPI = async () => {
 
     // Initialize the Sheets API
     await window.gapi.client.init({
-      apiKey: GOOGLE_API_KEY,
       discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
     });
 
