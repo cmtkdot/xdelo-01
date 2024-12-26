@@ -108,10 +108,15 @@ export const GoogleSheetsConfig = ({
       
       console.log('Initializing spreadsheet...');
       await initializeSpreadsheet(id, gid);
+
+      // Get the current user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
         .from('google_sheets_config')
         .insert({
+          user_id: user.id, // Add the user_id here
           spreadsheet_id: id,
           sheet_name: name,
           sheet_gid: gid,
