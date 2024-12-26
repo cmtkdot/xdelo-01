@@ -47,6 +47,7 @@ const MediaData = () => {
   // Fetch Google Sheets data from localStorage (since we store the mapping there)
   const googleSheetId = localStorage.getItem('googleSheetId');
   const headerMapping = localStorage.getItem('headerMapping');
+  const parsedMapping: Record<string, string> = headerMapping ? JSON.parse(headerMapping) : {};
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -146,9 +147,9 @@ const MediaData = () => {
 
                   <div className="p-4 rounded-lg bg-white/5 border border-white/10">
                     <h3 className="text-sm font-medium text-white mb-2">Mapped Fields</h3>
-                    {headerMapping ? (
+                    {Object.keys(parsedMapping).length > 0 ? (
                       <div className="grid grid-cols-2 gap-2">
-                        {Object.entries(JSON.parse(headerMapping)).map(([sheet, db]) => (
+                        {Object.entries(parsedMapping).map(([sheet, db]) => (
                           <div 
                             key={sheet} 
                             className="flex items-center justify-between p-2 rounded bg-white/5"
