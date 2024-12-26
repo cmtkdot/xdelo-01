@@ -9,17 +9,8 @@ import useMediaSubscription from "@/components/media/hooks/useMediaSubscription"
 import { MediaTableContent } from "@/components/media/table/MediaTableContent";
 import { useMediaTableSort } from "@/components/media/table/hooks/useMediaTableSort";
 import { useMediaTableSelection } from "@/components/media/table/hooks/useMediaTableSelection";
-import { Button } from "@/components/ui/button";
-import { Upload } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import GoogleDriveUploader from "@/components/media/GoogleDriveUploader";
 import MediaTableFilters from "@/components/media/table/MediaTableFilters";
+import { MediaTableToolbar } from "@/components/media/table/MediaTableToolbar";
 import { useEffect } from "react";
 
 const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
@@ -27,7 +18,6 @@ const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.goo
 const MediaTable = () => {
   const { toast } = useToast();
   const [spreadsheetId, setSpreadsheetId] = useState<string>();
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>("all");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
@@ -105,7 +95,6 @@ const MediaTable = () => {
         console.log('Media change received:', payload);
         await refetch();
         
-        // Show a toast notification based on the event type
         const eventMessages = {
           INSERT: 'New media file added',
           UPDATE: 'Media file updated',
@@ -170,35 +159,12 @@ const MediaTable = () => {
               />
             </div>
 
-            <div className="flex justify-between items-center">
-              {selectedMedia.length > 0 && (
-                <span className="text-white/70">
-                  {selectedMedia.length} item{selectedMedia.length !== 1 ? 's' : ''} selected
-                </span>
-              )}
-              {selectedMedia.length > 0 && (
-                <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Upload Selected to Drive
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Upload Files to Google Drive</DialogTitle>
-                    </DialogHeader>
-                    <GoogleDriveUploader
-                      selectedFiles={selectedMedia}
-                      onSuccess={() => setIsUploadDialogOpen(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
+            <MediaTableToolbar
+              selectedMedia={selectedMedia}
+              onDeleteSuccess={() => refetch()}
+            />
           </div>
+
           <MediaTableContent
             isLoading={isLoading}
             mediaItems={sortedMediaItems}
