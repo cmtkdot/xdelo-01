@@ -5,6 +5,7 @@ export type MediaMetadata = {
   width: number;
   height: number;
   file_size: number;
+  message_id?: number; // Added this field
 };
 
 export type MediaItem = Database['public']['Tables']['media']['Row'] & {
