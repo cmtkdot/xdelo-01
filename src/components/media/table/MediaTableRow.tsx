@@ -29,7 +29,17 @@ export const MediaTableRow = ({
     ) {
       return;
     }
-    onToggleSelect(e);
+    
+    // Create a synthetic event with ctrl key pressed to maintain selection
+    const syntheticEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true, // Always use ctrl key behavior for single clicks
+      metaKey: e.metaKey,
+      shiftKey: e.shiftKey,
+    });
+    
+    onToggleSelect(syntheticEvent as unknown as React.MouseEvent);
   };
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
@@ -37,7 +47,7 @@ export const MediaTableRow = ({
     const syntheticEvent = new MouseEvent('click', {
       bubbles: true,
       cancelable: true,
-      ctrlKey: e.ctrlKey,
+      ctrlKey: true, // Always use ctrl key behavior for checkboxes
       metaKey: e.metaKey,
       shiftKey: e.shiftKey,
     });
