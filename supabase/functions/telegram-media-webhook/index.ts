@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateWebhookAuth, validateBotToken } from "./utils/auth.ts";
 import { generateSafeFileName, determineMediaType, getMediaItem } from "./utils/fileHandling.ts";
-import { saveChannel, saveMessage, saveMedia } from "./utils/database.ts";
+import { saveChannel, saveMessage, saveMedia, syncMediaGroupCaption } from "./utils/database.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -149,15 +149,7 @@ serve(async (req) => {
 
       // If this media is part of a group and has a caption, sync it to other media in the group
       if (message.media_group_id && message.caption) {
-        const { error: updateError } = await supabase
-          .from('media')
-          .update({ caption: message.caption })
-          .eq('media_group_id', message.media_group_id)
-          .is('caption', null);
-
-        if (updateError) {
-          console.error('Error syncing caption to group:', updateError);
-        }
+        await syncMediaGroupCaption(supabase, message.media_group_id, message.caption);
       }
 
       await supabase.from("bot_activities").insert({

@@ -77,3 +77,25 @@ export const saveMedia = async (
 
   return mediaData;
 };
+
+export const syncMediaGroupCaption = async (supabase: any, mediaGroupId: string, caption: string) => {
+  try {
+    console.log(`Syncing caption "${caption}" for media group ${mediaGroupId}`);
+    
+    const { error: updateError } = await supabase
+      .from('media')
+      .update({ caption })
+      .eq('media_group_id', mediaGroupId)
+      .is('caption', null);
+
+    if (updateError) {
+      console.error('Error syncing caption to group:', updateError);
+      throw updateError;
+    }
+
+    console.log(`Successfully synced caption for media group ${mediaGroupId}`);
+  } catch (error) {
+    console.error('Failed to sync media group caption:', error);
+    throw error;
+  }
+};
