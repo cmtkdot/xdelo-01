@@ -46,7 +46,7 @@ const MediaTable = () => {
     },
   });
   
-  const { data: mediaItems, isLoading, error } = useQuery({
+  const { data: mediaItems, isLoading, error, refetch } = useQuery({
     queryKey: ['media-table', uploadStatus, selectedChannel, selectedType],
     queryFn: async () => {
       const { data: session } = await supabase.auth.getSession();
@@ -176,6 +176,7 @@ const MediaTable = () => {
             onToggleSelect={handleToggleSelect}
             onOpenFile={openFileInNewTab}
             sortConfig={sortConfig}
+            onRefetch={() => refetch()}
           />
         </div>
       </div>
