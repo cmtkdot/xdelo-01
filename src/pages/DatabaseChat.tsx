@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Database, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Database, XCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 const DatabaseChat = () => {
   const [iframeUrl, setIframeUrl] = useState("");
@@ -22,7 +22,6 @@ const DatabaseChat = () => {
         if (dbError) throw dbError;
         setConnectionStatus('success');
         
-        // Only proceed with session creation if connection is successful
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
           setError("Please login to use the database chat");
@@ -81,14 +80,7 @@ const DatabaseChat = () => {
           </Alert>
         );
       case 'success':
-        return (
-          <Alert className="mb-4 bg-green-500/10">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <AlertDescription className="ml-2 text-green-500">
-              Connection success
-            </AlertDescription>
-          </Alert>
-        );
+        return null; // Hide success message
       case 'error':
         return (
           <Alert className="mb-4 bg-red-500/10">
