@@ -14,12 +14,17 @@ interface HeaderMappingProps {
 
 const DEFAULT_DB_COLUMNS = [
   'id',
+  'user_id',
+  'chat_id',
   'file_name',
   'file_url',
   'media_type',
   'caption',
+  'metadata',
   'created_at',
   'updated_at',
+  'media_group_id',
+  'additional_data',
   'google_drive_id',
   'google_drive_url'
 ];
@@ -131,6 +136,7 @@ export const GoogleSheetsHeaderMapping = ({
                     <SelectValue placeholder="Map to column" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
                     {DEFAULT_DB_COLUMNS.map((column) => (
                       <SelectItem key={column} value={column}>
                         {column}
