@@ -12,10 +12,17 @@ import { GoogleSheetsHeaderMapping } from "./GoogleSheetsHeaderMapping";
 interface GoogleSheetsConfigProps {
   onSpreadsheetIdSet: (id: string) => void;
   selectedMedia?: MediaItem[];
+  googleSheetId?: string | null;
+  parsedMapping?: Record<string, string>;
 }
 
-export const GoogleSheetsConfig = ({ onSpreadsheetIdSet, selectedMedia = [] }: GoogleSheetsConfigProps) => {
-  const [spreadsheetId, setSpreadsheetId] = useState("1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w");
+export const GoogleSheetsConfig = ({ 
+  onSpreadsheetIdSet, 
+  selectedMedia = [], 
+  googleSheetId,
+  parsedMapping = {}
+}: GoogleSheetsConfigProps) => {
+  const [spreadsheetId, setSpreadsheetId] = useState(googleSheetId || "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w");
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const { toast } = useToast();
