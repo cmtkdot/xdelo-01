@@ -1,21 +1,29 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 
 const Settings = () => {
+  const components = [
+    { name: "Messages", path: "/messages" },
+    { name: "Media", path: "/media" },
+    { name: "Media Table", path: "/media-table" },
+    { name: "Media Data", path: "/media-data" },
+    { name: "Google Sheet", path: "/google-sheet" },
+    { name: "Webhooks", path: "/webhooks" },
+    { name: "AI Chat", path: "/ai-chat" },
+    { name: "Database Chat", path: "/database-chat" },
+  ];
+
   return (
-    <div className="container mx-auto p-4 md:p-8">
-      <Card className="bg-white/5 border-white/10">
-        <CardHeader className="flex flex-row items-center gap-2">
-          <SettingsIcon className="w-6 h-6 text-purple-400" />
-          <div>
-            <CardTitle>Settings</CardTitle>
-            <CardDescription>Manage your application settings</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-400">Settings page is under construction.</p>
-        </CardContent>
-      </Card>
+    <div className="container mx-auto p-4 space-y-4">
+      {components.map((component) => (
+        <Link key={component.path} to={component.path} className="block w-full">
+          <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-300">
+            <CardContent className="p-6">
+              <span className="text-lg text-foreground">{component.name}</span>
+            </CardContent>
+          </Card>
+        </Link>
+      ))}
     </div>
   );
 };
