@@ -5,6 +5,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2, FileSpreadsheet, CheckCircle, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { initGoogleSheetsAPI } from "@/components/media/utils/googleSheetsSync";
 
 // Define types for sheet data
 interface SheetRow {
@@ -20,8 +21,27 @@ const GoogleSheet = () => {
   const parsedMapping: Record<string, string> = headerMapping ? JSON.parse(headerMapping) : {};
 
   useEffect(() => {
+    const initializeGoogleAPI = async () => {
+      try {
+        await initGoogleSheetsAPI();
+      } catch (error) {
+        console.error('Error initializing Google API:', error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize Google Sheets API",
+          variant: "destructive",
+        });
+      }
+    };
+
+    initializeGoogleAPI();
+  }, [toast]);
+
+  useEffect(() => {
     const fetchSheetData = async () => {
-      if (!googleSheetId) return;
+      if (!googleSheetId || !window.gapi?.client?.sheets) {
+        return;
+      }
       
       setIsLoading(true);
       try {
@@ -152,7 +172,7 @@ const GoogleSheet = () => {
                 ) : (
                   <div className="flex items-center gap-2 text-white/60 p-4">
                     <XCircle className="h-5 w-5" />
-                    <span>No data available</span>
+                    <span>No data available in the sheet</span>
                   </div>
                 )}
               </div>

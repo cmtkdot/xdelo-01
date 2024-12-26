@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SHEET_NAME } from "./utils/googleSheets/formatters";
 
 interface HeaderMapping {
   sheetHeader: string;
@@ -44,14 +45,21 @@ export const GoogleSheetsHeaderMapping = ({ spreadsheetId, onMappingComplete }: 
 
   useEffect(() => {
     const fetchHeaders = async () => {
+      if (!spreadsheetId || !window.gapi?.client?.sheets) {
+        console.log('Sheets API not ready or spreadsheet ID not provided');
+        return;
+      }
+
       setIsLoading(true);
       try {
+        console.log(`Fetching headers from sheet: ${SHEET_NAME}`);
         const response = await window.gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId,
-          range: 'Media!1:1',
+          range: `${SHEET_NAME}!1:1`,
         });
         
         const headerRow = response.result.values?.[0] || [];
+        console.log('Fetched headers:', headerRow);
         setHeaders(headerRow);
         setMappings(headerRow.map(header => ({
           sheetHeader: header,
@@ -61,7 +69,7 @@ export const GoogleSheetsHeaderMapping = ({ spreadsheetId, onMappingComplete }: 
         console.error('Error fetching headers:', error);
         toast({
           title: "Error",
-          description: "Failed to fetch spreadsheet headers",
+          description: "Failed to fetch spreadsheet headers. Please make sure the sheet exists and you have access.",
           variant: "destructive",
         });
       } finally {
@@ -118,55 +126,61 @@ export const GoogleSheetsHeaderMapping = ({ spreadsheetId, onMappingComplete }: 
         </Button>
       </div>
 
-      <ScrollArea className="h-[400px] rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Spreadsheet Header</TableHead>
-              <TableHead>Link To Field</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {mappings.map((mapping, index) => (
-              <TableRow key={mapping.sheetHeader}>
-                <TableCell className="font-medium">{mapping.sheetHeader}</TableCell>
-                <TableCell>
-                  <Select
-                    value={mapping.linkedField || ""}
-                    onValueChange={(value) => handleFieldLink(index, value)}
-                  >
-                    <SelectTrigger className="w-[300px]">
-                      <SelectValue placeholder="Select a field to link" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {AVAILABLE_FIELDS.map((field) => (
-                        <SelectItem key={field.value} value={field.value}>
-                          {field.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  {mapping.linkedField ? (
-                    <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-green-500" />
-                      <span className="text-sm text-green-500">Linked</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <X className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-400">Not linked</span>
-                    </div>
-                  )}
-                </TableCell>
+      {headers.length > 0 ? (
+        <ScrollArea className="h-[400px] rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Spreadsheet Header</TableHead>
+                <TableHead>Link To Field</TableHead>
+                <TableHead className="w-[100px]">Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </ScrollArea>
+            </TableHeader>
+            <TableBody>
+              {mappings.map((mapping, index) => (
+                <TableRow key={mapping.sheetHeader}>
+                  <TableCell className="font-medium">{mapping.sheetHeader}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={mapping.linkedField || ""}
+                      onValueChange={(value) => handleFieldLink(index, value)}
+                    >
+                      <SelectTrigger className="w-[300px]">
+                        <SelectValue placeholder="Select a field to link" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {AVAILABLE_FIELDS.map((field) => (
+                          <SelectItem key={field.value} value={field.value}>
+                            {field.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    {mapping.linkedField ? (
+                      <div className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-green-500" />
+                        <span className="text-sm text-green-500">Linked</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <X className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-400">Not linked</span>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </ScrollArea>
+      ) : (
+        <div className="text-center p-8 text-gray-500">
+          No headers found in the spreadsheet. Please make sure the sheet is properly initialized.
+        </div>
+      )}
     </div>
   );
 };
