@@ -1,4 +1,4 @@
-import { detectIntent, generateSqlQuery, generateWebhookAction } from './openai.ts';
+import { detectIntent, generateSqlQuery, generateNLPResponse } from './openai.ts';
 import { initSupabase } from './supabase.ts';
 
 export const handleSqlQuery = async (message: string, settings: any, trainingContext: string, openaiApiKey: string) => {
@@ -22,6 +22,16 @@ export const handleSqlQuery = async (message: string, settings: any, trainingCon
     type: 'sql',
     query: sqlQuery,
     result: queryResult
+  };
+};
+
+export const handleNLPResponse = async (message: string, settings: any, trainingContext: string, openaiApiKey: string) => {
+  const response = await generateNLPResponse(message, settings, trainingContext, openaiApiKey);
+  console.log('Generated NLP response:', response);
+  
+  return {
+    type: 'nlp',
+    content: response
   };
 };
 
