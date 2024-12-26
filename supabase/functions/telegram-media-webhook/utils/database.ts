@@ -80,12 +80,13 @@ export const saveMedia = async (
 
 export const syncMediaGroupCaption = async (supabase: any, mediaGroupId: string, caption: string) => {
   try {
-    console.log(`Starting caption sync for media group ${mediaGroupId} with caption "${caption}"`);
+    console.log(`Starting caption sync for media group ${mediaGroupId}`);
+    console.log(`Caption to sync: "${caption}"`);
     
     // First, get all media items in this group
     const { data: mediaItems, error: fetchError } = await supabase
       .from('media')
-      .select('id, caption, media_type')
+      .select('id, caption, media_type, file_name')
       .eq('media_group_id', mediaGroupId);
     
     if (fetchError) {
@@ -93,21 +94,32 @@ export const syncMediaGroupCaption = async (supabase: any, mediaGroupId: string,
       throw fetchError;
     }
 
-    console.log(`Found ${mediaItems?.length || 0} items in media group ${mediaGroupId}`);
-    console.log('Current items:', mediaItems);
+    console.log('Current media items in group:', mediaItems);
 
-    // Update all items in the group regardless of their current caption state
-    const { error: updateError } = await supabase
-      .from('media')
-      .update({ caption })
-      .eq('media_group_id', mediaGroupId);
-
-    if (updateError) {
-      console.error('Error syncing caption to group:', updateError);
-      throw updateError;
+    if (!mediaItems || mediaItems.length === 0) {
+      console.log('No media items found in group');
+      return;
     }
 
-    console.log(`Successfully synced caption "${caption}" for media group ${mediaGroupId}`);
+    // Update each item individually to ensure the update goes through
+    for (const item of mediaItems) {
+      console.log(`Updating caption for media item ${item.id} (${item.media_type})`);
+      console.log(`Current caption: "${item.caption}", New caption: "${caption}"`);
+      
+      const { error: updateError } = await supabase
+        .from('media')
+        .update({ caption })
+        .eq('id', item.id);
+
+      if (updateError) {
+        console.error(`Error updating caption for item ${item.id}:`, updateError);
+        throw updateError;
+      }
+      
+      console.log(`Successfully updated caption for item ${item.id}`);
+    }
+
+    console.log(`Completed caption sync for all ${mediaItems.length} items in media group ${mediaGroupId}`);
   } catch (error) {
     console.error('Failed to sync media group caption:', error);
     throw error;
