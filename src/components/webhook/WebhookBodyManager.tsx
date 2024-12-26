@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Info } from "lucide-react";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface BodyParam {
   key: string;
@@ -15,6 +16,12 @@ interface WebhookBodyManagerProps {
   body: string;
   onBodyChange: (body: string) => void;
 }
+
+const GLIDE_API_SUGGESTIONS = [
+  { key: "appID", value: "" },
+  { key: "queries", value: "" },
+  { key: "data", value: "[]" },
+];
 
 const WebhookBodyManager = ({ body, onBodyChange }: WebhookBodyManagerProps) => {
   const [isValidJson, setIsValidJson] = useState(true);
@@ -37,10 +44,8 @@ const WebhookBodyManager = ({ body, onBodyChange }: WebhookBodyManagerProps) => 
     try {
       const bodyObject = params.reduce((acc, param) => {
         try {
-          // Try to parse the value as JSON if possible
           acc[param.key] = JSON.parse(param.value);
         } catch {
-          // If parsing fails, use the raw string value
           acc[param.key] = param.value;
         }
         return acc;
@@ -64,6 +69,14 @@ const WebhookBodyManager = ({ body, onBodyChange }: WebhookBodyManagerProps) => 
     }
   };
 
+  const addSuggestedParam = (suggestion: BodyParam) => {
+    if (!bodyParams.some(param => param.key === suggestion.key)) {
+      const newParams = [...bodyParams, suggestion];
+      setBodyParams(newParams);
+      updateBody(newParams);
+    }
+  };
+
   const removeParam = (index: number) => {
     const newParams = bodyParams.filter((_, i) => i !== index);
     setBodyParams(newParams);
@@ -80,6 +93,36 @@ const WebhookBodyManager = ({ body, onBodyChange }: WebhookBodyManagerProps) => 
   return (
     <div className="space-y-4">
       <Label>Request Body (JSON)</Label>
+      
+      <Alert className="bg-blue-500/10 border-blue-500/20">
+        <Info className="h-4 w-4 text-blue-500" />
+        <AlertDescription className="text-sm text-blue-100">
+          For Glide API integration, make sure to include appID and queries in the request body.
+        </AlertDescription>
+      </Alert>
+
+      <div className="space-y-2">
+        <Label className="text-sm text-muted-foreground">Suggested Glide API Parameters</Label>
+        <ScrollArea className="h-[100px] rounded-md border border-white/10 p-2">
+          <div className="space-y-2">
+            {GLIDE_API_SUGGESTIONS.map((suggestion) => (
+              <div key={suggestion.key} className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground flex-1">{suggestion.key}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => addSuggestedParam(suggestion)}
+                  className="h-8"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+
       <div className="space-y-2">
         {bodyParams.map((param, index) => (
           <div key={index} className="flex items-center gap-2">
@@ -106,6 +149,7 @@ const WebhookBodyManager = ({ body, onBodyChange }: WebhookBodyManagerProps) => 
           </div>
         ))}
       </div>
+
       <div className="flex items-center gap-2">
         <Input
           value={newParamKey}
@@ -128,6 +172,7 @@ const WebhookBodyManager = ({ body, onBodyChange }: WebhookBodyManagerProps) => 
           <Plus className="h-4 w-4" />
         </Button>
       </div>
+
       {!isValidJson && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />

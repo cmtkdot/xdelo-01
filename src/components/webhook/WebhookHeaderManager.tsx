@@ -3,11 +3,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, X } from "lucide-react";
+import WebhookSuggestionDropdown from "./WebhookSuggestionDropdown";
+import { Suggestion } from "./types/webhookTypes";
 
 export interface Header {
   key: string;
   value: string;
 }
+
+const COMMON_HEADERS: Suggestion[] = [
+  { 
+    key: "Content-Type", 
+    value: "application/json",
+    description: "Specifies the format of the request body"
+  },
+  { 
+    key: "Authorization", 
+    value: "Bearer ",
+    description: "Authentication token for API access"
+  },
+  { 
+    key: "Accept", 
+    value: "application/json",
+    description: "Specifies the expected response format"
+  },
+  { 
+    key: "x-glide-api-key", 
+    value: "",
+    description: "API key for Glide API authentication"
+  },
+];
 
 interface WebhookHeaderManagerProps {
   headers: Header[];
@@ -31,6 +56,11 @@ const WebhookHeaderManager = ({ headers, onHeadersChange }: WebhookHeaderManager
     onHeadersChange(newHeaders);
   };
 
+  const handleSuggestionSelect = (suggestion: { key: string; value: string }) => {
+    setNewHeaderKey(suggestion.key);
+    setNewHeaderValue(suggestion.value);
+  };
+
   return (
     <div className="space-y-4">
       <Label>Custom Headers</Label>
@@ -45,7 +75,7 @@ const WebhookHeaderManager = ({ headers, onHeadersChange }: WebhookHeaderManager
                 onHeadersChange(newHeaders);
               }}
               placeholder="Header key"
-              className="flex-1"
+              className="flex-1 bg-white/5 border-white/10 text-white"
             />
             <Input
               value={header.value}
@@ -55,7 +85,7 @@ const WebhookHeaderManager = ({ headers, onHeadersChange }: WebhookHeaderManager
                 onHeadersChange(newHeaders);
               }}
               placeholder="Header value"
-              className="flex-1"
+              className="flex-1 bg-white/5 border-white/10 text-white"
             />
             <Button
               variant="ghost"
@@ -69,17 +99,18 @@ const WebhookHeaderManager = ({ headers, onHeadersChange }: WebhookHeaderManager
         ))}
       </div>
       <div className="flex items-center gap-2">
-        <Input
+        <WebhookSuggestionDropdown
+          suggestions={COMMON_HEADERS}
           value={newHeaderKey}
-          onChange={(e) => setNewHeaderKey(e.target.value)}
-          placeholder="New header key"
-          className="flex-1"
+          onSelect={handleSuggestionSelect}
+          placeholder="Select or type header"
+          triggerClassName="flex-1"
         />
         <Input
           value={newHeaderValue}
           onChange={(e) => setNewHeaderValue(e.target.value)}
           placeholder="New header value"
-          className="flex-1"
+          className="flex-1 bg-white/5 border-white/10 text-white"
         />
         <Button
           variant="ghost"

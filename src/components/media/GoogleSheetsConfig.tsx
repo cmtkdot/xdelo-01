@@ -19,23 +19,23 @@ interface GoogleSheetsConfigProps {
   onSpreadsheetIdSet: (id: string) => void;
   selectedMedia?: MediaItem[];
   googleSheetId?: string | null;
-  parsedMapping?: Record<string, string>;
+  sheetsConfig?: any[];
 }
 
 export const GoogleSheetsConfig = ({ 
   onSpreadsheetIdSet, 
   selectedMedia = [], 
   googleSheetId,
-  parsedMapping = {}
+  sheetsConfig = []
 }: GoogleSheetsConfigProps) => {
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConfig[]>(() => {
-    const saved = localStorage.getItem('spreadsheets');
-    return saved ? JSON.parse(saved) : googleSheetId ? [{
-      id: googleSheetId,
-      name: 'Default Sheet',
-      autoSync: true,
-      isHeadersMapped: false
-    }] : [];
+    return sheetsConfig.map(config => ({
+      id: config.spreadsheet_id,
+      name: config.sheet_name || 'Unnamed Sheet',
+      autoSync: config.auto_sync,
+      gid: config.sheet_gid,
+      isHeadersMapped: config.is_headers_mapped
+    }));
   });
   
   const { toast } = useToast();
@@ -59,13 +59,25 @@ export const GoogleSheetsConfig = ({
   useEffect(() => {
     const syncData = async (spreadsheetId: string, gid?: string) => {
       const sheet = spreadsheets.find(s => s.id === spreadsheetId);
-      if (!sheet?.isHeadersMapped || !allMedia) return;
+      if (!sheet?.isHeadersMapped || !sheet.autoSync || !allMedia) {
+        console.log('Skipping sync - conditions not met:', {
+          isHeadersMapped: sheet?.isHeadersMapped,
+          autoSync: sheet?.autoSync,
+          hasMedia: Boolean(allMedia)
+        });
+        return;
+      }
 
       try {
         await syncWithGoogleSheets(spreadsheetId, allMedia, gid);
         console.log(`Auto-synced with spreadsheet: ${spreadsheetId}${gid ? ` (GID: ${gid})` : ''}`);
       } catch (error) {
         console.error('Auto-sync error:', error);
+        toast({
+          title: "Sync Error",
+          description: "Failed to sync with Google Sheets. Please ensure headers are mapped correctly.",
+          variant: "destructive",
+        });
       }
     };
 
@@ -87,11 +99,7 @@ export const GoogleSheetsConfig = ({
     return () => {
       channels.forEach(channel => channel.unsubscribe());
     };
-  }, [spreadsheets, allMedia]);
-
-  useEffect(() => {
-    localStorage.setItem('spreadsheets', JSON.stringify(spreadsheets));
-  }, [spreadsheets]);
+  }, [spreadsheets, allMedia, toast]);
 
   const handleAddSpreadsheet = async (name: string, id: string, gid?: string) => {
     try {
@@ -100,6 +108,25 @@ export const GoogleSheetsConfig = ({
       
       console.log('Initializing spreadsheet...');
       await initializeSpreadsheet(id, gid);
+
+      // Get the current user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      const { data, error } = await supabase
+        .from('google_sheets_config')
+        .insert({
+          user_id: user.id, // Add the user_id here
+          spreadsheet_id: id,
+          sheet_name: name,
+          sheet_gid: gid,
+          auto_sync: true,
+          is_headers_mapped: false
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
       
       setSpreadsheets(prev => [...prev, {
         id,
@@ -125,43 +152,102 @@ export const GoogleSheetsConfig = ({
     }
   };
 
-  const toggleAutoSync = (spreadsheetId: string) => {
-    setSpreadsheets(prev => prev.map(sheet => 
-      sheet.id === spreadsheetId 
-        ? { ...sheet, autoSync: !sheet.autoSync }
-        : sheet
-    ));
+  const toggleAutoSync = async (spreadsheetId: string) => {
+    const sheet = spreadsheets.find(s => s.id === spreadsheetId);
+    if (!sheet) return;
+
+    try {
+      const { error } = await supabase
+        .from('google_sheets_config')
+        .update({ auto_sync: !sheet.autoSync })
+        .eq('spreadsheet_id', spreadsheetId);
+
+      if (error) throw error;
+
+      setSpreadsheets(prev => prev.map(sheet => 
+        sheet.id === spreadsheetId 
+          ? { ...sheet, autoSync: !sheet.autoSync }
+          : sheet
+      ));
+    } catch (error) {
+      console.error('Error toggling auto-sync:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update auto-sync setting",
+        variant: "destructive",
+      });
+    }
   };
 
-  const removeSpreadsheet = (spreadsheetId: string) => {
-    setSpreadsheets(prev => prev.filter(sheet => sheet.id !== spreadsheetId));
+  const removeSpreadsheet = async (spreadsheetId: string) => {
+    try {
+      const { error } = await supabase
+        .from('google_sheets_config')
+        .delete()
+        .eq('spreadsheet_id', spreadsheetId);
+
+      if (error) throw error;
+
+      setSpreadsheets(prev => prev.filter(sheet => sheet.id !== spreadsheetId));
+      
+      toast({
+        title: "Success",
+        description: "Sheet configuration removed successfully",
+      });
+    } catch (error) {
+      console.error('Error removing sheet:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove sheet configuration",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleHeaderMappingComplete = (spreadsheetId: string, mapping: Record<string, string>) => {
-    setSpreadsheets(prev => prev.map(sheet => 
-      sheet.id === spreadsheetId 
-        ? { ...sheet, isHeadersMapped: true }
-        : sheet
-    ));
-
-    // Only sync after headers are mapped
-    if (allMedia) {
-      const sheet = spreadsheets.find(s => s.id === spreadsheetId);
-      syncWithGoogleSheets(spreadsheetId, allMedia, sheet?.gid)
-        .then(() => {
-          toast({
-            title: "Success",
-            description: "Initial sync completed successfully",
-          });
+  const handleHeaderMappingComplete = async (spreadsheetId: string, mapping: Record<string, string>) => {
+    try {
+      const { error } = await supabase
+        .from('google_sheets_config')
+        .update({ 
+          is_headers_mapped: true,
+          header_mapping: mapping
         })
-        .catch((error) => {
-          console.error('Sync error:', error);
-          toast({
-            title: "Error",
-            description: "Failed to sync with Google Sheets",
-            variant: "destructive",
+        .eq('spreadsheet_id', spreadsheetId);
+
+      if (error) throw error;
+
+      setSpreadsheets(prev => prev.map(sheet => 
+        sheet.id === spreadsheetId 
+          ? { ...sheet, isHeadersMapped: true }
+          : sheet
+      ));
+
+      // Only sync after headers are mapped and if autoSync is enabled
+      const sheet = spreadsheets.find(s => s.id === spreadsheetId);
+      if (sheet?.autoSync && allMedia) {
+        syncWithGoogleSheets(spreadsheetId, allMedia, sheet?.gid)
+          .then(() => {
+            toast({
+              title: "Success",
+              description: "Initial sync completed successfully",
+            });
+          })
+          .catch((error) => {
+            console.error('Sync error:', error);
+            toast({
+              title: "Error",
+              description: "Failed to sync with Google Sheets",
+              variant: "destructive",
+            });
           });
-        });
+      }
+    } catch (error) {
+      console.error('Error updating header mapping:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save header mapping",
+        variant: "destructive",
+      });
     }
   };
 

@@ -11,18 +11,21 @@ interface SpreadsheetConfig {
   name: string;
   autoSync: boolean;
   gid?: string;
+  isHeadersMapped?: boolean;
 }
 
 interface SpreadsheetCardProps {
   sheet: SpreadsheetConfig;
   onToggleAutoSync: (id: string) => void;
   onRemove: (id: string) => void;
+  onHeaderMappingComplete: (spreadsheetId: string, mapping: Record<string, string>) => void;
 }
 
 export const SpreadsheetCard = ({ 
   sheet, 
   onToggleAutoSync, 
-  onRemove 
+  onRemove,
+  onHeaderMappingComplete
 }: SpreadsheetCardProps) => {
   return (
     <Card key={sheet.id}>
@@ -58,10 +61,7 @@ export const SpreadsheetCard = ({
         <GoogleSheetsHeaderMapping
           spreadsheetId={sheet.id}
           sheetGid={sheet.gid}
-          onMappingComplete={(mapping) => {
-            console.log('Header mapping:', mapping);
-            localStorage.setItem(`headerMapping-${sheet.id}`, JSON.stringify(mapping));
-          }}
+          onMappingComplete={(mapping) => onHeaderMappingComplete(sheet.id, mapping)}
         />
       </CardContent>
     </Card>

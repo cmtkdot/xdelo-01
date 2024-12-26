@@ -6,6 +6,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
@@ -16,6 +18,20 @@ const GoogleSheet = () => {
   const [googleSheetId, setGoogleSheetId] = useState<string | null>(
     localStorage.getItem('googleSheetId')
   );
+
+  const { data: sheetsConfig } = useQuery({
+    queryKey: ['google-sheets-config'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('google_sheets_config')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const headerMapping = localStorage.getItem('headerMapping');
   const parsedMapping: Record<string, string> = headerMapping ? JSON.parse(headerMapping) : {};
 
@@ -82,7 +98,7 @@ const GoogleSheet = () => {
             <GoogleSheetsConfig
               onSpreadsheetIdSet={handleSpreadsheetIdSet}
               googleSheetId={googleSheetId}
-              parsedMapping={parsedMapping}
+              sheetsConfig={sheetsConfig}
             />
             
             {googleSheetId && (
