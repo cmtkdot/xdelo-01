@@ -14,7 +14,15 @@ import { Button } from "@/components/ui/button";
 import { ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SuggestionItem from "./components/SuggestionItem";
-import { SuggestionProps } from "./types/webhookTypes";
+import { Suggestion } from "./types/webhookTypes";
+
+interface SuggestionProps {
+  suggestions: Suggestion[];
+  value: string;
+  onSelect: (suggestion: Suggestion) => void;
+  placeholder?: string;
+  triggerClassName?: string;
+}
 
 const WebhookSuggestionDropdown = ({
   suggestions = [],
@@ -56,8 +64,8 @@ const WebhookSuggestionDropdown = ({
                 key={suggestion.key}
                 suggestion={suggestion}
                 isSelected={value === suggestion.key}
-                onSelect={(selected) => {
-                  onSelect(selected);
+                onSelect={() => {
+                  onSelect(suggestion);
                   setOpen(false);
                 }}
               />

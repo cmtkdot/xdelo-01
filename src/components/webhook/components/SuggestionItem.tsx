@@ -1,3 +1,4 @@
+import React from "react";
 import { Check } from "lucide-react";
 import { CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
@@ -6,15 +7,14 @@ import { Suggestion } from "../types/webhookTypes";
 interface SuggestionItemProps {
   suggestion: Suggestion;
   isSelected: boolean;
-  onSelect: (suggestion: Suggestion) => void;
+  onSelect: () => void;
 }
 
 const SuggestionItem = ({ suggestion, isSelected, onSelect }: SuggestionItemProps) => {
   return (
     <CommandItem
-      key={suggestion.key}
       value={suggestion.key}
-      onSelect={() => onSelect(suggestion)}
+      onSelect={onSelect}
       className="text-white hover:bg-white/10"
     >
       <Check
