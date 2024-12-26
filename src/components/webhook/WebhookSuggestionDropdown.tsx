@@ -30,13 +30,16 @@ interface WebhookSuggestionDropdownProps {
 }
 
 const WebhookSuggestionDropdown = ({
-  suggestions,
-  value,
+  suggestions = [], // Provide default empty array
+  value = "",      // Provide default empty string
   onSelect,
   placeholder = "Select from suggestions...",
   triggerClassName,
 }: WebhookSuggestionDropdownProps) => {
   const [open, setOpen] = React.useState(false);
+
+  // Ensure suggestions is always an array
+  const validSuggestions = Array.isArray(suggestions) ? suggestions : [];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -50,16 +53,19 @@ const WebhookSuggestionDropdown = ({
             triggerClassName
           )}
         >
-          {value ? suggestions.find((s) => s.key === value)?.key : placeholder}
+          {value ? validSuggestions.find((s) => s.key === value)?.key : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0 bg-black/90 border-white/10">
         <Command>
-          <CommandInput placeholder="Search suggestions..." className="h-9 bg-transparent text-white" />
+          <CommandInput 
+            placeholder="Search suggestions..." 
+            className="h-9 bg-transparent text-white" 
+          />
           <CommandEmpty>No suggestion found.</CommandEmpty>
           <CommandGroup>
-            {suggestions.map((suggestion) => (
+            {validSuggestions.map((suggestion) => (
               <CommandItem
                 key={suggestion.key}
                 value={suggestion.key}
