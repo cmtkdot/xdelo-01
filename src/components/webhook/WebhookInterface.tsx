@@ -12,6 +12,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import WebhookMethodSelector, { HttpMethod } from "./WebhookMethodSelector";
 import WebhookDataFetcher from "./WebhookDataFetcher";
 import WebhookRequestDetails from "./WebhookRequestDetails";
+import WebhookHeaderManager, { Header } from "./WebhookHeaderManager";
+import WebhookQueryManager, { QueryParam } from "./WebhookQueryManager";
 
 interface WebhookInterfaceProps {
   schedule?: "manual" | "hourly" | "daily" | "weekly";
@@ -25,6 +27,8 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
   const [availableFields, setAvailableFields] = useState<string[]>([]);
   const [webhookData, setWebhookData] = useState<any[]>([]);
   const [method, setMethod] = useState<HttpMethod>("POST");
+  const [headers, setHeaders] = useState<Header[]>([]);
+  const [params, setParams] = useState<QueryParam[]>([]);
   const { toast } = useToast();
 
   const fetchWebhookData = async () => {
@@ -43,9 +47,8 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         body: {
           webhook_url: webhookUrl,
           method: method,
-          headers: {
-            'Accept': 'application/json'
-          }
+          headers: Object.fromEntries(headers.map(h => [h.key, h.value])),
+          params: Object.fromEntries(params.map(p => [p.key, p.value]))
         }
       });
 
@@ -123,14 +126,8 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
             total_records: filteredData.length,
             selected_fields: selectedFields
           } : undefined,
-          headers: {
-            'X-Source': 'Media Gallery',
-            'X-Batch-Size': selectedMedia.length.toString()
-          },
-          params: {
-            source: 'media_gallery',
-            fields: selectedFields.join(',')
-          }
+          headers: Object.fromEntries(headers.map(h => [h.key, h.value])),
+          params: Object.fromEntries(params.map(p => [p.key, p.value]))
         }
       });
 
@@ -199,6 +196,9 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
               onFetch={fetchWebhookData}
             />
           </div>
+
+          <WebhookHeaderManager headers={headers} onHeadersChange={setHeaders} />
+          <WebhookQueryManager params={params} onParamsChange={setParams} />
         </CardContent>
       </Card>
       
@@ -231,6 +231,8 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         method={method}
         selectedMedia={selectedMedia}
         selectedFields={selectedFields}
+        headers={headers}
+        params={params}
       />
 
       <Button 

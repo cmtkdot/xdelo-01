@@ -1,13 +1,23 @@
 import { Info } from "lucide-react";
 import { HttpMethod } from "./WebhookMethodSelector";
+import { Header } from "./WebhookHeaderManager";
+import { QueryParam } from "./WebhookQueryManager";
 
 interface WebhookRequestDetailsProps {
   method: HttpMethod;
   selectedMedia: any[];
   selectedFields: string[];
+  headers: Header[];
+  params: QueryParam[];
 }
 
-const WebhookRequestDetails = ({ method, selectedMedia, selectedFields }: WebhookRequestDetailsProps) => {
+const WebhookRequestDetails = ({ 
+  method, 
+  selectedMedia, 
+  selectedFields,
+  headers,
+  params 
+}: WebhookRequestDetailsProps) => {
   return (
     <div className="rounded-lg border border-white/10 bg-black/20 p-4">
       <div className="flex items-start space-x-2">
@@ -18,10 +28,16 @@ const WebhookRequestDetails = ({ method, selectedMedia, selectedFields }: Webhoo
             Method: {method}
           </p>
           <p className="text-xs text-white/70">
-            Headers: X-Source: Media Gallery, X-Batch-Size: {selectedMedia.length}
+            Headers: {headers.map(h => `${h.key}: ${h.value}`).join(', ')}
           </p>
           <p className="text-xs text-white/70">
-            Query Parameters: source=media_gallery, fields={selectedFields.join(',')}
+            Query Parameters: {params.map(p => `${p.key}=${p.value}`).join('&')}
+          </p>
+          <p className="text-xs text-white/70">
+            Selected Fields: {selectedFields.join(', ')}
+          </p>
+          <p className="text-xs text-white/70">
+            Selected Media Count: {selectedMedia.length}
           </p>
         </div>
       </div>
