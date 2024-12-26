@@ -72,12 +72,19 @@ export const GoogleSheetsHeaderMapping = ({
         if (response.result.values?.[0]) {
           setSheetHeaders(response.result.values[0]);
           
-          // Load existing mapping from Supabase
-          const { data: configData } = await supabase
+          // Get the current user's ID
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('User not authenticated');
+          
+          // Load existing mapping from Supabase, filtering by both spreadsheet_id and user_id
+          const { data: configData, error } = await supabase
             .from('google_sheets_config')
             .select('header_mapping')
             .eq('spreadsheet_id', spreadsheetId)
-            .single();
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (error) throw error;
           
           if (configData?.header_mapping) {
             // Ensure we're converting the JSON data to the correct type
@@ -111,6 +118,10 @@ export const GoogleSheetsHeaderMapping = ({
 
   const handleSaveMapping = async () => {
     try {
+      // Get the current user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
       // Save mapping to Supabase
       const { error } = await supabase
         .from('google_sheets_config')
@@ -118,7 +129,8 @@ export const GoogleSheetsHeaderMapping = ({
           header_mapping: mapping,
           is_headers_mapped: true 
         })
-        .eq('spreadsheet_id', spreadsheetId);
+        .eq('spreadsheet_id', spreadsheetId)
+        .eq('user_id', user.id);
 
       if (error) throw error;
       
