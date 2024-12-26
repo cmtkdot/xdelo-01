@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 
 const CLIENT_ID = '977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com';
@@ -54,12 +54,23 @@ export const useGoogleSheetsAuth = () => {
         document.body.appendChild(script);
       });
 
+      // Get the current origin for the redirect URI
+      const origin = window.location.origin;
+      const redirectUri = `${origin}/oauth/callback`;
+
       // Initialize Google Identity Services client
       const tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
+        redirect_uri: redirectUri,
         callback: async (response) => {
           if (response.error) {
+            console.error('Google OAuth error:', response.error);
+            toast({
+              title: "Authentication Error",
+              description: "Failed to authenticate with Google. Please try again.",
+              variant: "destructive",
+            });
             throw new Error(response.error);
           }
           
