@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 const CLIENT_ID = '977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com';
+const API_KEY = 'AIzaSyDhwF7rqz6BHJbBsIpP9kZEKR9A_cFE'; // Your API key
+const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 
 export const useGoogleSheetsAuth = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -12,16 +14,7 @@ export const useGoogleSheetsAuth = () => {
     try {
       console.log('Starting Google Sheets API initialization...');
       
-      // Load the Google API client library
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error('Failed to load Google API'));
-        document.body.appendChild(script);
-      });
-
-      // Load the Google Identity Services library
+      // Load the Google Identity Services script
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement('script');
         script.src = 'https://accounts.google.com/gsi/client';
@@ -30,40 +23,47 @@ export const useGoogleSheetsAuth = () => {
         document.body.appendChild(script);
       });
 
-      // Initialize the client with OAuth
-      await window.gapi.load('client:auth2', async () => {
-        try {
-          await window.gapi.client.init({
-            clientId: CLIENT_ID,
-            scope: SCOPES,
-            discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+      // Initialize the Google API client
+      await new Promise<void>((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://apis.google.com/js/api.js';
+        script.onload = () => {
+          window.gapi.load('client', async () => {
+            try {
+              await window.gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: [DISCOVERY_DOC],
+              });
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
           });
-
-          // Set up the Identity Services client
-          const tokenClient = window.google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: (response) => {
-              if (response.error) {
-                throw new Error(response.error);
-              }
-              setIsInitialized(true);
-            },
-          });
-
-          // Request user authorization
-          if (!window.gapi.auth2.getAuthInstance().isSignedIn.get()) {
-            tokenClient.requestAccessToken();
-          } else {
-            setIsInitialized(true);
-          }
-        } catch (error) {
-          console.error('Error initializing Google client:', error);
-          throw error;
-        }
+        };
+        script.onerror = () => reject(new Error('Failed to load Google API'));
+        document.body.appendChild(script);
       });
 
-      console.log('Google Sheets API initialized successfully');
+      // Initialize Google Identity Services client
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: async (response) => {
+          if (response.error) {
+            throw new Error(response.error);
+          }
+          
+          // Set access token
+          window.gapi.client.setToken(response);
+          setIsInitialized(true);
+          
+          console.log('Google Sheets API initialized successfully');
+        },
+      });
+
+      // Request user authorization
+      client.requestAccessToken();
+
     } catch (error) {
       console.error('Error initializing Google Sheets API:', error);
       toast({
