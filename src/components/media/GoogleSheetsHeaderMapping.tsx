@@ -14,12 +14,17 @@ interface HeaderMappingProps {
 
 const DEFAULT_DB_COLUMNS = [
   'id',
+  'user_id',
+  'chat_id',
   'file_name',
   'file_url',
   'media_type',
   'caption',
+  'metadata',
   'created_at',
   'updated_at',
+  'media_group_id',
+  'additional_data',
   'google_drive_id',
   'google_drive_url'
 ];
@@ -51,9 +56,9 @@ export const GoogleSheetsHeaderMapping = ({
             throw new Error(`Sheet with GID ${sheetGid} not found`);
           }
           
-          range = `${targetSheet.properties?.title}!A1:K1`;
+          range = `${targetSheet.properties?.title}!A1:Z1`;  // Extended range to Z1 to capture more columns
         } else {
-          range = 'A1:K1';
+          range = 'A1:Z1';  // Extended range to Z1
         }
         
         const response = await window.gapi.client.sheets.spreadsheets.values.get({
