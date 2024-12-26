@@ -1,17 +1,11 @@
 import { useEffect, useState } from "react";
 import useMediaData from "./media/hooks/useMediaData";
 import useMediaSubscription from "./media/hooks/useMediaSubscription";
-import MediaCard from "./media/MediaCard";
-import MediaFilters from "./media/MediaFilters";
-import MediaGallerySkeleton from "./media/MediaGallerySkeleton";
 import { MediaFilter } from "./media/types";
-import { Image, Trash2, RefreshCw } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
 import WebhookInterface from "./webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "./media/types";
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import MediaGalleryHeader from "./media/MediaGalleryHeader";
+import MediaFilters from "./media/MediaFilters";
+import MediaGalleryContent from "./media/MediaGalleryContent";
+import MediaGallerySkeleton from "./media/MediaGallerySkeleton";
 
 const MediaGallery = () => {
   const [filter, setFilter] = useState<MediaFilter>({
@@ -136,36 +134,12 @@ const MediaGallery = () => {
 
   return (
     <div className="w-full max-w-[2000px] mx-auto space-y-4 px-4 md:px-6">
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-2">
-          <Image className="w-6 h-6 text-[#0088cc]" />
-          <h2 className="text-xl font-semibold text-white">Media Gallery</h2>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSyncCaptions}
-            disabled={isSyncingCaptions}
-            className="text-xs"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaptions ? 'animate-spin' : ''}`} />
-            Sync Captions
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDeleteDuplicates}
-            disabled={isDeletingDuplicates}
-            className="text-xs"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete Duplicates
-          </Button>
-        </div>
-      </div>
+      <MediaGalleryHeader
+        onSyncCaptions={handleSyncCaptions}
+        onDeleteDuplicates={handleDeleteDuplicates}
+        isSyncingCaptions={isSyncingCaptions}
+        isDeletingDuplicates={isDeletingDuplicates}
+      />
       
       <div className="w-full">
         <WebhookInterface selectedMedia={getSelectedMediaData()} />
@@ -183,26 +157,11 @@ const MediaGallery = () => {
         />
       </div>
 
-      {!mediaItems || mediaItems.length === 0 ? (
-        <div className="text-center py-8 bg-white/5 rounded-lg border border-white/10 backdrop-blur-xl">
-          <p className="text-gray-400">
-            No media files yet. Send some media to your Telegram bot!
-          </p>
-        </div>
-      ) : (
-        <ScrollArea className="h-[calc(100vh-16rem)] w-full">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-6">
-            {mediaItems.map((item) => (
-              <MediaCard 
-                key={item.id} 
-                item={item}
-                isSelected={selectedMedia.has(item.id)}
-                onToggleSelect={handleToggleSelect}
-              />
-            ))}
-          </div>
-        </ScrollArea>
-      )}
+      <MediaGalleryContent
+        mediaItems={mediaItems}
+        selectedMedia={selectedMedia}
+        onToggleSelect={handleToggleSelect}
+      />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
