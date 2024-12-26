@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 
 const CLIENT_ID = '977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com';
-const API_KEY = 'AIzaSyDhwF7rqz6BHJbBsIpP9kZEKR9A_cFE'; // Your API key
 const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 
@@ -31,7 +30,6 @@ export const useGoogleSheetsAuth = () => {
           window.gapi.load('client', async () => {
             try {
               await window.gapi.client.init({
-                apiKey: API_KEY,
                 discoveryDocs: [DISCOVERY_DOC],
               });
               resolve();
