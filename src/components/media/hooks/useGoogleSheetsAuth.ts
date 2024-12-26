@@ -42,6 +42,7 @@ export const useGoogleSheetsAuth = () => {
           window.gapi.load('client', async () => {
             try {
               await window.gapi.client.init({
+                apiKey: process.env.GOOGLE_API_KEY,
                 discoveryDocs: [DISCOVERY_DOC],
               });
               resolve();
@@ -82,7 +83,7 @@ export const useGoogleSheetsAuth = () => {
       });
 
       // Request user authorization
-      tokenClient.requestAccessToken({ prompt: 'consent' });
+      tokenClient.requestAccessToken({ prompt: '' });
 
     } catch (error) {
       console.error('Error initializing Google Sheets API:', error);

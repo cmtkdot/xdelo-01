@@ -69,6 +69,23 @@ export const useSpreadsheetOperations = (
         return;
       }
       
+      // Check if configuration already exists
+      const { data: existingConfig } = await supabase
+        .from('google_sheets_config')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('spreadsheet_id', id)
+        .eq('sheet_gid', gid || '')
+        .single();
+
+      if (existingConfig) {
+        toast({
+          title: "Info",
+          description: "This sheet is already configured",
+        });
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('google_sheets_config')
         .insert({
