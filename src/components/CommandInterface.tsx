@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { AISettingsPanel, AISettings } from "./ai-chat/AISettings";
+import { handleAIResponse } from "./ai-chat/AIResponseHandler";
+import { checkAuth } from "./ai-chat/AuthHandler";
 
 const CommandInterface = () => {
   const [message, setMessage] = useState("");
@@ -20,8 +22,8 @@ const CommandInterface = () => {
 
   useEffect(() => {
     const checkInitialAuth = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error || !session) {
+      const { isAuthenticated, error } = await checkAuth();
+      if (!isAuthenticated) {
         handleAuthError();
       }
     };
@@ -34,8 +36,8 @@ const CommandInterface = () => {
       if (event === 'SIGNED_OUT' || !session) {
         handleAuthError();
       } else if (event === 'TOKEN_REFRESHED') {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        if (error || !currentSession) {
+        const { isAuthenticated, error } = await checkAuth();
+        if (!isAuthenticated) {
           console.error("Session validation failed after token refresh:", error);
           handleAuthError();
         }
@@ -57,53 +59,14 @@ const CommandInterface = () => {
     navigate("/login");
   };
 
-  const checkAuth = async () => {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error("Auth check error:", error);
-        throw error;
-      }
-      
-      if (!session) {
-        console.log("No session found during auth check");
-        handleAuthError();
-        return false;
-      }
-      
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.error("User verification failed:", userError);
-        throw userError || new Error("User not found");
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("Auth check failed:", error);
-      handleAuthError();
-      return false;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
     setIsLoading(true);
     try {
-      const isAuthenticated = await checkAuth();
-      if (!isAuthenticated) return;
-
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-      if (userError) {
-        console.error("User fetch error:", userError);
-        throw userError;
-      }
-
-      if (!user) {
-        console.log("No user found during message submission");
+      const { isAuthenticated, user } = await checkAuth();
+      if (!isAuthenticated || !user) {
         handleAuthError();
         return;
       }
@@ -119,60 +82,7 @@ const CommandInterface = () => {
 
       if (messageError) throw messageError;
 
-      // First try to detect if this is a SQL query
-      const isSqlQuery = message.toLowerCase().trim().startsWith('select') || 
-                        message.toLowerCase().includes('from') ||
-                        message.toLowerCase().includes('where');
-
-      let response;
-      if (isSqlQuery) {
-        // Handle SQL query
-        const { data: queryResult, error: queryError } = await supabase.rpc('execute_safe_query', {
-          query_text: message
-        });
-
-        if (queryError) throw queryError;
-
-        response = {
-          type: 'sql',
-          query: message,
-          result: queryResult.data
-        };
-      } else {
-        // Handle NLP/Chat response
-        const { data, error } = await supabase.functions.invoke("process-message", {
-          body: { 
-            message,
-            settings: {
-              model: settings.model,
-              temperature: settings.temperature,
-              maxTokens: settings.maxTokens,
-              streamResponse: settings.streamResponse
-            }
-          },
-        });
-
-        if (error) throw error;
-        response = data;
-      }
-
-      if (response) {
-        const botResponse = typeof response === 'string' ? response : 
-          response.type === 'sql' ? 
-            `I executed the following SQL query:\n\`\`\`sql\n${response.query}\n\`\`\`\n\nResults:\n\`\`\`json\n${JSON.stringify(response.result, null, 2)}\n\`\`\`` :
-            response.response;
-
-        const { error: botMessageError } = await supabase.from("messages").insert({
-          user_id: user.id,
-          sender_name: "Bot",
-          text: botResponse,
-          message_id: messageId + 1,
-          metadata: response.type === 'sql' ? { type: 'sql', query: response.query, result: response.result } : undefined
-        });
-
-        if (botMessageError) throw botMessageError;
-      }
-
+      await handleAIResponse(message, settings, user.id, messageId);
       setMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
