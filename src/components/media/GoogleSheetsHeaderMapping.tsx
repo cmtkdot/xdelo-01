@@ -80,7 +80,9 @@ export const GoogleSheetsHeaderMapping = ({
             .single();
           
           if (configData?.header_mapping) {
-            setMapping(configData.header_mapping);
+            // Ensure we're converting the JSON data to the correct type
+            const headerMapping = configData.header_mapping as Record<string, string>;
+            setMapping(headerMapping);
           }
         }
       } catch (error) {

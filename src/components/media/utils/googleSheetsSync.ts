@@ -2,6 +2,7 @@ import "./googleSheets/types";
 import { MediaItem } from "../types";
 import { SHEET_NAME, formatMediaForSheets, BASE_HEADERS } from "./googleSheets/formatters";
 import { getGoogleAuthToken } from "./googleSheets/auth";
+import { supabase } from "@/integrations/supabase/client";
 
 const COLUMN_LIMIT = 'K';
 const MAX_COLUMNS = 26;
