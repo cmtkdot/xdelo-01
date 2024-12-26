@@ -95,6 +95,9 @@ serve(async (req) => {
       const mediaType = determineMediaType(message);
       const mediaItem = getMediaItem(message);
       
+      // Get the caption from the message directly, as it's always at the message level
+      const messageCaption = message.caption || message.text || null;
+      
       const fileResponse = await fetch(
         `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`
       );
@@ -109,8 +112,7 @@ serve(async (req) => {
       const mediaBlob = await mediaResponse.blob();
 
       const fileExt = fileData.result.file_path.split('.').pop();
-      const caption = message.caption || message.text || mediaItem.file_id;
-      const fileName = generateSafeFileName(caption, fileExt);
+      const fileName = generateSafeFileName(messageCaption || mediaItem.file_id, fileExt);
 
       const { data: storageData, error: storageError } = await supabase.storage
         .from("telegram-media")
@@ -135,7 +137,7 @@ serve(async (req) => {
         fileName,
         publicUrl.publicUrl,
         mediaType,
-        message.caption,
+        messageCaption,
         {
           telegram_file_id: mediaItem.file_id,
           width: mediaItem.width,
@@ -147,9 +149,11 @@ serve(async (req) => {
         message.media_group_id
       );
 
+      console.log(`Processing media with caption: "${messageCaption}" and media_group_id: ${message.media_group_id}`);
+
       // If this media is part of a group and has a caption, sync it to other media in the group
-      if (message.media_group_id && message.caption) {
-        await syncMediaGroupCaption(supabase, message.media_group_id, message.caption);
+      if (message.media_group_id && messageCaption) {
+        await syncMediaGroupCaption(supabase, message.media_group_id, messageCaption);
       }
 
       await supabase.from("bot_activities").insert({
@@ -159,7 +163,8 @@ serve(async (req) => {
         details: {
           media_type: mediaType,
           file_name: fileName,
-          media_group_id: message.media_group_id
+          media_group_id: message.media_group_id,
+          caption: messageCaption
         },
       });
     }
