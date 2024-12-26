@@ -8,6 +8,7 @@ import {
   Webhook,
   Bot,
   FileSpreadsheet,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ export const navItems = [
   { path: "/media-table", icon: FileSpreadsheet, label: "Media Table" },
   { path: "/webhooks", icon: Webhook, label: "Webhooks" },
   { path: "/ai-chat", icon: Bot, label: "AI Chat" },
+  { path: "/database-chat", icon: Database, label: "Database Chat" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
