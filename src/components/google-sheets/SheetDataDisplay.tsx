@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Database, Loader2, XCircle, Save, Maximize2, Minimize2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState } from "react";
@@ -48,7 +48,6 @@ export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps
 
     try {
       // Here you would typically update the Google Sheet
-      // For now, we'll just show a success message
       toast({
         title: "Changes saved",
         description: "The cell has been updated successfully.",
@@ -93,7 +92,7 @@ export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps
       <CardContent>
         {sheetData.length > 0 ? (
           <ScrollArea className={`${isExpanded ? 'h-[calc(100vh-12rem)]' : 'h-[600px]'} rounded-md border border-white/10`}>
-            <div className="overflow-x-auto">
+            <div className="relative">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -126,7 +125,7 @@ export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps
                       {Object.entries(row).map(([header, value], cellIndex) => (
                         <TableCell 
                           key={`${rowIndex}-${cellIndex}`}
-                          className="whitespace-nowrap"
+                          className="whitespace-nowrap min-w-[150px]"
                           onClick={() => handleCellClick(rowIndex, header, value)}
                         >
                           {editingCell?.rowIndex === rowIndex && editingCell?.header === header ? (
@@ -158,6 +157,7 @@ export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps
                 </TableBody>
               </Table>
             </div>
+            <ScrollBar orientation="horizontal" className="h-2.5" />
           </ScrollArea>
         ) : (
           <div className="flex items-center gap-2 text-white/60 p-4">

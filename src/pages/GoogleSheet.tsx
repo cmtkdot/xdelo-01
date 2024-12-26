@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { SheetConfiguration } from "@/components/google-sheets/SheetConfiguration";
+import { GoogleSheetsConfig } from "@/components/media/GoogleSheetsConfig";
 import { SheetDataDisplay } from "@/components/google-sheets/SheetDataDisplay";
 import { initGoogleSheetsAPI } from "@/components/media/utils/googleSheetsSync";
 import { useToast } from "@/components/ui/use-toast";
@@ -61,11 +61,16 @@ const GoogleSheet = () => {
     }
   }, [googleSheetId, toast]);
 
+  const handleSpreadsheetIdSet = (id: string) => {
+    setGoogleSheetId(id);
+    localStorage.setItem('googleSheetId', id);
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="grid gap-6">
-        <SheetConfiguration
-          onSpreadsheetIdSet={setGoogleSheetId}
+        <GoogleSheetsConfig
+          onSpreadsheetIdSet={handleSpreadsheetIdSet}
           googleSheetId={googleSheetId}
           parsedMapping={parsedMapping}
         />
