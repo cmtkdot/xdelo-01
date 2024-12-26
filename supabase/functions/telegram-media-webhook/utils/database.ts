@@ -202,11 +202,19 @@ export const syncMediaGroupCaption = async (supabase: any, mediaGroupId: string,
       return;
     }
 
+    // Log the media types in the group for debugging
+    console.log('Media types in group:', mediaItems.map(item => ({
+      id: item.id,
+      type: item.media_type,
+      currentCaption: item.caption
+    })));
+
     // Update each item individually to ensure the update goes through
     for (const item of mediaItems) {
-      console.log(`Updating caption for media item ${item.id} (${item.media_type})`);
+      console.log(`Processing media item ${item.id} (${item.media_type})`);
       console.log(`Current caption: "${item.caption}", New caption: "${caption}"`);
       
+      // Always update the caption regardless of media type
       const { error: updateError } = await supabase
         .from('media')
         .update({ caption })
@@ -217,7 +225,7 @@ export const syncMediaGroupCaption = async (supabase: any, mediaGroupId: string,
         throw updateError;
       }
       
-      console.log(`Successfully updated caption for item ${item.id}`);
+      console.log(`Successfully updated caption for ${item.media_type} item ${item.id}`);
     }
 
     console.log(`Completed caption sync for all ${mediaItems.length} items in media group ${mediaGroupId}`);
