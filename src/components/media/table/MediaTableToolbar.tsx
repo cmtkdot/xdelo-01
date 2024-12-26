@@ -1,35 +1,33 @@
 import { Button } from "@/components/ui/button";
-import { Upload, Trash2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { Trash2, Upload, RefreshCw } from "lucide-react";
 import { MediaItem } from "../types";
-import GoogleDriveUploader from "../GoogleDriveUploader";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface MediaTableToolbarProps {
   selectedMedia: MediaItem[];
   onDeleteSuccess: () => void;
 }
 
-export const MediaTableToolbar = ({ 
-  selectedMedia,
-  onDeleteSuccess
-}: MediaTableToolbarProps) => {
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+export const MediaTableToolbar = ({ selectedMedia, onDeleteSuccess }: MediaTableToolbarProps) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isSyncingCaptions, setSyncingCaptions] = useState(false);
+  const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
   const { toast } = useToast();
 
-  const handleBulkDelete = async () => {
+  const handleDeleteSelected = async () => {
     try {
-      // Delete all selected items
       const { error } = await supabase
         .from('media')
         .delete()
@@ -39,11 +37,11 @@ export const MediaTableToolbar = ({
 
       toast({
         title: "Success",
-        description: `${selectedMedia.length} items deleted successfully`,
+        description: `Successfully deleted ${selectedMedia.length} media items`,
       });
 
-      setIsDeleteDialogOpen(false);
       onDeleteSuccess();
+      setIsDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error deleting media:', error);
       toast({
@@ -54,60 +52,114 @@ export const MediaTableToolbar = ({
     }
   };
 
-  if (selectedMedia.length === 0) return null;
+  const handleDeleteDuplicates = async () => {
+    try {
+      setDeletingDuplicates(true);
+      const { error } = await supabase.functions.invoke('delete-duplicates', {
+        body: { keepNewest: true }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Duplicate media files have been cleaned up",
+      });
+
+      onDeleteSuccess();
+    } catch (error) {
+      console.error('Error deleting duplicates:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete duplicate media files",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingDuplicates(false);
+    }
+  };
+
+  const handleSyncCaptions = async () => {
+    try {
+      setSyncingCaptions(true);
+      const { error } = await supabase.functions.invoke('sync-media-captions');
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Media captions have been synchronized",
+      });
+
+      onDeleteSuccess();
+    } catch (error) {
+      console.error('Error syncing captions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync media captions",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingCaptions(false);
+    }
+  };
 
   return (
-    <div className="flex justify-between items-center mb-4">
-      <span className="text-white/70">
-        {selectedMedia.length} item{selectedMedia.length !== 1 ? 's' : ''} selected
-      </span>
-      <div className="space-x-2">
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+    <div className="flex items-center justify-between py-4">
+      <div className="flex items-center gap-2">
+        {selectedMedia.length > 0 && (
           <Button
             variant="destructive"
+            size="sm"
             onClick={() => setIsDeleteDialogOpen(true)}
-            className="flex items-center gap-2"
+            className="text-xs"
           >
-            <Trash2 className="w-4 h-4" />
-            Delete Selected
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Selected ({selectedMedia.length})
           </Button>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Selected Media</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete {selectedMedia.length} selected items? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={handleBulkDelete}>
-                Delete
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-          <Button
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-            onClick={() => setIsUploadDialogOpen(true)}
-          >
-            <Upload className="w-4 h-4" />
-            Upload Selected to Drive
-          </Button>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Upload Files to Google Drive</DialogTitle>
-            </DialogHeader>
-            <GoogleDriveUploader
-              selectedFiles={selectedMedia}
-              onSuccess={() => setIsUploadDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        )}
       </div>
+
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSyncCaptions}
+          disabled={isSyncingCaptions}
+          className="text-xs"
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaptions ? 'animate-spin' : ''}`} />
+          Sync Captions
+        </Button>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDeleteDuplicates}
+          disabled={isDeletingDuplicates}
+          className="text-xs"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Delete Duplicates
+        </Button>
+      </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Media</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedMedia.length} selected media items? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSelected}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

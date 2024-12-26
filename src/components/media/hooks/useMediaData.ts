@@ -2,20 +2,15 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MediaItem, MediaFilter } from "../types";
 import { useToast } from "@/components/ui/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 const useMediaData = (filter: MediaFilter) => {
-  const [media, setMedia] = useState<MediaItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-
-  useEffect(() => {
-    fetchMedia();
-  }, [filter.selectedChannel, filter.selectedType, filter.uploadStatus]);
-
-  const fetchMedia = async () => {
-    try {
+  
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['media', filter],
+    queryFn: async () => {
       console.log("Fetching media with filter:", filter);
-      setIsLoading(true);
       let query = supabase
         .from('media')
         .select(`
@@ -40,23 +35,22 @@ const useMediaData = (filter: MediaFilter) => {
 
       const { data, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching media:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load media gallery",
+          variant: "destructive",
+        });
+        throw error;
+      }
       
       console.log("Fetched media data:", data);
-      setMedia(data as MediaItem[]);
-    } catch (error) {
-      console.error('Error fetching media:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load media gallery",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return data as MediaItem[];
+    },
+  });
 
-  return { data: media, isLoading };
+  return { data: data || [], isLoading, refetch };
 };
 
 export default useMediaData;
