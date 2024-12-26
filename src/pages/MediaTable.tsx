@@ -5,19 +5,16 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import {
   Table,
   TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from "@/components/ui/table";
 import { MediaItem } from "@/components/media/types";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { MediaTableHeader } from "@/components/media/table/MediaTableHeader";
+import { MediaTableHeader as TableActions } from "@/components/media/table/MediaTableHeader";
 import { MediaTableRow } from "@/components/media/table/MediaTableRow";
+import { MediaTableHeader } from "@/components/media/table/MediaTableHeader";
 import { GoogleSheetsConfig } from "@/components/media/GoogleSheetsConfig";
 import useMediaSubscription from "@/components/media/hooks/useMediaSubscription";
-import { Loader2, ArrowUpDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
@@ -106,6 +103,15 @@ const MediaTable = () => {
     });
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && mediaItems) {
+      setSelectedMedia(mediaItems);
+    } else {
+      setSelectedMedia([]);
+    }
+    lastSelectedIndex.current = -1;
+  };
+
   const openFileInNewTab = (url: string) => {
     window.open(url, '_blank');
   };
@@ -152,21 +158,13 @@ const MediaTable = () => {
     );
   }
 
-  const renderSortButton = (column: keyof MediaItem, label: string) => (
-    <Button
-      variant="ghost"
-      onClick={() => handleSort(column)}
-      className="h-8 flex items-center gap-1 px-2 hover:bg-white/5"
-    >
-      {label}
-      <ArrowUpDown className="h-4 w-4" />
-    </Button>
-  );
+  const allSelected = mediaItems ? selectedMedia.length === mediaItems.length : false;
+  const someSelected = selectedMedia.length > 0 && (!mediaItems || selectedMedia.length < mediaItems.length);
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <div className="space-y-6">
-        <MediaTableHeader selectedMedia={selectedMedia} />
+        <TableActions selectedMedia={selectedMedia} />
         
         <div className="mb-6">
           <GoogleSheetsConfig onSpreadsheetIdSet={setSpreadsheetId} />
@@ -181,27 +179,12 @@ const MediaTable = () => {
             <ScrollArea className="h-[calc(100vh-16rem)]" type="always">
               <div className="min-w-[1400px]">
                 <Table>
-                  <TableHeader className="bg-black/60 sticky top-0 z-10">
-                    <TableRow>
-                      <TableHead className="text-sky-400 w-[100px]">Select</TableHead>
-                      <TableHead className="text-sky-400 w-[150px]">
-                        {renderSortButton('media_type', 'Type')}
-                      </TableHead>
-                      <TableHead className="text-sky-400 w-[150px]">
-                        {renderSortButton('chat_id', 'Channel')}
-                      </TableHead>
-                      <TableHead className="text-sky-400 w-[200px]">
-                        {renderSortButton('created_at', 'Created At')}
-                      </TableHead>
-                      <TableHead className="text-sky-400 w-[300px]">
-                        {renderSortButton('caption', 'Caption')}
-                      </TableHead>
-                      <TableHead className="text-sky-400 w-[400px]">
-                        {renderSortButton('file_url', 'File URL')}
-                      </TableHead>
-                      <TableHead className="text-sky-400 text-right w-[200px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <MediaTableHeader 
+                    onSort={handleSort}
+                    onSelectAll={handleSelectAll}
+                    allSelected={allSelected}
+                    someSelected={someSelected}
+                  />
                   <TableBody>
                     {sortedMediaItems?.map((item, index) => (
                       <MediaTableRow
