@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { webhook_url, data, headers = {}, params = {}, method = 'POST' } = await req.json();
-    console.log('Received webhook request:', { webhook_url, data, headers, params, method });
+    const { webhook_url, data, headers = {}, params = {}, method = 'POST', body } = await req.json();
+    console.log('Received webhook request:', { webhook_url, data, headers, params, method, body });
 
     if (!webhook_url) {
       throw new Error('Webhook URL is required');
@@ -41,9 +41,10 @@ serve(async (req) => {
     };
 
     // Only add body for methods that typically have one
-    if (method !== 'GET' && method !== 'DELETE' && data) {
+    if (method !== 'GET' && method !== 'DELETE') {
       requestOptions.body = JSON.stringify({
         ...data,
+        ...body,
         timestamp: new Date().toISOString(),
         params
       });

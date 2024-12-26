@@ -9,6 +9,7 @@ interface WebhookRequestDetailsProps {
   selectedFields: string[];
   headers: Header[];
   params: QueryParam[];
+  body: string;
 }
 
 const WebhookRequestDetails = ({ 
@@ -16,7 +17,8 @@ const WebhookRequestDetails = ({
   selectedMedia, 
   selectedFields,
   headers,
-  params 
+  params,
+  body
 }: WebhookRequestDetailsProps) => {
   return (
     <div className="rounded-lg border border-white/10 bg-black/20 p-4">
@@ -33,12 +35,24 @@ const WebhookRequestDetails = ({
           <p className="text-xs text-white/70">
             Query Parameters: {params.map(p => `${p.key}=${p.value}`).join('&')}
           </p>
-          <p className="text-xs text-white/70">
-            Selected Fields: {selectedFields.join(', ')}
-          </p>
-          <p className="text-xs text-white/70">
-            Selected Media Count: {selectedMedia.length}
-          </p>
+          {method !== "GET" && (
+            <>
+              <p className="text-xs text-white/70">
+                Selected Fields: {selectedFields.join(', ')}
+              </p>
+              <p className="text-xs text-white/70">
+                Selected Media Count: {selectedMedia.length}
+              </p>
+              {body && (
+                <div className="mt-2">
+                  <p className="text-xs text-white/70 mb-1">Request Body:</p>
+                  <pre className="text-xs bg-black/40 p-2 rounded overflow-x-auto">
+                    {body}
+                  </pre>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

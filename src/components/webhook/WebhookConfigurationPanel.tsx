@@ -3,6 +3,7 @@ import WebhookMethodSelector, { HttpMethod } from "./WebhookMethodSelector";
 import WebhookDataFetcher from "./WebhookDataFetcher";
 import WebhookHeaderManager, { Header } from "./WebhookHeaderManager";
 import WebhookQueryManager, { QueryParam } from "./WebhookQueryManager";
+import WebhookBodyManager from "./WebhookBodyManager";
 
 interface WebhookConfigurationPanelProps {
   method: HttpMethod;
@@ -16,6 +17,8 @@ interface WebhookConfigurationPanelProps {
   onHeadersChange: (headers: Header[]) => void;
   params: QueryParam[];
   onParamsChange: (params: QueryParam[]) => void;
+  body: string;
+  onBodyChange: (body: string) => void;
 }
 
 const WebhookConfigurationPanel = ({
@@ -30,6 +33,8 @@ const WebhookConfigurationPanel = ({
   onHeadersChange,
   params,
   onParamsChange,
+  body,
+  onBodyChange,
 }: WebhookConfigurationPanelProps) => {
   return (
     <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
@@ -38,10 +43,10 @@ const WebhookConfigurationPanel = ({
           Webhook Configuration
         </CardTitle>
         <CardDescription>
-          Configure webhook method and fetch data
+          Configure webhook method, headers, body, and parameters
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <div className="flex items-center gap-4">
           <WebhookMethodSelector method={method} onMethodChange={onMethodChange} />
           <WebhookDataFetcher
@@ -55,6 +60,11 @@ const WebhookConfigurationPanel = ({
         </div>
 
         <WebhookHeaderManager headers={headers} onHeadersChange={onHeadersChange} />
+        
+        {method !== "GET" && (
+          <WebhookBodyManager body={body} onBodyChange={onBodyChange} />
+        )}
+
         <WebhookQueryManager params={params} onParamsChange={onParamsChange} />
       </CardContent>
     </Card>

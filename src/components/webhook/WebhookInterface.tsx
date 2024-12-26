@@ -31,6 +31,7 @@ const WebhookInterface = ({
   const [headers, setHeaders] = useState<Header[]>([]);
   const [params, setParams] = useState<QueryParam[]>([]);
   const [schedule, setSchedule] = useState(initialSchedule);
+  const [body, setBody] = useState("");
   const { toast } = useToast();
 
   const fetchWebhookData = async () => {
@@ -50,7 +51,8 @@ const WebhookInterface = ({
           webhook_url: webhookUrl,
           method: method,
           headers: Object.fromEntries(headers.map(h => [h.key, h.value])),
-          params: Object.fromEntries(params.map(p => [p.key, p.value]))
+          params: Object.fromEntries(params.map(p => [p.key, p.value])),
+          body: method !== "GET" ? JSON.parse(body || "{}") : undefined
         }
       });
 
@@ -90,7 +92,7 @@ const WebhookInterface = ({
       return;
     }
 
-    if (selectedFields.length === 0) {
+    if (selectedFields.length === 0 && method !== "GET") {
       toast({
         title: "Error",
         description: "Please select at least one field to send",
@@ -118,16 +120,19 @@ const WebhookInterface = ({
         return filtered;
       });
 
+      let requestBody = method !== "GET" ? {
+        data: filteredData,
+        timestamp: new Date().toISOString(),
+        total_records: filteredData.length,
+        selected_fields: selectedFields,
+        ...JSON.parse(body || "{}")
+      } : undefined;
+
       const { data: response, error } = await supabase.functions.invoke('webhook-forwarder', {
         body: {
           webhook_url: webhookUrl,
           method: method,
-          data: method !== "GET" ? {
-            data: filteredData,
-            timestamp: new Date().toISOString(),
-            total_records: filteredData.length,
-            selected_fields: selectedFields
-          } : undefined,
+          data: requestBody,
           headers: Object.fromEntries(headers.map(h => [h.key, h.value])),
           params: Object.fromEntries(params.map(p => [p.key, p.value]))
         }
@@ -194,14 +199,18 @@ const WebhookInterface = ({
         onHeadersChange={setHeaders}
         params={params}
         onParamsChange={setParams}
+        body={body}
+        onBodyChange={setBody}
       />
       
-      <WebhookFieldSelector
-        availableFields={availableFields}
-        selectedFields={selectedFields}
-        onFieldsChange={setSelectedFields}
-        selectedMediaCount={selectedMedia.length}
-      />
+      {method !== "GET" && (
+        <WebhookFieldSelector
+          availableFields={availableFields}
+          selectedFields={selectedFields}
+          onFieldsChange={setSelectedFields}
+          selectedMediaCount={selectedMedia.length}
+        />
+      )}
 
       <WebhookRequestDetails
         method={method}
@@ -209,6 +218,7 @@ const WebhookInterface = ({
         selectedFields={selectedFields}
         headers={headers}
         params={params}
+        body={body}
       />
 
       <Button 
@@ -216,7 +226,7 @@ const WebhookInterface = ({
         disabled={isLoading || (method !== "GET" && selectedMedia.length === 0)}
         className="w-full bg-[#0088cc] hover:bg-[#0088cc]/80 text-white"
       >
-        {schedule === "manual" ? `Send Selected Media (${selectedMedia.length})` : `Schedule ${schedule} updates`}
+        {schedule === "manual" ? `Send ${method} Request (${selectedMedia.length} items)` : `Schedule ${schedule} updates`}
       </Button>
 
       <WebhookHistoryTable />
