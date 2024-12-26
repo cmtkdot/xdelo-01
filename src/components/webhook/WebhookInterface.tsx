@@ -26,7 +26,11 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
     { id: "media_type", label: "Media Type" },
     { id: "caption", label: "Caption" },
     { id: "metadata", label: "Metadata" },
-    { id: "created_at", label: "Created Date" }
+    { id: "created_at", label: "Created Date" },
+    { id: "google_drive_url", label: "Google Drive URL" },
+    { id: "google_drive_id", label: "Google Drive ID" },
+    { id: "file_name", label: "File Name" },
+    { id: "media_group_id", label: "Media Group ID" }
   ];
 
   const handleSendWebhook = async () => {
