@@ -28,7 +28,20 @@ Deno.serve(async (req) => {
       throw new Error(`Webhook responded with status ${response.status}: ${response.statusText}`);
     }
 
-    const responseData = await response.json();
+    let responseData;
+    const contentType = response.headers.get('content-type');
+    
+    if (contentType && contentType.includes('application/json')) {
+      responseData = await response.json();
+    } else {
+      // For non-JSON responses, create a structured response
+      responseData = {
+        status: response.status,
+        statusText: response.statusText,
+        text: await response.text()
+      };
+    }
+
     console.log('Webhook response:', responseData);
 
     return new Response(
