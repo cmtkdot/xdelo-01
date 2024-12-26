@@ -11,24 +11,39 @@ const CommandInterface = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check authentication on component mount and set up auth state listener
   useEffect(() => {
-    checkAuth();
+    const checkInitialAuth = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session) {
+        handleAuthError();
+      }
+    };
+
+    checkInitialAuth();
 
     // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, "Session:", session ? "exists" : "null");
+      
+      if (event === 'SIGNED_OUT' || !session) {
         handleAuthError();
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Validate the refreshed session
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        if (error || !currentSession) {
+          console.error("Session validation failed after token refresh:", error);
+          handleAuthError();
+        }
       }
     });
 
-    // Cleanup subscription
     return () => {
       subscription.unsubscribe();
     };
   }, []);
 
   const handleAuthError = () => {
+    console.log("Handling auth error, redirecting to login");
     toast({
       title: "Authentication Required",
       description: "Please log in to continue",
@@ -41,16 +56,27 @@ const CommandInterface = () => {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Auth check error:", error);
+        throw error;
+      }
       
       if (!session) {
+        console.log("No session found during auth check");
         handleAuthError();
         return false;
       }
       
+      // Verify the session is still valid
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error("User verification failed:", userError);
+        throw userError || new Error("User not found");
+      }
+      
       return true;
     } catch (error) {
-      console.error("Auth error:", error);
+      console.error("Auth check failed:", error);
       handleAuthError();
       return false;
     }
@@ -62,18 +88,18 @@ const CommandInterface = () => {
 
     setIsLoading(true);
     try {
-      // Check auth before proceeding
       const isAuthenticated = await checkAuth();
       if (!isAuthenticated) return;
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-      if (userError) throw userError;
+      if (userError) {
+        console.error("User fetch error:", userError);
+        throw userError;
+      }
 
       if (!user) {
+        console.log("No user found during message submission");
         handleAuthError();
         return;
       }
@@ -118,8 +144,10 @@ const CommandInterface = () => {
     } catch (error) {
       console.error("Error sending message:", error);
       
-      // Check if it's an auth error
-      if (error instanceof Error && error.message.includes('auth')) {
+      if (error instanceof Error && 
+          (error.message.includes('auth') || 
+           error.message.includes('token') || 
+           error.message.includes('session'))) {
         handleAuthError();
         return;
       }
