@@ -1,6 +1,7 @@
 import { MediaItem } from "../types";
 import { supabase } from "@/integrations/supabase/client";
 
+const SHEET_NAME = 'MediaData';
 const SHEET_HEADERS = [
   'File Name',
   'Media Type',
@@ -37,10 +38,37 @@ const formatMediaForSheets = (items: MediaItem[]) => {
 // Initialize spreadsheet with headers if needed
 export const initializeSpreadsheet = async (spreadsheetId: string) => {
   try {
+    // First, try to get the spreadsheet to check if it exists
+    const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
+      spreadsheetId,
+    });
+
+    // Check if our sheet exists
+    const sheet = spreadsheet.result.sheets?.find(
+      (s: any) => s.properties?.title === SHEET_NAME
+    );
+
+    if (!sheet) {
+      // Create the sheet if it doesn't exist
+      await window.gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [{
+            addSheet: {
+              properties: {
+                title: SHEET_NAME
+              }
+            }
+          }]
+        }
+      });
+      console.log('Created new sheet:', SHEET_NAME);
+    }
+
     // Check if headers exist
     const response = await window.gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Media Data!A1:L1',
+      range: `${SHEET_NAME}!A1:L1`,
     });
 
     const currentHeaders = response.result.values?.[0] || [];
@@ -49,7 +77,7 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
     if (currentHeaders.length === 0 || !arraysEqual(currentHeaders, SHEET_HEADERS)) {
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: 'Media Data!A1:L1',
+        range: `${SHEET_NAME}!A1:L1`,
         valueInputOption: 'RAW',
         resource: {
           values: [SHEET_HEADERS]
@@ -57,9 +85,12 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
       });
       console.log('Sheet headers initialized');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error initializing spreadsheet:', error);
-    throw new Error('Failed to initialize spreadsheet headers');
+    if (error?.result?.error?.status === 'PERMISSION_DENIED') {
+      throw new Error('Permission denied. Please make sure you have edit access to this spreadsheet.');
+    }
+    throw new Error(error?.result?.error?.message || 'Failed to initialize spreadsheet headers');
   }
 };
 
@@ -87,7 +118,7 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
     // Update the sheet starting from row 2 (after headers)
     const response = await window.gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Media Data!A2:L',
+      range: `${SHEET_NAME}!A2:L`,
       valueInputOption: 'RAW',
       resource: {
         values: formattedData
