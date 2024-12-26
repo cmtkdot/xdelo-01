@@ -36,16 +36,23 @@ const WebhookConfigurationSaver = ({
     }
 
     try {
+      let parsedBody;
+      try {
+        parsedBody = JSON.parse(body || "[]");
+      } catch {
+        parsedBody = [];
+      }
+
       const { error } = await supabase
         .from('webhook_configurations')
-        .insert([{
+        .insert({
           webhook_url_id: webhookUrlId,
           name: configName,
           method,
-          headers,
-          body_params: JSON.parse(body || "[]"),
+          headers: headers,
+          body_params: parsedBody,
           query_params: params
-        }]);
+        });
 
       if (error) throw error;
 

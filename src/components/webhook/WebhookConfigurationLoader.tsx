@@ -43,7 +43,16 @@ const WebhookConfigurationLoader = ({
         .eq('webhook_url_id', webhookUrlId);
 
       if (error) throw error;
-      setConfigurations(data || []);
+      
+      // Convert the database JSON to our frontend types
+      const convertedData = (data || []).map(config => ({
+        ...config,
+        headers: Array.isArray(config.headers) ? config.headers : [],
+        body_params: Array.isArray(config.body_params) ? config.body_params : [],
+        query_params: Array.isArray(config.query_params) ? config.query_params : []
+      }));
+
+      setConfigurations(convertedData);
     } catch (error) {
       console.error('Error loading configurations:', error);
       toast({
