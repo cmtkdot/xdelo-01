@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { initGoogleSheetsAPI, syncWithGoogleSheets, initializeSpreadsheet } from "./utils/googleSheetsSync";
 import { MediaItem } from "./types";
 import { Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GoogleSheetsConfigProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -15,6 +17,53 @@ export const GoogleSheetsConfig = ({ onSpreadsheetIdSet, selectedMedia = [] }: G
   const [spreadsheetId, setSpreadsheetId] = useState("1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Query to fetch all media items
+  const { data: allMedia } = useQuery({
+    queryKey: ['all-media'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('media')
+        .select(`
+          *,
+          chat:channels(title, username)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as MediaItem[];
+    },
+  });
+
+  // Effect to sync data when media changes
+  useEffect(() => {
+    const syncData = async () => {
+      if (spreadsheetId && allMedia) {
+        try {
+          await initGoogleSheetsAPI();
+          await syncWithGoogleSheets(spreadsheetId, allMedia);
+        } catch (error) {
+          console.error('Auto-sync error:', error);
+        }
+      }
+    };
+
+    // Set up real-time subscription for media changes
+    const channel = supabase
+      .channel('media_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'media' 
+      }, async () => {
+        await syncData();
+      })
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [spreadsheetId, allMedia]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,14 +76,14 @@ export const GoogleSheetsConfig = ({ onSpreadsheetIdSet, selectedMedia = [] }: G
       // Initialize spreadsheet with headers if needed
       await initializeSpreadsheet(spreadsheetId);
       
-      // If there are selected media items, sync them
-      if (selectedMedia.length > 0) {
-        await syncWithGoogleSheets(spreadsheetId, selectedMedia);
-        toast({
-          title: "Success",
-          description: `Synced ${selectedMedia.length} media items to Google Sheets`,
-        });
-      }
+      // Sync all media items
+      const mediaToSync = selectedMedia.length > 0 ? selectedMedia : allMedia || [];
+      await syncWithGoogleSheets(spreadsheetId, mediaToSync);
+      
+      toast({
+        title: "Success",
+        description: `Connected and synced ${mediaToSync.length} media items to Google Sheets`,
+      });
       
       onSpreadsheetIdSet(spreadsheetId);
     } catch (error) {

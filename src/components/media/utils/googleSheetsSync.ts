@@ -69,6 +69,23 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
       console.log('Created new sheet:', SHEET_NAME);
     }
 
+    // Set up auto-resizing columns
+    await window.gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [{
+          autoResizeDimensions: {
+            dimensions: {
+              sheetId: sheet?.properties?.sheetId || 0,
+              dimension: "COLUMNS",
+              startIndex: 0,
+              endIndex: BASE_HEADERS.length
+            }
+          }
+        }]
+      }
+    });
+
     console.log('Spreadsheet initialized successfully');
     return true;
   } catch (error: any) {
@@ -85,6 +102,12 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
   try {
     const { headers, data } = formatMediaForSheets(mediaItems);
     
+    // Clear existing content
+    await window.gapi.client.sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: SHEET_NAME
+    });
+
     // Update headers first
     await window.gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -106,6 +129,31 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
         }
       });
     }
+
+    // Apply formatting
+    await window.gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            repeatCell: {
+              range: {
+                sheetId: 0,
+                startRowIndex: 0,
+                endRowIndex: 1
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: { red: 0.2, green: 0.2, blue: 0.2 },
+                  textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } }
+                }
+              },
+              fields: "userEnteredFormat(backgroundColor,textFormat)"
+            }
+          }
+        ]
+      }
+    });
 
     console.log('Google Sheets sync successful');
     return true;
