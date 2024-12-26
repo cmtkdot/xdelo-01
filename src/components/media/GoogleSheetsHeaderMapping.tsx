@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Save, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from "@/integrations/supabase/client";
+import { HeaderMappingSelect } from './google-sheets/header-mapping/HeaderMappingSelect';
+import { HeaderMappingActions } from './google-sheets/header-mapping/HeaderMappingActions';
 
 interface HeaderMappingProps {
   spreadsheetId: string;
@@ -116,6 +116,19 @@ export const GoogleSheetsHeaderMapping = ({
     }));
   };
 
+  const handleSelectAll = () => {
+    const newMapping: Record<string, string> = {};
+    sheetHeaders.forEach((header, index) => {
+      // Try to find a matching column name, or use the first available column
+      const matchingColumn = DEFAULT_DB_COLUMNS.find(col => 
+        col.toLowerCase() === header.toLowerCase()
+      ) || DEFAULT_DB_COLUMNS[index % DEFAULT_DB_COLUMNS.length];
+      
+      newMapping[header] = matchingColumn;
+    });
+    setMapping(newMapping);
+  };
+
   const handleSaveMapping = async () => {
     try {
       // Get the current user's ID
@@ -167,36 +180,23 @@ export const GoogleSheetsHeaderMapping = ({
       <CardContent>
         <ScrollArea className="h-[300px] pr-4">
           <div className="space-y-4">
-            {sheetHeaders.map((header, index) => (
-              <div key={index} className="flex items-center gap-4">
-                <span className="min-w-[120px] text-sm">{header}</span>
-                <Select
-                  value={mapping[header] || ""}
-                  onValueChange={(value) => handleMappingChange(header, value)}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Map to column" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DEFAULT_DB_COLUMNS.map((column) => (
-                      <SelectItem key={column} value={column}>
-                        {column}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {sheetHeaders.map((header) => (
+              <HeaderMappingSelect
+                key={header}
+                header={header}
+                value={mapping[header] || ""}
+                dbColumns={DEFAULT_DB_COLUMNS}
+                onChange={(value) => handleMappingChange(header, value)}
+              />
             ))}
           </div>
         </ScrollArea>
-        <Button 
-          onClick={handleSaveMapping}
-          className="mt-4 w-full"
-          variant="outline"
-        >
-          <Save className="mr-2 h-4 w-4" />
-          Save Mapping
-        </Button>
+        <div className="mt-4">
+          <HeaderMappingActions
+            onSave={handleSaveMapping}
+            onSelectAll={handleSelectAll}
+          />
+        </div>
       </CardContent>
     </Card>
   );
