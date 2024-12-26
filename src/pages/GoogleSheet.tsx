@@ -6,9 +6,14 @@ import { Loader2, FileSpreadsheet, CheckCircle, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+// Define types for sheet data
+interface SheetRow {
+  [key: string]: string;
+}
+
 const GoogleSheet = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [sheetData, setSheetData] = useState<any[]>([]);
+  const [sheetData, setSheetData] = useState<SheetRow[]>([]);
   const { toast } = useToast();
   const googleSheetId = localStorage.getItem('googleSheetId');
   const headerMapping = localStorage.getItem('headerMapping');
@@ -30,7 +35,7 @@ const GoogleSheet = () => {
           const formattedData = rows.map(row => {
             const obj: Record<string, string> = {};
             headers.forEach((header: string, index: number) => {
-              obj[header] = row[index] || '';
+              obj[header] = row[index]?.toString() || '';
             });
             return obj;
           });
