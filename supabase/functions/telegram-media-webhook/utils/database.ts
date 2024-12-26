@@ -44,6 +44,29 @@ export const saveMessage = async (supabase: any, chat: any, message: any, userId
   return messageData;
 };
 
+export const checkForDuplicateMedia = async (supabase: any, telegramFileId: string) => {
+  console.log(`Checking for duplicate media with Telegram file ID: ${telegramFileId}`);
+  
+  const { data, error } = await supabase
+    .from('media')
+    .select('id, file_name')
+    .filter('metadata->telegram_file_id', 'eq', telegramFileId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error checking for duplicate media:', error);
+    throw error;
+  }
+
+  if (data) {
+    console.log(`Found existing media with ID ${data.id} and filename ${data.file_name}`);
+  } else {
+    console.log('No duplicate media found');
+  }
+
+  return data;
+};
+
 export const saveMedia = async (
   supabase: any,
   userId: string,
@@ -55,6 +78,14 @@ export const saveMedia = async (
   metadata: any,
   mediaGroupId?: string
 ) => {
+  // Check for duplicate before saving
+  const existingMedia = await checkForDuplicateMedia(supabase, metadata.telegram_file_id);
+  
+  if (existingMedia) {
+    console.log(`Skipping duplicate media upload for file ID: ${metadata.telegram_file_id}`);
+    return existingMedia;
+  }
+
   const { data: mediaData, error: mediaError } = await supabase
     .from("media")
     .insert({
