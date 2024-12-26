@@ -3,8 +3,8 @@ import { MediaItem } from "../types";
 import { SHEET_NAME, formatMediaForSheets, BASE_HEADERS } from "./googleSheets/formatters";
 import { getGoogleAuthToken } from "./googleSheets/auth";
 
-const COLUMN_LIMIT = 'K'; // Limit initial sync to column K
-const MAX_COLUMNS = 26; // Maximum number of columns (A-Z)
+const COLUMN_LIMIT = 'K';
+const MAX_COLUMNS = 26;
 
 export const initGoogleSheetsAPI = async () => {
   try {
@@ -37,7 +37,7 @@ export const initGoogleSheetsAPI = async () => {
   }
 };
 
-export const initializeSpreadsheet = async (spreadsheetId: string) => {
+export const initializeSpreadsheet = async (spreadsheetId: string, gid?: string) => {
   try {
     console.log('Getting Google auth token...');
     const accessToken = await getGoogleAuthToken();
@@ -47,12 +47,22 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
       spreadsheetId,
     });
 
-    let sheetId = 0;
-    const sheet = spreadsheet.result.sheets?.find(
-      (s: any) => s.properties?.title === SHEET_NAME
-    );
+    let targetSheet;
+    if (gid) {
+      targetSheet = spreadsheet.result.sheets?.find(
+        (s: any) => s.properties?.sheetId === parseInt(gid)
+      );
+      if (!targetSheet) {
+        throw new Error(`Sheet with GID ${gid} not found`);
+      }
+    } else {
+      targetSheet = spreadsheet.result.sheets?.find(
+        (s: any) => s.properties?.title === SHEET_NAME
+      );
+    }
 
-    if (!sheet) {
+    let sheetId = 0;
+    if (!targetSheet) {
       console.log('Sheet not found, creating new sheet...');
       const addSheetResponse = await window.gapi.client.sheets.spreadsheets.batchUpdate({
         spreadsheetId,
@@ -60,7 +70,8 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
           requests: [{
             addSheet: {
               properties: {
-                title: SHEET_NAME
+                title: SHEET_NAME,
+                sheetId: gid ? parseInt(gid) : undefined
               }
             }
           }]
@@ -69,16 +80,17 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
 
       sheetId = addSheetResponse.result.replies?.[0]?.addSheet?.properties?.sheetId || 0;
       
+      const range = gid ? `${SHEET_NAME}!A1:${COLUMN_LIMIT}1` : `${SHEET_NAME}!A1:${COLUMN_LIMIT}1`;
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${SHEET_NAME}!A1:${COLUMN_LIMIT}1`,
+        range,
         valueInputOption: 'RAW',
         resource: {
-          values: [BASE_HEADERS.slice(0, COLUMN_LIMIT.charCodeAt(0) - 64)] // Convert column letter to number
+          values: [BASE_HEADERS.slice(0, COLUMN_LIMIT.charCodeAt(0) - 64)]
         }
       });
     } else {
-      sheetId = sheet.properties?.sheetId || 0;
+      sheetId = targetSheet.properties?.sheetId || 0;
     }
 
     await window.gapi.client.sheets.spreadsheets.batchUpdate({
@@ -107,7 +119,7 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
   }
 };
 
-export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: MediaItem[]) => {
+export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: MediaItem[], gid?: string) => {
   try {
     console.log('Starting sync with Google Sheets...');
     const { headers, data } = formatMediaForSheets(mediaItems);
@@ -116,29 +128,37 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
       spreadsheetId,
     });
     
-    const sheet = spreadsheet.result.sheets?.find(
-      (s: any) => s.properties?.title === SHEET_NAME
-    );
+    let targetSheet;
+    if (gid) {
+      targetSheet = spreadsheet.result.sheets?.find(
+        (s: any) => s.properties?.sheetId === parseInt(gid)
+      );
+      if (!targetSheet) {
+        throw new Error(`Sheet with GID ${gid} not found`);
+      }
+    } else {
+      targetSheet = spreadsheet.result.sheets?.find(
+        (s: any) => s.properties?.title === SHEET_NAME
+      );
+    }
     
-    if (!sheet) {
+    if (!targetSheet) {
       throw new Error('Sheet not found. Please initialize the spreadsheet first.');
     }
 
-    // Get existing sheet data to preserve columns beyond COLUMN_LIMIT
+    const sheetName = targetSheet.properties?.title;
     const existingData = await window.gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${SHEET_NAME}!A1:${String.fromCharCode(64 + MAX_COLUMNS)}`,
+      range: `${sheetName}!A1:${String.fromCharCode(64 + MAX_COLUMNS)}`,
     });
 
     const existingValues = existingData.result.values || [];
     const existingHeaders = existingValues[0] || [];
 
-    // Merge existing data with new data
     const mergedData = data.map((row, rowIndex) => {
       const existingRow = existingValues[rowIndex + 1] || [];
       const newRow = [...row];
 
-      // Preserve existing data in columns beyond COLUMN_LIMIT
       for (let i = COLUMN_LIMIT.charCodeAt(0) - 64; i < existingRow.length; i++) {
         newRow[i] = existingRow[i];
       }
@@ -146,7 +166,6 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
       return newRow;
     });
 
-    // Update headers first (preserve custom headers beyond COLUMN_LIMIT)
     const mergedHeaders = [...headers];
     for (let i = headers.length; i < existingHeaders.length; i++) {
       mergedHeaders[i] = existingHeaders[i];
@@ -154,18 +173,17 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
 
     await window.gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${SHEET_NAME}!A1:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}1`,
+      range: `${sheetName}!A1:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}1`,
       valueInputOption: 'RAW',
       resource: {
         values: [mergedHeaders]
       }
     });
 
-    // Update data
     if (mergedData.length > 0) {
       await window.gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${SHEET_NAME}!A2:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}${mergedData.length + 1}`,
+        range: `${sheetName}!A2:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}${mergedData.length + 1}`,
         valueInputOption: 'RAW',
         resource: {
           values: mergedData

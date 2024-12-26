@@ -37,8 +37,24 @@ export const GoogleSheetsHeaderMapping = ({
   useEffect(() => {
     const fetchHeaders = async () => {
       try {
-        // If GID is provided, use it to specify the sheet
-        const range = sheetGid ? `gid=${sheetGid}!A1:K1` : 'A1:K1';
+        let range;
+        if (sheetGid) {
+          const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
+            spreadsheetId,
+          });
+          
+          const targetSheet = spreadsheet.result.sheets?.find(
+            (s: any) => s.properties?.sheetId === parseInt(sheetGid)
+          );
+          
+          if (!targetSheet) {
+            throw new Error(`Sheet with GID ${sheetGid} not found`);
+          }
+          
+          range = `${targetSheet.properties?.title}!A1:K1`;
+        } else {
+          range = 'A1:K1';
+        }
         
         const response = await window.gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId,
@@ -48,8 +64,7 @@ export const GoogleSheetsHeaderMapping = ({
         if (response.result.values?.[0]) {
           setSheetHeaders(response.result.values[0]);
           
-          // Initialize mapping with existing values from localStorage
-          const savedMapping = localStorage.getItem(`headerMapping-${spreadsheetId}`);
+          const savedMapping = localStorage.getItem(`headerMapping-${spreadsheetId}-${sheetGid || 'default'}`);
           if (savedMapping) {
             setMapping(JSON.parse(savedMapping));
           }
@@ -79,7 +94,7 @@ export const GoogleSheetsHeaderMapping = ({
   };
 
   const handleSaveMapping = () => {
-    localStorage.setItem(`headerMapping-${spreadsheetId}`, JSON.stringify(mapping));
+    localStorage.setItem(`headerMapping-${spreadsheetId}-${sheetGid || 'default'}`, JSON.stringify(mapping));
     onMappingComplete(mapping);
     toast({
       title: "Success",
@@ -98,7 +113,9 @@ export const GoogleSheetsHeaderMapping = ({
   return (
     <Card className="mt-4">
       <CardHeader>
-        <CardTitle className="text-sm font-medium">Header Mapping</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          Header Mapping {sheetGid ? `(Sheet GID: ${sheetGid})` : ''}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[300px] pr-4">

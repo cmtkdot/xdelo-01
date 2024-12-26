@@ -11,6 +11,7 @@ interface SpreadsheetConfig {
   id: string;
   name: string;
   autoSync: boolean;
+  gid?: string;
 }
 
 interface GoogleSheetsConfigProps {
@@ -37,7 +38,6 @@ export const GoogleSheetsConfig = ({
   
   const { toast } = useToast();
 
-  // Query to fetch all media items
   const { data: allMedia } = useQuery({
     queryKey: ['all-media'],
     queryFn: async () => {
@@ -54,20 +54,18 @@ export const GoogleSheetsConfig = ({
     },
   });
 
-  // Effect to sync data when media changes
   useEffect(() => {
-    const syncData = async (spreadsheetId: string) => {
+    const syncData = async (spreadsheetId: string, gid?: string) => {
       if (allMedia) {
         try {
-          await syncWithGoogleSheets(spreadsheetId, allMedia);
-          console.log(`Auto-synced with spreadsheet: ${spreadsheetId}`);
+          await syncWithGoogleSheets(spreadsheetId, allMedia, gid);
+          console.log(`Auto-synced with spreadsheet: ${spreadsheetId}${gid ? ` (GID: ${gid})` : ''}`);
         } catch (error) {
           console.error('Auto-sync error:', error);
         }
       }
     };
 
-    // Set up real-time subscription for media changes
     const channels = spreadsheets
       .filter(sheet => sheet.autoSync)
       .map(sheet => {
@@ -78,7 +76,7 @@ export const GoogleSheetsConfig = ({
             schema: 'public', 
             table: 'media' 
           }, async () => {
-            await syncData(sheet.id);
+            await syncData(sheet.id, sheet.gid);
           })
           .subscribe();
       });
@@ -92,27 +90,28 @@ export const GoogleSheetsConfig = ({
     localStorage.setItem('spreadsheets', JSON.stringify(spreadsheets));
   }, [spreadsheets]);
 
-  const handleAddSpreadsheet = async (name: string, id: string) => {
+  const handleAddSpreadsheet = async (name: string, id: string, gid?: string) => {
     try {
       console.log('Initializing Google Sheets API...');
       await initGoogleSheetsAPI();
       
       console.log('Initializing spreadsheet...');
-      await initializeSpreadsheet(id);
+      await initializeSpreadsheet(id, gid);
       
       console.log('Syncing media items...');
       const mediaToSync = selectedMedia.length > 0 ? selectedMedia : allMedia || [];
-      await syncWithGoogleSheets(id, mediaToSync);
+      await syncWithGoogleSheets(id, mediaToSync, gid);
       
       setSpreadsheets(prev => [...prev, {
         id,
         name: name || `Sheet ${prev.length + 1}`,
-        autoSync: true
+        autoSync: true,
+        gid
       }]);
       
       toast({
         title: "Success",
-        description: `Connected and synced ${mediaToSync.length} media items to Google Sheets`,
+        description: `Connected and synced ${mediaToSync.length} media items to Google Sheets${gid ? ` (Sheet GID: ${gid})` : ''}`,
       });
       
       onSpreadsheetIdSet(id);
