@@ -1,7 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateWebhookAuth, validateBotToken } from "./utils/auth.ts";
-import { generateSafeFileName, determineMediaType, getMediaItem } from "./utils/fileHandling.ts";
+import { 
+  generateSafeFileName, 
+  determineMediaType, 
+  getMediaItem,
+  formatMediaMetadata 
+} from "./utils/fileHandling.ts";
 import { saveChannel, saveMessage, saveMedia, syncMediaGroupCaption } from "./utils/database.ts";
 
 const corsHeaders = {
@@ -95,7 +100,10 @@ serve(async (req) => {
       const mediaType = determineMediaType(message);
       const mediaItem = getMediaItem(message);
       
-      // Get the caption from the message directly, as it's always at the message level
+      // Format metadata properly
+      const metadata = formatMediaMetadata(mediaItem, message);
+      console.log("Formatted metadata:", metadata);
+      
       const messageCaption = message.caption || message.text || null;
       
       const fileResponse = await fetch(
@@ -129,7 +137,6 @@ serve(async (req) => {
         .from("telegram-media")
         .getPublicUrl(fileName);
 
-      // Save media with media_group_id if it exists
       const mediaData = await saveMedia(
         supabase,
         userId,
@@ -138,20 +145,12 @@ serve(async (req) => {
         publicUrl.publicUrl,
         mediaType,
         messageCaption,
-        {
-          telegram_file_id: mediaItem.file_id,
-          width: mediaItem.width,
-          height: mediaItem.height,
-          file_size: mediaItem.file_size,
-          mime_type: message.document?.mime_type,
-          original_filename: message.document?.file_name,
-        },
+        metadata,
         message.media_group_id
       );
 
       console.log(`Processing media with caption: "${messageCaption}" and media_group_id: ${message.media_group_id}`);
 
-      // If this media is part of a group and has a caption, sync it to other media in the group
       if (message.media_group_id && messageCaption) {
         await syncMediaGroupCaption(supabase, message.media_group_id, messageCaption);
       }
