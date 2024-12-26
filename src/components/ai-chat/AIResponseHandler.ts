@@ -45,7 +45,7 @@ export const handleAIResponse = async (
     const response = {
       type: 'sql',
       query: message,
-      result: queryResult.data
+      result: (queryResult as SqlQueryResult).data
     };
 
     await saveBotResponse(response, user_id, messageId);
