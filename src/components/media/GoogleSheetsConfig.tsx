@@ -2,12 +2,21 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { initGoogleSheetsAPI, syncWithGoogleSheets, initializeSpreadsheet } from "./utils/googleSheetsSync";
 import { MediaItem } from "./types";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleSheetsHeaderMapping } from "./GoogleSheetsHeaderMapping";
+
+interface SpreadsheetConfig {
+  id: string;
+  name: string;
+  autoSync: boolean;
+}
 
 interface GoogleSheetsConfigProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -22,9 +31,17 @@ export const GoogleSheetsConfig = ({
   googleSheetId,
   parsedMapping = {}
 }: GoogleSheetsConfigProps) => {
-  const [spreadsheetId, setSpreadsheetId] = useState(googleSheetId || "");
+  const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConfig[]>(() => {
+    const saved = localStorage.getItem('spreadsheets');
+    return saved ? JSON.parse(saved) : googleSheetId ? [{
+      id: googleSheetId,
+      name: 'Default Sheet',
+      autoSync: true
+    }] : [];
+  });
+  const [newSpreadsheetId, setNewSpreadsheetId] = useState("");
+  const [newSpreadsheetName, setNewSpreadsheetName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const { toast } = useToast();
 
   // Query to fetch all media items
@@ -46,10 +63,11 @@ export const GoogleSheetsConfig = ({
 
   // Effect to sync data when media changes
   useEffect(() => {
-    const syncData = async () => {
-      if (spreadsheetId && allMedia && isConnected) {
+    const syncData = async (spreadsheetId: string) => {
+      if (allMedia) {
         try {
           await syncWithGoogleSheets(spreadsheetId, allMedia);
+          console.log(`Auto-synced with spreadsheet: ${spreadsheetId}`);
         } catch (error) {
           console.error('Auto-sync error:', error);
         }
@@ -57,23 +75,31 @@ export const GoogleSheetsConfig = ({
     };
 
     // Set up real-time subscription for media changes
-    const channel = supabase
-      .channel('media_changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'media' 
-      }, async () => {
-        await syncData();
-      })
-      .subscribe();
+    const channels = spreadsheets
+      .filter(sheet => sheet.autoSync)
+      .map(sheet => {
+        return supabase
+          .channel(`media_changes_${sheet.id}`)
+          .on('postgres_changes', { 
+            event: '*', 
+            schema: 'public', 
+            table: 'media' 
+          }, async () => {
+            await syncData(sheet.id);
+          })
+          .subscribe();
+      });
 
     return () => {
-      channel.unsubscribe();
+      channels.forEach(channel => channel.unsubscribe());
     };
-  }, [spreadsheetId, allMedia, isConnected]);
+  }, [spreadsheets, allMedia]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    localStorage.setItem('spreadsheets', JSON.stringify(spreadsheets));
+  }, [spreadsheets]);
+
+  const handleAddSpreadsheet = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
@@ -82,19 +108,27 @@ export const GoogleSheetsConfig = ({
       await initGoogleSheetsAPI();
       
       console.log('Initializing spreadsheet...');
-      await initializeSpreadsheet(spreadsheetId);
+      await initializeSpreadsheet(newSpreadsheetId);
       
       console.log('Syncing media items...');
       const mediaToSync = selectedMedia.length > 0 ? selectedMedia : allMedia || [];
-      await syncWithGoogleSheets(spreadsheetId, mediaToSync);
+      await syncWithGoogleSheets(newSpreadsheetId, mediaToSync);
+      
+      setSpreadsheets(prev => [...prev, {
+        id: newSpreadsheetId,
+        name: newSpreadsheetName || `Sheet ${prev.length + 1}`,
+        autoSync: true
+      }]);
+
+      setNewSpreadsheetId("");
+      setNewSpreadsheetName("");
       
       toast({
         title: "Success",
         description: `Connected and synced ${mediaToSync.length} media items to Google Sheets`,
       });
       
-      setIsConnected(true);
-      onSpreadsheetIdSet(spreadsheetId);
+      onSpreadsheetIdSet(newSpreadsheetId);
     } catch (error) {
       console.error('Google Sheets sync error:', error);
       toast({
@@ -107,43 +141,100 @@ export const GoogleSheetsConfig = ({
     }
   };
 
+  const toggleAutoSync = (spreadsheetId: string) => {
+    setSpreadsheets(prev => prev.map(sheet => 
+      sheet.id === spreadsheetId 
+        ? { ...sheet, autoSync: !sheet.autoSync }
+        : sheet
+    ));
+  };
+
+  const removeSpreadsheet = (spreadsheetId: string) => {
+    setSpreadsheets(prev => prev.filter(sheet => sheet.id !== spreadsheetId));
+  };
+
   return (
     <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="flex items-center gap-4">
-        <Input
-          type="text"
-          placeholder="Enter Google Spreadsheet ID"
-          value={spreadsheetId}
-          onChange={(e) => setSpreadsheetId(e.target.value)}
-          className="max-w-sm"
-        />
-        <Button 
-          type="submit" 
-          variant="outline"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Connecting...
-            </>
-          ) : (
-            "Connect Spreadsheet"
-          )}
-        </Button>
-      </form>
-
-      {isConnected && (
-        <div className="mt-8">
-          <GoogleSheetsHeaderMapping
-            spreadsheetId={spreadsheetId}
-            onMappingComplete={(mapping) => {
-              console.log('Header mapping:', mapping);
-              localStorage.setItem('headerMapping', JSON.stringify(mapping));
-            }}
+      <form onSubmit={handleAddSpreadsheet} className="space-y-4">
+        <div className="flex flex-col space-y-2">
+          <Label htmlFor="spreadsheetName">Spreadsheet Name</Label>
+          <Input
+            id="spreadsheetName"
+            type="text"
+            placeholder="Enter a name for this spreadsheet"
+            value={newSpreadsheetName}
+            onChange={(e) => setNewSpreadsheetName(e.target.value)}
           />
         </div>
-      )}
+        <div className="flex flex-col space-y-2">
+          <Label htmlFor="spreadsheetId">Spreadsheet ID</Label>
+          <div className="flex items-center gap-4">
+            <Input
+              id="spreadsheetId"
+              type="text"
+              placeholder="Enter Google Spreadsheet ID"
+              value={newSpreadsheetId}
+              onChange={(e) => setNewSpreadsheetId(e.target.value)}
+              className="flex-1"
+            />
+            <Button 
+              type="submit" 
+              variant="outline"
+              disabled={isLoading || !newSpreadsheetId}
+              className="gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Add Sheet
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </form>
+
+      <div className="grid gap-4">
+        {spreadsheets.map((sheet) => (
+          <Card key={sheet.id}>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-medium">{sheet.name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <Switch
+                    id={`autoSync-${sheet.id}`}
+                    checked={sheet.autoSync}
+                    onCheckedChange={() => toggleAutoSync(sheet.id)}
+                  />
+                  <Label htmlFor={`autoSync-${sheet.id}`}>Auto-sync</Label>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeSpreadsheet(sheet.id)}
+                  className="text-destructive hover:text-destructive/90"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <GoogleSheetsHeaderMapping
+                spreadsheetId={sheet.id}
+                onMappingComplete={(mapping) => {
+                  console.log('Header mapping:', mapping);
+                  localStorage.setItem(`headerMapping-${sheet.id}`, JSON.stringify(mapping));
+                }}
+              />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 };

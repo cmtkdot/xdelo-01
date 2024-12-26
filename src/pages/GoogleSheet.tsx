@@ -4,6 +4,8 @@ import { SheetDataDisplay } from "@/components/google-sheets/SheetDataDisplay";
 import { initGoogleSheetsAPI } from "@/components/media/utils/googleSheetsSync";
 import { useToast } from "@/components/ui/use-toast";
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table } from "lucide-react";
 
 const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
@@ -68,20 +70,29 @@ const GoogleSheet = () => {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <div className="container mx-auto p-6 space-y-6">
-        <div className="grid gap-6">
-          <GoogleSheetsConfig
-            onSpreadsheetIdSet={handleSpreadsheetIdSet}
-            googleSheetId={googleSheetId}
-            parsedMapping={parsedMapping}
-          />
-          
-          {googleSheetId && (
-            <SheetDataDisplay
-              isLoading={isLoading}
-              sheetData={sheetData}
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2">
+            <Table className="w-6 h-6 text-purple-400" />
+            <div>
+              <CardTitle>Google Sheets Integration</CardTitle>
+              <CardDescription>Connect and manage your Google Sheets synchronization</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <GoogleSheetsConfig
+              onSpreadsheetIdSet={handleSpreadsheetIdSet}
+              googleSheetId={googleSheetId}
+              parsedMapping={parsedMapping}
             />
-          )}
-        </div>
+            
+            {googleSheetId && (
+              <SheetDataDisplay
+                isLoading={isLoading}
+                sheetData={sheetData}
+              />
+            )}
+          </CardContent>
+        </Card>
       </div>
     </GoogleOAuthProvider>
   );
