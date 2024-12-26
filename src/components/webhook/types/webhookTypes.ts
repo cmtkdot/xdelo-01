@@ -3,11 +3,3 @@ export interface Suggestion {
   value: string;
   description?: string;
 }
-
-export interface SuggestionProps {
-  suggestions: Suggestion[];
-  value: string;
-  onSelect: (suggestion: Suggestion) => void;
-  placeholder?: string;
-  triggerClassName?: string;
-}
