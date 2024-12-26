@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import GoogleDriveUploader from "@/components/media/GoogleDriveUploader";
 
 const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
@@ -26,11 +27,12 @@ const MediaTable = () => {
   const { toast } = useToast();
   const [spreadsheetId, setSpreadsheetId] = useState<string>();
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string>("all");
   
   useMediaSubscription(spreadsheetId);
   
   const { data: mediaItems, isLoading, error } = useQuery({
-    queryKey: ['media-table'],
+    queryKey: ['media-table', uploadStatus],
     queryFn: async () => {
       const { data: session } = await supabase.auth.getSession();
       
@@ -38,13 +40,21 @@ const MediaTable = () => {
         throw new Error('You must be logged in to view media');
       }
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('media')
         .select(`
           *,
           chat:channels(title, username)
         `)
         .order('created_at', { ascending: false });
+
+      if (uploadStatus === "not_uploaded") {
+        query = query.is('google_drive_id', null);
+      } else if (uploadStatus === "uploaded") {
+        query = query.not('google_drive_id', 'is', null);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         toast({
@@ -90,11 +100,31 @@ const MediaTable = () => {
         </div>
         
         <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg overflow-hidden">
-          {selectedMedia.length > 0 && (
-            <div className="p-4 border-b border-white/10 flex justify-between items-center">
-              <span className="text-white/70">
-                {selectedMedia.length} item{selectedMedia.length !== 1 ? 's' : ''} selected
-              </span>
+          <div className="p-4 border-b border-white/10 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <Select value={uploadStatus} onValueChange={setUploadStatus}>
+                <SelectTrigger className="w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
+                  <SelectValue placeholder="Upload Status" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1A1F2C] border-white/10">
+                  <SelectItem value="all" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+                    All Files
+                  </SelectItem>
+                  <SelectItem value="not_uploaded" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+                    Not Uploaded
+                  </SelectItem>
+                  <SelectItem value="uploaded" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+                    Uploaded
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {selectedMedia.length > 0 && (
+                <span className="text-white/70">
+                  {selectedMedia.length} item{selectedMedia.length !== 1 ? 's' : ''} selected
+                </span>
+              )}
+            </div>
+            {selectedMedia.length > 0 && (
               <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
                 <DialogTrigger asChild>
                   <Button
@@ -114,8 +144,8 @@ const MediaTable = () => {
                   />
                 </DialogContent>
               </Dialog>
-            </div>
-          )}
+            )}
+          </div>
           <MediaTableContent
             isLoading={isLoading}
             mediaItems={sortedMediaItems}
