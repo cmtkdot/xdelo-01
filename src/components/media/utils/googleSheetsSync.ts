@@ -1,4 +1,4 @@
-import "../../../types/googleTypes";
+import "./googleSheets/types";
 import { MediaItem } from "../types";
 import { SHEET_NAME, formatMediaForSheets } from "./googleSheets/formatters";
 import { getGoogleAuthToken } from "./googleSheets/auth";
