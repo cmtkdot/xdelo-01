@@ -34,7 +34,7 @@ export const handleAIResponse = async (
     if (queryError) throw queryError;
 
     // Type guard to check if we have an error response
-    const isErrorResponse = (response: QueryResponse): response is SqlErrorResult => {
+    const isErrorResponse = (response: any): response is SqlErrorResult => {
       return 'error' in response;
     };
 
