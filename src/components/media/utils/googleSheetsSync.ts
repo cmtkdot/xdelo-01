@@ -1,6 +1,6 @@
 import "./googleSheets/types";
 import { MediaItem } from "../types";
-import { SHEET_NAME, formatMediaForSheets } from "./googleSheets/formatters";
+import { SHEET_NAME, formatMediaForSheets, BASE_HEADERS } from "./googleSheets/formatters";
 import { getGoogleAuthToken } from "./googleSheets/auth";
 
 // Initialize Google Sheets API
