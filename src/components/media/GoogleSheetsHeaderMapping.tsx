@@ -109,16 +109,22 @@ export const GoogleSheetsHeaderMapping = ({
   }, [spreadsheetId, sheetGid, toast]);
 
   const handleMappingChange = (sheetHeader: string, dbColumn: string) => {
-    // Remove any existing mappings to this dbColumn
     const newMapping = { ...mapping };
-    Object.keys(newMapping).forEach(key => {
-      if (newMapping[key] === dbColumn) {
-        delete newMapping[key];
-      }
-    });
     
-    // Add the new mapping
-    newMapping[sheetHeader] = dbColumn;
+    // If selecting "None" (empty string), remove the mapping
+    if (!dbColumn) {
+      delete newMapping[sheetHeader];
+    } else {
+      // Remove any existing mappings to this dbColumn
+      Object.keys(newMapping).forEach(key => {
+        if (newMapping[key] === dbColumn) {
+          delete newMapping[key];
+        }
+      });
+      // Add the new mapping
+      newMapping[sheetHeader] = dbColumn;
+    }
+    
     setMapping(newMapping);
   };
 

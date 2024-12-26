@@ -24,6 +24,7 @@ export const HeaderMappingSelect = ({
           <SelectValue placeholder="Map to column" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="">None</SelectItem>
           {dbColumns.map((column) => (
             <SelectItem key={column} value={column}>
               {column}
