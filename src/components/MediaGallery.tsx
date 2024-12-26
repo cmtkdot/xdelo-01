@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import useMediaData from "./hooks/useMediaData";
-import useMediaSubscription from "./hooks/useMediaSubscription";
-import { MediaFilter } from "./types";
+import useMediaData from "./media/hooks/useMediaData";
+import useMediaSubscription from "./media/hooks/useMediaSubscription";
+import { MediaFilter } from "./media/types";
 import { useToast } from "@/components/ui/use-toast";
 import WebhookInterface from "./webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
-import { Channel } from "./types";
+import { Channel } from "./media/types";
 import {
   AlertDialog,
   AlertDialogAction,
