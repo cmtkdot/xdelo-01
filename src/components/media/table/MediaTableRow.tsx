@@ -32,17 +32,32 @@ export const MediaTableRow = ({
     onToggleSelect(e);
   };
 
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    // Create a synthetic mouse event with the same modifiers
+    const syntheticEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: e.ctrlKey,
+      metaKey: e.metaKey,
+      shiftKey: e.shiftKey,
+    });
+    
+    onToggleSelect(syntheticEvent as unknown as React.MouseEvent);
+  };
+
   return (
     <TableRow 
       className={`hover:bg-white/5 cursor-pointer ${isSelected ? 'bg-white/10' : ''}`}
       onClick={handleRowClick}
     >
       <TableCell onClick={(e) => e.stopPropagation()}>
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={() => onToggleSelect()}
-          className="bg-white/20 border-white/30 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
-        />
+        <div onClick={handleCheckboxClick}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => {}}
+            className="bg-white/20 border-white/30 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+          />
+        </div>
       </TableCell>
       <TableCell className="text-white/70 whitespace-nowrap">{item.media_type}</TableCell>
       <TableCell className="text-white/70 whitespace-nowrap">{item.chat?.title || 'N/A'}</TableCell>
