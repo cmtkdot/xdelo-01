@@ -39,6 +39,9 @@ export const GoogleSheetsHeaderMapping = ({
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  // Create a unique key for this specific sheet's mapping
+  const getMappingKey = () => `headerMapping-${spreadsheetId}-${sheetGid || 'default'}`;
+
   useEffect(() => {
     const fetchHeaders = async () => {
       try {
@@ -69,7 +72,8 @@ export const GoogleSheetsHeaderMapping = ({
         if (response.result.values?.[0]) {
           setSheetHeaders(response.result.values[0]);
           
-          const savedMapping = localStorage.getItem(`headerMapping-${spreadsheetId}-${sheetGid || 'default'}`);
+          // Load saved mapping specific to this sheet
+          const savedMapping = localStorage.getItem(getMappingKey());
           if (savedMapping) {
             setMapping(JSON.parse(savedMapping));
           }
@@ -99,7 +103,8 @@ export const GoogleSheetsHeaderMapping = ({
   };
 
   const handleSaveMapping = () => {
-    localStorage.setItem(`headerMapping-${spreadsheetId}-${sheetGid || 'default'}`, JSON.stringify(mapping));
+    // Save mapping specific to this sheet
+    localStorage.setItem(getMappingKey(), JSON.stringify(mapping));
     onMappingComplete(mapping);
     toast({
       title: "Success",
