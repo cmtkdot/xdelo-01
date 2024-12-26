@@ -4,6 +4,9 @@ import WebhookDataFetcher from "./WebhookDataFetcher";
 import WebhookHeaderManager, { Header } from "./WebhookHeaderManager";
 import WebhookQueryManager, { QueryParam } from "./WebhookQueryManager";
 import WebhookBodyManager from "./WebhookBodyManager";
+import WebhookConfigurationSaver from "./WebhookConfigurationSaver";
+import WebhookConfigurationLoader from "./WebhookConfigurationLoader";
+import WebhookSuggestions from "./WebhookSuggestions";
 
 interface WebhookConfigurationPanelProps {
   method: HttpMethod;
@@ -36,6 +39,35 @@ const WebhookConfigurationPanel = ({
   body,
   onBodyChange,
 }: WebhookConfigurationPanelProps) => {
+  const handleConfigLoad = (config: {
+    method: HttpMethod;
+    headers: Header[];
+    body: string;
+    params: QueryParam[];
+  }) => {
+    onMethodChange(config.method);
+    onHeadersChange(config.headers);
+    onBodyChange(config.body);
+    onParamsChange(config.params);
+  };
+
+  const handleAddHeader = (header: Header) => {
+    onHeadersChange([...headers, header]);
+  };
+
+  const handleAddBodyParam = (param: { key: string, value: string }) => {
+    try {
+      const currentBody = JSON.parse(body || "{}");
+      const newBody = {
+        ...currentBody,
+        [param.key]: param.value
+      };
+      onBodyChange(JSON.stringify(newBody, null, 2));
+    } catch {
+      onBodyChange(JSON.stringify({ [param.key]: param.value }, null, 2));
+    }
+  };
+
   return (
     <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
       <CardHeader>
@@ -58,6 +90,25 @@ const WebhookConfigurationPanel = ({
             onFetch={onFetch}
           />
         </div>
+
+        <div className="flex items-center gap-4">
+          <WebhookConfigurationLoader
+            webhookUrlId={webhookUrl}
+            onLoad={handleConfigLoad}
+          />
+          <WebhookConfigurationSaver
+            webhookUrlId={webhookUrl}
+            method={method}
+            headers={headers}
+            params={params}
+            body={body}
+          />
+        </div>
+
+        <WebhookSuggestions
+          onAddHeader={handleAddHeader}
+          onAddBodyParam={handleAddBodyParam}
+        />
 
         <WebhookHeaderManager headers={headers} onHeadersChange={onHeadersChange} />
         

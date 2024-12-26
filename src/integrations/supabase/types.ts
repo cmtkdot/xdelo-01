@@ -241,6 +241,53 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_configurations: {
+        Row: {
+          body_params: Json | null
+          created_at: string | null
+          headers: Json | null
+          id: string
+          method: string
+          name: string
+          query_params: Json | null
+          updated_at: string | null
+          user_id: string
+          webhook_url_id: string
+        }
+        Insert: {
+          body_params?: Json | null
+          created_at?: string | null
+          headers?: Json | null
+          id?: string
+          method: string
+          name: string
+          query_params?: Json | null
+          updated_at?: string | null
+          user_id: string
+          webhook_url_id: string
+        }
+        Update: {
+          body_params?: Json | null
+          created_at?: string | null
+          headers?: Json | null
+          id?: string
+          method?: string
+          name?: string
+          query_params?: Json | null
+          updated_at?: string | null
+          user_id?: string
+          webhook_url_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_configurations_webhook_url_id_fkey"
+            columns: ["webhook_url_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_urls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_history: {
         Row: {
           fields_sent: string[]
