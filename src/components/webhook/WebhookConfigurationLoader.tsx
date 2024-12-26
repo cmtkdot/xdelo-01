@@ -32,7 +32,9 @@ const WebhookConfigurationLoader = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    loadConfigurations();
+    if (webhookUrlId) {
+      loadConfigurations();
+    }
   }, [webhookUrlId]);
 
   const loadConfigurations = async () => {
@@ -47,9 +49,15 @@ const WebhookConfigurationLoader = ({
       // Convert the database JSON to our frontend types
       const convertedData = (data || []).map(config => ({
         ...config,
-        headers: Array.isArray(config.headers) ? config.headers : [],
+        headers: Array.isArray(config.headers) ? config.headers.map(h => ({
+          key: typeof h === 'object' && h !== null ? h.key : '',
+          value: typeof h === 'object' && h !== null ? h.value : ''
+        })) : [],
         body_params: Array.isArray(config.body_params) ? config.body_params : [],
-        query_params: Array.isArray(config.query_params) ? config.query_params : []
+        query_params: Array.isArray(config.query_params) ? config.query_params.map(p => ({
+          key: typeof p === 'object' && p !== null ? p.key : '',
+          value: typeof p === 'object' && p !== null ? p.value : ''
+        })) : []
       }));
 
       setConfigurations(convertedData);

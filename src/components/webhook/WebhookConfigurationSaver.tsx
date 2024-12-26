@@ -35,6 +35,15 @@ const WebhookConfigurationSaver = ({
       return;
     }
 
+    if (!webhookUrlId) {
+      toast({
+        title: "Error",
+        description: "No webhook URL selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       let parsedBody;
       try {
@@ -48,7 +57,7 @@ const WebhookConfigurationSaver = ({
         .insert({
           webhook_url_id: webhookUrlId,
           name: configName,
-          method,
+          method: method,
           headers: headers,
           body_params: parsedBody,
           query_params: params
