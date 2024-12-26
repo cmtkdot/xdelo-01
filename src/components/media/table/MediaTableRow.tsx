@@ -57,6 +57,9 @@ export const MediaTableRow = ({
     onToggleSelect(syntheticEvent as unknown as React.MouseEvent);
   };
 
+  // Extract message ID from metadata if available
+  const messageId = item.metadata?.message_id;
+
   return (
     <TableRow 
       className={`hover:bg-white/5 cursor-pointer ${isSelected ? 'bg-white/10' : ''}`}
@@ -100,6 +103,8 @@ export const MediaTableRow = ({
           id={item.id}
           fileUrl={item.file_url}
           fileName={item.file_name}
+          chatId={item.chat_id}
+          messageId={messageId}
           onView={() => onOpenFile(fileUrl)}
           hasGoogleDrive={!!item.google_drive_url}
           onDelete={onDelete}

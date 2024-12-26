@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import GoogleDriveUploader from "../GoogleDriveUploader";
 
@@ -24,6 +24,8 @@ interface MediaTableActionsProps {
   id: string;
   fileUrl: string;
   fileName: string;
+  chatId: number | null;
+  messageId?: number | null;
   onView: () => void;
   hasGoogleDrive: boolean;
   onDelete: () => void;
@@ -32,7 +34,9 @@ interface MediaTableActionsProps {
 export const MediaTableActions = ({ 
   id,
   fileUrl, 
-  fileName, 
+  fileName,
+  chatId,
+  messageId,
   onView, 
   hasGoogleDrive,
   onDelete
@@ -42,16 +46,31 @@ export const MediaTableActions = ({
 
   const handleDelete = async () => {
     try {
-      const { error } = await supabase
+      // Delete associated message if chatId and messageId exist
+      if (chatId && messageId) {
+        const { error: messageError } = await supabase
+          .from('messages')
+          .delete()
+          .eq('chat_id', chatId)
+          .eq('message_id', messageId);
+
+        if (messageError) {
+          console.error('Error deleting message:', messageError);
+          // Continue with media deletion even if message deletion fails
+        }
+      }
+
+      // Delete media item
+      const { error: mediaError } = await supabase
         .from('media')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (mediaError) throw mediaError;
 
       toast({
         title: "Success",
-        description: "Media deleted successfully",
+        description: "Media and associated message deleted successfully",
       });
 
       setIsDeleteDialogOpen(false);
@@ -124,7 +143,7 @@ export const MediaTableActions = ({
           <DialogHeader>
             <DialogTitle>Delete Media</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this media? This action cannot be undone.
+              Are you sure you want to delete this media and its associated message? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
