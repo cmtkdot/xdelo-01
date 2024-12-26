@@ -5,12 +5,23 @@ import MediaCard from "./media/MediaCard";
 import MediaFilters from "./media/MediaFilters";
 import MediaGallerySkeleton from "./media/MediaGallerySkeleton";
 import { MediaFilter } from "./media/types";
-import { Image } from "lucide-react";
+import { Image, Trash2, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
 import WebhookInterface from "./webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "./media/types";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const MediaGallery = () => {
   const [filter, setFilter] = useState<MediaFilter>({
@@ -20,9 +31,12 @@ const MediaGallery = () => {
   });
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isSyncingCaptions, setSyncingCaptions] = useState(false);
+  const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
   const { toast } = useToast();
 
-  const { data: mediaItems, isLoading } = useMediaData(filter);
+  const { data: mediaItems, isLoading, refetch } = useMediaData(filter);
   useMediaSubscription();
 
   const fetchChannels = async () => {
@@ -64,15 +78,93 @@ const MediaGallery = () => {
     return mediaItems.filter(item => selectedMedia.has(item.id));
   };
 
+  const handleDeleteDuplicates = async () => {
+    try {
+      setDeletingDuplicates(true);
+      const { error } = await supabase.functions.invoke('delete-duplicates', {
+        body: { keepNewest: true }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Duplicate media files have been cleaned up",
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('Error deleting duplicates:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete duplicate media files",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingDuplicates(false);
+    }
+  };
+
+  const handleSyncCaptions = async () => {
+    try {
+      setSyncingCaptions(true);
+      const { error } = await supabase.functions.invoke('sync-media-captions');
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Media captions have been synchronized",
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('Error syncing captions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync media captions",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingCaptions(false);
+    }
+  };
+
   if (isLoading) {
     return <MediaGallerySkeleton />;
   }
 
   return (
     <div className="w-full max-w-[2000px] mx-auto space-y-4 px-4 md:px-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Image className="w-6 h-6 text-[#0088cc]" />
-        <h2 className="text-xl font-semibold text-white">Media Gallery</h2>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-2">
+          <Image className="w-6 h-6 text-[#0088cc]" />
+          <h2 className="text-xl font-semibold text-white">Media Gallery</h2>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncCaptions}
+            disabled={isSyncingCaptions}
+            className="text-xs"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaptions ? 'animate-spin' : ''}`} />
+            Sync Captions
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDeleteDuplicates}
+            disabled={isDeletingDuplicates}
+            className="text-xs"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Duplicates
+          </Button>
+        </div>
       </div>
       
       <div className="w-full">
@@ -111,6 +203,23 @@ const MediaGallery = () => {
           </div>
         </ScrollArea>
       )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Duplicate Media</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all duplicate media files, keeping only the newest version of each file. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteDuplicates}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
