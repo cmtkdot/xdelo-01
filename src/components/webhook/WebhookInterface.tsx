@@ -71,18 +71,19 @@ const WebhookInterface = ({ schedule = "manual", selectedMedia = [] }: WebhookIn
         return filtered;
       });
 
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        mode: 'no-cors',
-        body: JSON.stringify({
-          data: filteredData,
-          timestamp: new Date().toISOString(),
-          total_records: filteredData.length
-        }),
+      // Call our Edge Function instead of directly calling the webhook URL
+      const { data: response, error } = await supabase.functions.invoke('webhook-forwarder', {
+        body: {
+          webhook_url: webhookUrl,
+          data: {
+            data: filteredData,
+            timestamp: new Date().toISOString(),
+            total_records: filteredData.length
+          }
+        }
       });
+
+      if (error) throw error;
 
       // Get the webhook URL record ID
       const { data: webhookUrlData } = await supabase

@@ -11,84 +11,21 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { webhook_url, record_type, selected_fields } = await req.json();
-    console.log('Received webhook request:', { webhook_url, record_type, selected_fields });
+    const { webhook_url, data } = await req.json();
+    console.log('Forwarding webhook to:', webhook_url, 'with data:', data);
     
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Fetch the media data with channel information
-    const { data: mediaData, error } = await supabase
-      .from('media')
-      .select(`
-        *,
-        channel:channels(title, username)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching media data:', error);
-      throw error;
-    }
-
-    console.log('Fetched media data:', mediaData);
-
-    // Filter the data based on selected fields
-    const filteredData = mediaData.map(item => {
-      const filtered: Record<string, any> = {};
-      
-      selected_fields.forEach((field: string) => {
-        switch (field) {
-          case 'file_url':
-            filtered.file_url = item.file_url;
-            break;
-          case 'media_type':
-            filtered.media_type = item.media_type;
-            break;
-          case 'caption':
-            filtered.caption = item.caption;
-            break;
-          case 'metadata':
-            filtered.metadata = item.metadata;
-            break;
-          case 'created_at':
-            filtered.created_at = item.created_at;
-            break;
-          default:
-            // Handle any additional fields
-            if (item[field] !== undefined) {
-              filtered[field] = item[field];
-            }
-        }
-      });
-
-      // Add channel information if available
-      if (item.channel) {
-        filtered.channel = item.channel;
-      }
-
-      return filtered;
-    });
-
-    console.log('Filtered data to send:', filteredData);
-
-    // Forward to webhook
+    // Forward to webhook with proper headers
     const response = await fetch(webhook_url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'User-Agent': 'Supabase Edge Function',
       },
-      body: JSON.stringify({
-        data: filteredData,
-        timestamp: new Date().toISOString(),
-        total_records: filteredData.length
-      }),
+      body: JSON.stringify(data),
     });
 
     if (!response.ok) {
-      console.error('Webhook response not OK:', response.statusText);
-      throw new Error(`Webhook forwarding failed: ${response.statusText}`);
+      throw new Error(`Webhook responded with status ${response.status}: ${response.statusText}`);
     }
 
     const responseData = await response.json();
@@ -97,8 +34,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Data sent successfully',
-        records_sent: filteredData.length
+        message: 'Webhook forwarded successfully',
+        response: responseData
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
