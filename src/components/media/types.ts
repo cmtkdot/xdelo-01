@@ -25,4 +25,5 @@ export type Channel = {
 export type MediaFilter = {
   selectedChannel: string;
   selectedType: string;
+  uploadStatus: string;
 };

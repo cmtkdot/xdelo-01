@@ -10,7 +10,7 @@ const useMediaData = (filter: MediaFilter) => {
 
   useEffect(() => {
     fetchMedia();
-  }, [filter.selectedChannel, filter.selectedType]);
+  }, [filter.selectedChannel, filter.selectedType, filter.uploadStatus]);
 
   const fetchMedia = async () => {
     try {
@@ -30,6 +30,12 @@ const useMediaData = (filter: MediaFilter) => {
       
       if (filter.selectedType !== "all") {
         query = query.eq('media_type', filter.selectedType);
+      }
+
+      if (filter.uploadStatus === "not_uploaded") {
+        query = query.is('google_drive_id', null);
+      } else if (filter.uploadStatus === "uploaded") {
+        query = query.not('google_drive_id', 'is', null);
       }
 
       const { data, error } = await query;
