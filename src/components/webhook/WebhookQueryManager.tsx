@@ -3,11 +3,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, X } from "lucide-react";
+import WebhookSuggestionDropdown from "./WebhookSuggestionDropdown";
 
 export interface QueryParam {
   key: string;
   value: string;
 }
+
+const GLIDE_API_PARAMS = [
+  { 
+    key: "appID", 
+    value: "",
+    description: "Your Glide application ID"
+  },
+  { 
+    key: "tableName", 
+    value: "",
+    description: "Name of the table to query"
+  },
+  { 
+    key: "queries", 
+    value: JSON.stringify([{ tableName: "", utc: true }], null, 2),
+    description: "Query configuration for Glide API"
+  }
+];
 
 interface WebhookQueryManagerProps {
   params: QueryParam[];
@@ -31,6 +50,11 @@ const WebhookQueryManager = ({ params, onParamsChange }: WebhookQueryManagerProp
     onParamsChange(newParams);
   };
 
+  const handleSuggestionSelect = (suggestion: { key: string; value: string }) => {
+    setNewParamKey(suggestion.key);
+    setNewParamValue(suggestion.value);
+  };
+
   return (
     <div className="space-y-4">
       <Label>Query Parameters</Label>
@@ -45,7 +69,7 @@ const WebhookQueryManager = ({ params, onParamsChange }: WebhookQueryManagerProp
                 onParamsChange(newParams);
               }}
               placeholder="Parameter key"
-              className="flex-1"
+              className="flex-1 bg-white/5 border-white/10 text-white"
             />
             <Input
               value={param.value}
@@ -55,7 +79,7 @@ const WebhookQueryManager = ({ params, onParamsChange }: WebhookQueryManagerProp
                 onParamsChange(newParams);
               }}
               placeholder="Parameter value"
-              className="flex-1"
+              className="flex-1 bg-white/5 border-white/10 text-white"
             />
             <Button
               variant="ghost"
@@ -69,17 +93,18 @@ const WebhookQueryManager = ({ params, onParamsChange }: WebhookQueryManagerProp
         ))}
       </div>
       <div className="flex items-center gap-2">
-        <Input
+        <WebhookSuggestionDropdown
+          suggestions={GLIDE_API_PARAMS}
           value={newParamKey}
-          onChange={(e) => setNewParamKey(e.target.value)}
-          placeholder="New parameter key"
-          className="flex-1"
+          onSelect={handleSuggestionSelect}
+          placeholder="Select or type parameter"
+          triggerClassName="flex-1"
         />
         <Input
           value={newParamValue}
           onChange={(e) => setNewParamValue(e.target.value)}
           placeholder="New parameter value"
-          className="flex-1"
+          className="flex-1 bg-white/5 border-white/10 text-white"
         />
         <Button
           variant="ghost"
