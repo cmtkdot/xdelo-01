@@ -1,75 +1,56 @@
-import { useState, useEffect } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useState, useEffect } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, X, Link as LinkIcon } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { SHEET_NAME } from "./utils/googleSheets/formatters";
+import { Save, Loader2 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
-interface HeaderMapping {
-  sheetHeader: string;
-  linkedField: string | null;
-}
-
-interface GoogleSheetsHeaderMappingProps {
+interface HeaderMappingProps {
   spreadsheetId: string;
   onMappingComplete: (mapping: Record<string, string>) => void;
 }
 
-const AVAILABLE_FIELDS = [
-  { value: "file_name", label: "File Name" },
-  { value: "media_type", label: "Type" },
-  { value: "chat.title", label: "Channel" },
-  { value: "created_at", label: "Created At" },
-  { value: "caption", label: "Caption" },
-  { value: "file_url", label: "Original File URL" },
-  { value: "google_drive_url", label: "Google Drive URL" },
-  { value: "google_drive_id", label: "Google Drive ID" },
-  { value: "updated_at", label: "Last Updated" },
-  { value: "media_group_id", label: "Media Group ID" },
-  { value: "id", label: "Row ID" },
+const DEFAULT_DB_COLUMNS = [
+  'id',
+  'file_name',
+  'file_url',
+  'media_type',
+  'caption',
+  'created_at',
+  'updated_at',
+  'google_drive_id',
+  'google_drive_url'
 ];
 
-export const GoogleSheetsHeaderMapping = ({ spreadsheetId, onMappingComplete }: GoogleSheetsHeaderMappingProps) => {
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [mappings, setMappings] = useState<HeaderMapping[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+export const GoogleSheetsHeaderMapping = ({ spreadsheetId, onMappingComplete }: HeaderMappingProps) => {
+  const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchHeaders = async () => {
-      if (!spreadsheetId || !window.gapi?.client?.sheets) {
-        console.log('Sheets API not ready or spreadsheet ID not provided');
-        return;
-      }
-
-      setIsLoading(true);
       try {
-        console.log(`Fetching headers from sheet: ${SHEET_NAME}`);
         const response = await window.gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId,
-          range: `${SHEET_NAME}!1:1`,
+          range: 'A1:K1',
         });
-        
-        const headerRow = response.result.values?.[0] || [];
-        console.log('Fetched headers:', headerRow);
-        setHeaders(headerRow);
-        setMappings(headerRow.map(header => ({
-          sheetHeader: header,
-          linkedField: null
-        })));
+
+        if (response.result.values?.[0]) {
+          setSheetHeaders(response.result.values[0]);
+          
+          // Initialize mapping with existing values from localStorage
+          const savedMapping = localStorage.getItem(`headerMapping-${spreadsheetId}`);
+          if (savedMapping) {
+            setMapping(JSON.parse(savedMapping));
+          }
+        }
       } catch (error) {
         console.error('Error fetching headers:', error);
         toast({
           title: "Error",
-          description: "Failed to fetch spreadsheet headers. Please make sure the sheet exists and you have access.",
+          description: "Failed to fetch sheet headers",
           variant: "destructive",
         });
       } finally {
@@ -77,31 +58,21 @@ export const GoogleSheetsHeaderMapping = ({ spreadsheetId, onMappingComplete }: 
       }
     };
 
-    if (spreadsheetId) {
+    if (window.gapi?.client?.sheets) {
       fetchHeaders();
     }
   }, [spreadsheetId, toast]);
 
-  const handleFieldLink = (headerIndex: number, fieldValue: string | null) => {
-    setMappings(prev => {
-      const updated = [...prev];
-      updated[headerIndex] = {
-        ...updated[headerIndex],
-        linkedField: fieldValue
-      };
-      return updated;
-    });
+  const handleMappingChange = (sheetHeader: string, dbColumn: string) => {
+    setMapping(prev => ({
+      ...prev,
+      [sheetHeader]: dbColumn
+    }));
   };
 
   const handleSaveMapping = () => {
-    const mapping: Record<string, string> = {};
-    mappings.forEach(({ sheetHeader, linkedField }) => {
-      if (linkedField) {
-        mapping[sheetHeader] = linkedField;
-      }
-    });
+    localStorage.setItem(`headerMapping-${spreadsheetId}`, JSON.stringify(mapping));
     onMappingComplete(mapping);
-    
     toast({
       title: "Success",
       description: "Header mapping saved successfully",
@@ -110,77 +81,51 @@ export const GoogleSheetsHeaderMapping = ({ spreadsheetId, onMappingComplete }: 
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
+      <div className="flex items-center justify-center p-4">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Link Spreadsheet Headers</h3>
-        <Button onClick={handleSaveMapping} className="gap-2">
-          <LinkIcon className="h-4 w-4" />
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium">Header Mapping</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className="h-[300px] pr-4">
+          <div className="space-y-4">
+            {sheetHeaders.map((header, index) => (
+              <div key={index} className="flex items-center gap-4">
+                <span className="min-w-[120px] text-sm">{header}</span>
+                <Select
+                  value={mapping[header] || ""}
+                  onValueChange={(value) => handleMappingChange(header, value)}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Map to column" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEFAULT_DB_COLUMNS.map((column) => (
+                      <SelectItem key={column} value={column}>
+                        {column}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+        <Button 
+          onClick={handleSaveMapping}
+          className="mt-4 w-full"
+          variant="outline"
+        >
+          <Save className="mr-2 h-4 w-4" />
           Save Mapping
         </Button>
-      </div>
-
-      {headers.length > 0 ? (
-        <ScrollArea className="h-[400px] rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Spreadsheet Header</TableHead>
-                <TableHead>Link To Field</TableHead>
-                <TableHead className="w-[100px]">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mappings.map((mapping, index) => (
-                <TableRow key={mapping.sheetHeader}>
-                  <TableCell className="font-medium">{mapping.sheetHeader}</TableCell>
-                  <TableCell>
-                    <Select
-                      value={mapping.linkedField || ""}
-                      onValueChange={(value) => handleFieldLink(index, value)}
-                    >
-                      <SelectTrigger className="w-[300px]">
-                        <SelectValue placeholder="Select a field to link" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">None</SelectItem>
-                        {AVAILABLE_FIELDS.map((field) => (
-                          <SelectItem key={field.value} value={field.value}>
-                            {field.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    {mapping.linkedField ? (
-                      <div className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-green-500" />
-                        <span className="text-sm text-green-500">Linked</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <X className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-400">Not linked</span>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      ) : (
-        <div className="text-center p-8 text-gray-500">
-          No headers found in the spreadsheet. Please make sure the sheet is properly initialized.
-        </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };

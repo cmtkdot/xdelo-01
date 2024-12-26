@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileSpreadsheet, CheckCircle, XCircle } from "lucide-react";
+import { FileSpreadsheet, CheckCircle } from "lucide-react";
 import { GoogleSheetsConfig } from "../media/GoogleSheetsConfig";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface SheetConfigurationProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -24,7 +25,7 @@ export const SheetConfiguration = ({
           Connect and manage your Google Sheets integration
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <GoogleSheetsConfig
           onSpreadsheetIdSet={(id) => {
             localStorage.setItem('googleSheetId', id);
@@ -33,21 +34,23 @@ export const SheetConfiguration = ({
         />
 
         {googleSheetId && (
-          <div className="mt-4 space-y-4">
-            <div className="flex items-center gap-4">
+          <div className="space-y-4">
+            <Alert>
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-500" />
-                <span>Sheet ID: {googleSheetId}</span>
+                <AlertDescription>
+                  Connected to sheet: {googleSheetId}
+                  <a
+                    href={`https://docs.google.com/spreadsheets/d/${googleSheetId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    Open in Google Sheets
+                  </a>
+                </AlertDescription>
               </div>
-              <a
-                href={`https://docs.google.com/spreadsheets/d/${googleSheetId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                Open in Google Sheets
-              </a>
-            </div>
+            </Alert>
 
             {Object.keys(parsedMapping).length > 0 && (
               <div className="p-4 rounded-lg bg-white/5 border border-white/10">
