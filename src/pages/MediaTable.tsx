@@ -164,7 +164,7 @@ const MediaTable = () => {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <div className="space-y-6">
-        <TableActions selectedMedia={selectedMedia} />
+        <TableActions />
         
         <div className="mb-6">
           <GoogleSheetsConfig onSpreadsheetIdSet={setSpreadsheetId} />
