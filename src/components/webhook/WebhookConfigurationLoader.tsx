@@ -4,6 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "./WebhookHeaderManager";
 import { QueryParam } from "./WebhookQueryManager";
+import { Json } from "@/integrations/supabase/types";
 
 interface SavedConfiguration {
   id: string;
@@ -47,18 +48,28 @@ const WebhookConfigurationLoader = ({
       if (error) throw error;
       
       // Convert the database JSON to our frontend types
-      const convertedData = (data || []).map(config => ({
-        ...config,
-        headers: Array.isArray(config.headers) ? config.headers.map(h => ({
-          key: typeof h === 'object' && h !== null ? h.key : '',
-          value: typeof h === 'object' && h !== null ? h.value : ''
-        })) : [],
-        body_params: Array.isArray(config.body_params) ? config.body_params : [],
-        query_params: Array.isArray(config.query_params) ? config.query_params.map(p => ({
-          key: typeof p === 'object' && p !== null ? p.key : '',
-          value: typeof p === 'object' && p !== null ? p.value : ''
-        })) : []
-      }));
+      const convertedData = (data || []).map(config => {
+        const headers = Array.isArray(config.headers) 
+          ? (config.headers as any[]).map(h => ({
+              key: typeof h === 'object' && h !== null ? String(h.key || '') : '',
+              value: typeof h === 'object' && h !== null ? String(h.value || '') : ''
+            }))
+          : [];
+
+        const queryParams = Array.isArray(config.query_params)
+          ? (config.query_params as any[]).map(p => ({
+              key: typeof p === 'object' && p !== null ? String(p.key || '') : '',
+              value: typeof p === 'object' && p !== null ? String(p.value || '') : ''
+            }))
+          : [];
+
+        return {
+          ...config,
+          headers,
+          body_params: Array.isArray(config.body_params) ? config.body_params : [],
+          query_params: queryParams
+        };
+      });
 
       setConfigurations(convertedData);
     } catch (error) {
