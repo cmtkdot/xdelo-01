@@ -6,6 +6,8 @@ import { getGoogleAuthToken } from "./googleSheets/auth";
 // Initialize Google Sheets API
 export const initGoogleSheetsAPI = async () => {
   try {
+    console.log('Starting Google Sheets API initialization...');
+    
     // Load the Google API client
     await new Promise<void>((resolve, reject) => {
       const script = document.createElement('script');
@@ -15,6 +17,8 @@ export const initGoogleSheetsAPI = async () => {
       document.body.appendChild(script);
     });
 
+    console.log('Google API script loaded');
+
     // Load the client library
     await new Promise<void>((resolve, reject) => {
       window.gapi.load('client', {
@@ -22,6 +26,8 @@ export const initGoogleSheetsAPI = async () => {
         onerror: () => reject(new Error('Failed to load Google client')),
       });
     });
+
+    console.log('Google client library loaded');
 
     // Initialize the Sheets API
     await window.gapi.client.init({
@@ -39,9 +45,11 @@ export const initGoogleSheetsAPI = async () => {
 // Initialize spreadsheet with headers if needed
 export const initializeSpreadsheet = async (spreadsheetId: string) => {
   try {
+    console.log('Getting Google auth token...');
     const accessToken = await getGoogleAuthToken();
     window.gapi.client.setToken({ access_token: accessToken });
 
+    console.log('Checking spreadsheet existence...');
     // First, try to get the spreadsheet to check if it exists
     const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
       spreadsheetId,
@@ -54,6 +62,7 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
     );
 
     if (!sheet) {
+      console.log('Sheet not found, creating new sheet...');
       // Create the sheet if it doesn't exist
       const addSheetResponse = await window.gapi.client.sheets.spreadsheets.batchUpdate({
         spreadsheetId,
@@ -71,8 +80,19 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
       // Get the new sheet ID
       sheetId = addSheetResponse.result.replies?.[0]?.addSheet?.properties?.sheetId || 0;
       console.log('Created new sheet with ID:', sheetId);
+      
+      // Add headers to the new sheet
+      await window.gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${SHEET_NAME}!A1:${String.fromCharCode(65 + BASE_HEADERS.length - 1)}1`,
+        valueInputOption: 'RAW',
+        resource: {
+          values: [BASE_HEADERS]
+        }
+      });
     } else {
       sheetId = sheet.properties?.sheetId || 0;
+      console.log('Found existing sheet with ID:', sheetId);
     }
 
     // Set up auto-resizing columns
@@ -106,6 +126,7 @@ export const initializeSpreadsheet = async (spreadsheetId: string) => {
 // Function to sync data with Google Sheets
 export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: MediaItem[]) => {
   try {
+    console.log('Starting sync with Google Sheets...');
     const { headers, data } = formatMediaForSheets(mediaItems);
     
     // Get the sheet ID
@@ -123,12 +144,14 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
     
     const sheetId = sheet.properties?.sheetId;
 
+    console.log('Clearing existing content...');
     // Clear existing content
     await window.gapi.client.sheets.spreadsheets.values.clear({
       spreadsheetId,
       range: SHEET_NAME
     });
 
+    console.log('Updating headers...');
     // Update headers first
     await window.gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -139,6 +162,7 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
       }
     });
 
+    console.log('Updating data...');
     // Then update the data
     if (data.length > 0) {
       await window.gapi.client.sheets.spreadsheets.values.update({
@@ -151,6 +175,7 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
       });
     }
 
+    console.log('Applying formatting...');
     // Apply formatting
     await window.gapi.client.sheets.spreadsheets.batchUpdate({
       spreadsheetId,

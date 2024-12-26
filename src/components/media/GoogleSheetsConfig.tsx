@@ -40,9 +40,8 @@ export const GoogleSheetsConfig = ({ onSpreadsheetIdSet, selectedMedia = [] }: G
   // Effect to sync data when media changes
   useEffect(() => {
     const syncData = async () => {
-      if (spreadsheetId && allMedia) {
+      if (spreadsheetId && allMedia && isConnected) {
         try {
-          await initGoogleSheetsAPI();
           await syncWithGoogleSheets(spreadsheetId, allMedia);
         } catch (error) {
           console.error('Auto-sync error:', error);
@@ -65,19 +64,22 @@ export const GoogleSheetsConfig = ({ onSpreadsheetIdSet, selectedMedia = [] }: G
     return () => {
       channel.unsubscribe();
     };
-  }, [spreadsheetId, allMedia]);
+  }, [spreadsheetId, allMedia, isConnected]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
     try {
+      console.log('Initializing Google Sheets API...');
       // Initialize Google Sheets API
       await initGoogleSheetsAPI();
       
+      console.log('Initializing spreadsheet...');
       // Initialize spreadsheet with headers if needed
       await initializeSpreadsheet(spreadsheetId);
       
+      console.log('Syncing media items...');
       // Sync all media items
       const mediaToSync = selectedMedia.length > 0 ? selectedMedia : allMedia || [];
       await syncWithGoogleSheets(spreadsheetId, mediaToSync);
@@ -103,7 +105,7 @@ export const GoogleSheetsConfig = ({ onSpreadsheetIdSet, selectedMedia = [] }: G
 
   const handleHeaderMapping = (mapping: Record<string, string>) => {
     console.log('Header mapping:', mapping);
-    // Here you can implement the logic to save the mapping and use it for future syncs
+    localStorage.setItem('headerMapping', JSON.stringify(mapping));
   };
 
   return (
