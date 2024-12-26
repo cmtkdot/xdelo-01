@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Settings as SettingsIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Settings = () => {
   return (
@@ -12,8 +13,13 @@ const Settings = () => {
             <CardDescription>Manage your application settings</CardDescription>
           </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-gray-400">Settings page is under construction.</p>
+        <CardContent className="space-y-4">
+          <Link 
+            to="/media" 
+            className="block w-full p-4 rounded-lg bg-black/40 border border-white/10 hover:bg-white/5 transition-colors"
+          >
+            Media Gallery
+          </Link>
         </CardContent>
       </Card>
     </div>
