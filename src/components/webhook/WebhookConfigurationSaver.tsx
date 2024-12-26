@@ -54,14 +54,15 @@ const WebhookConfigurationSaver = ({
 
       const { error } = await supabase
         .from('webhook_configurations')
-        .insert([{
+        .insert({
           webhook_url_id: webhookUrlId,
           name: configName,
           method: method,
           headers: headers,
           body_params: parsedBody,
-          query_params: params
-        }]);
+          query_params: params,
+          user_id: (await supabase.auth.getUser()).data.user?.id
+        });
 
       if (error) throw error;
 
