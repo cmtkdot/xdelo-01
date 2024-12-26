@@ -28,9 +28,11 @@ const ExportButton = ({ className }: ExportButtonProps) => {
         'Channel': item.chat?.title || 'N/A',
         'Created At': new Date(item.created_at).toLocaleString(),
         'Caption': item.caption || 'No caption',
-        'File URL': item.file_url,
+        'Original File URL': item.file_url || 'N/A',
         'Google Drive URL': item.google_drive_url || 'Not uploaded',
-        'Google Drive ID': item.google_drive_id || 'N/A'
+        'Google Drive ID': item.google_drive_id || 'N/A',
+        'Last Updated': new Date(item.updated_at).toLocaleString(),
+        'Media Group ID': item.media_group_id || 'N/A'
       }));
 
       const headers = Object.keys(formattedData[0]);
@@ -57,7 +59,7 @@ const ExportButton = ({ className }: ExportButtonProps) => {
 
       toast({
         title: "Export Successful",
-        description: "Your media data has been exported to CSV format. You can now import this file into Google Sheets.",
+        description: "Your media data has been exported to CSV format. The file includes all current URLs and file locations.",
         variant: "default",
       });
     } catch (error) {
