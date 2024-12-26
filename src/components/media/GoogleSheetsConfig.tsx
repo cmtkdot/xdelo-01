@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { initGoogleSheetsAPI, syncWithGoogleSheets } from "./utils/googleSheetsSync";
+import { initGoogleSheetsAPI, syncWithGoogleSheets, initializeSpreadsheet } from "./utils/googleSheetsSync";
 import { MediaItem } from "./types";
 import { Loader2 } from "lucide-react";
 
@@ -23,6 +23,9 @@ export const GoogleSheetsConfig = ({ onSpreadsheetIdSet, selectedMedia = [] }: G
     try {
       // Initialize Google Sheets API
       await initGoogleSheetsAPI();
+      
+      // Initialize spreadsheet with headers if needed
+      await initializeSpreadsheet(spreadsheetId);
       
       // If there are selected media items, sync them
       if (selectedMedia.length > 0) {

@@ -1,7 +1,22 @@
 import { MediaItem } from "../types";
 import { supabase } from "@/integrations/supabase/client";
 
-// This function formats media data for Google Sheets
+const SHEET_HEADERS = [
+  'File Name',
+  'Media Type',
+  'Channel',
+  'Created At',
+  'Caption',
+  'File URL',
+  'Google Drive URL',
+  'Google Drive ID',
+  'Message ID',
+  'Media Group ID',
+  'File Size',
+  'Dimensions'
+];
+
+// Format media data for Google Sheets
 const formatMediaForSheets = (items: MediaItem[]) => {
   return items.map(item => ([
     item.file_name,
@@ -11,8 +26,46 @@ const formatMediaForSheets = (items: MediaItem[]) => {
     item.caption || 'No caption',
     item.file_url,
     item.google_drive_url || 'Not uploaded',
-    item.google_drive_id || 'N/A'
+    item.google_drive_id || 'N/A',
+    item.metadata?.message_id || 'N/A',
+    item.media_group_id || 'N/A',
+    item.metadata?.file_size ? `${Math.round(item.metadata.file_size / 1024)} KB` : 'N/A',
+    item.metadata?.width && item.metadata?.height ? `${item.metadata.width}x${item.metadata.height}` : 'N/A'
   ]));
+};
+
+// Initialize spreadsheet with headers if needed
+export const initializeSpreadsheet = async (spreadsheetId: string) => {
+  try {
+    // Check if headers exist
+    const response = await window.gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Media Data!A1:L1',
+    });
+
+    const currentHeaders = response.result.values?.[0] || [];
+    
+    // If no headers or headers are different, update them
+    if (currentHeaders.length === 0 || !arraysEqual(currentHeaders, SHEET_HEADERS)) {
+      await window.gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'Media Data!A1:L1',
+        valueInputOption: 'RAW',
+        resource: {
+          values: [SHEET_HEADERS]
+        }
+      });
+      console.log('Sheet headers initialized');
+    }
+  } catch (error) {
+    console.error('Error initializing spreadsheet:', error);
+    throw new Error('Failed to initialize spreadsheet headers');
+  }
+};
+
+// Helper function to compare arrays
+const arraysEqual = (a: any[], b: any[]) => {
+  return a.length === b.length && a.every((val, index) => val === b[index]);
 };
 
 // Function to sync data with Google Sheets
@@ -31,10 +84,10 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
       throw new Error('Google API not loaded');
     }
 
-    // Update the sheet
+    // Update the sheet starting from row 2 (after headers)
     const response = await window.gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Media Data!A2:H',
+      range: 'Media Data!A2:L',
       valueInputOption: 'RAW',
       resource: {
         values: formattedData
