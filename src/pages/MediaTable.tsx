@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import GoogleDriveUploader from "@/components/media/GoogleDriveUploader";
 import MediaTableFilters from "@/components/media/table/MediaTableFilters";
+import { useEffect } from "react";
 
 const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
@@ -91,6 +92,39 @@ const MediaTable = () => {
       return data as MediaItem[];
     },
   });
+
+  // Set up real-time subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('media_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'media' 
+      }, async (payload) => {
+        console.log('Media change received:', payload);
+        await refetch();
+        
+        // Show a toast notification based on the event type
+        const eventMessages = {
+          INSERT: 'New media file added',
+          UPDATE: 'Media file updated',
+          DELETE: 'Media file removed'
+        };
+
+        toast({
+          title: eventMessages[payload.eventType as keyof typeof eventMessages] || 'Media changed',
+          description: `The media gallery has been updated`,
+          variant: "default",
+        });
+      })
+      .subscribe();
+
+    return () => {
+      console.log("Cleaning up subscription");
+      channel.unsubscribe();
+    };
+  }, [refetch, toast]);
 
   const { sortedMediaItems, handleSort, sortConfig } = useMediaTableSort(mediaItems);
   const {
