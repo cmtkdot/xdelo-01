@@ -3,7 +3,6 @@ import useMediaData from "./media/hooks/useMediaData";
 import useMediaSubscription from "./media/hooks/useMediaSubscription";
 import { MediaFilter } from "./media/types";
 import { useToast } from "@/components/ui/use-toast";
-import WebhookInterface from "./webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "./media/types";
 import {
@@ -147,6 +146,8 @@ const MediaGallery = () => {
           setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
           selectedType={filter.selectedType}
           setSelectedType={(value) => setFilter(prev => ({ ...prev, selectedType: value }))}
+          uploadStatus={filter.uploadStatus}
+          setUploadStatus={(value) => setFilter(prev => ({ ...prev, uploadStatus: value }))}
           channels={channels}
         />
       </div>
