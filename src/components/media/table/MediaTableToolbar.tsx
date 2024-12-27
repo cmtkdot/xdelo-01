@@ -28,7 +28,11 @@ export const MediaTableToolbar = ({ selectedMedia, onDeleteSuccess }: MediaTable
     try {
       // Delete associated messages if chatId and messageId exist
       for (const item of selectedMedia) {
-        const messageId = item.metadata?.message_id;
+        // Ensure metadata is a Record before accessing message_id
+        const messageId = typeof item.metadata === 'object' && item.metadata 
+          ? item.metadata.message_id 
+          : undefined;
+
         if (item.chat_id && messageId) {
           const { error: messageError } = await supabase
             .from('messages')

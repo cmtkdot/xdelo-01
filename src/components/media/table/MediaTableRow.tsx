@@ -31,7 +31,7 @@ export const MediaTableRow = ({
   
   // Prioritize Google Drive URL if available
   const fileUrl = item.google_drive_url || item.file_url;
-  
+
   const handleRowClick = (e: React.MouseEvent) => {
     // Prevent row click when clicking on buttons, links or input
     if (
@@ -107,8 +107,8 @@ export const MediaTableRow = ({
     }
   };
 
-  // Extract message ID from metadata if available
-  const messageId = item.metadata?.message_id;
+  // Extract message ID from metadata if available and ensure it's a Record
+  const messageId = typeof item.metadata === 'object' && item.metadata ? item.metadata.message_id : undefined;
 
   return (
     <TableRow 
