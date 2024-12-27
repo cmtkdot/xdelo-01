@@ -1,30 +1,27 @@
-import { Database } from "@/integrations/supabase/types";
-
-export type MediaMetadata = {
-  telegram_file_id: string;
-  width: number;
-  height: number;
-  file_size: number;
-  message_id?: number; // Added this field
-};
-
-export type MediaItem = Database['public']['Tables']['media']['Row'] & {
-  metadata: MediaMetadata | null;
-  chat?: {
-    title: string;
-    username: string;
-  };
+export interface MediaItem {
+  id: string;
+  user_id: string;
+  chat_id?: number;
+  file_name: string;
+  file_url: string;
+  media_type: string;
+  caption?: string;
+  metadata?: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+  media_group_id?: string;
+  additional_data?: Record<string, any>;
   google_drive_id?: string;
   google_drive_url?: string;
-};
+  chat?: {
+    title?: string;
+    username?: string;
+  };
+}
 
-export type Channel = {
-  title: string;
+export interface Channel {
+  id: string;
   chat_id: number;
-};
-
-export type MediaFilter = {
-  selectedChannel: string;
-  selectedType: string;
-  uploadStatus: string;
-};
+  title: string;
+  username?: string;
+}

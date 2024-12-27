@@ -114,7 +114,7 @@ export const GoogleSheetsConfig = ({
             sheet={sheet}
             onToggleAutoSync={toggleAutoSync}
             onRemove={removeSpreadsheet}
-            onHeaderMappingComplete={(mapping) => handleHeaderMappingComplete(sheet.id, mapping)}
+            onHeaderMappingComplete={handleHeaderMappingComplete}
           />
         ))}
       </div>
