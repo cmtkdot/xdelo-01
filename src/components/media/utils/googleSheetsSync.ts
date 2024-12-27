@@ -1,35 +1,12 @@
-import "./googleSheets/types";
 import { MediaItem } from "../types";
 import { SHEET_NAME, formatMediaForSheets, BASE_HEADERS } from "./googleSheets/formatters";
-import { getGoogleAuthToken } from "./googleSheets/auth";
-
-const COLUMN_LIMIT = 'K';
-const MAX_COLUMNS = 26;
+import { supabase } from "@/integrations/supabase/client";
 
 export const initGoogleSheetsAPI = async () => {
   try {
-    console.log('Starting Google Sheets API initialization...');
-    
-    await new Promise<void>((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://apis.google.com/js/api.js';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load Google API'));
-      document.body.appendChild(script);
-    });
-
-    await new Promise<void>((resolve, reject) => {
-      window.gapi.load('client', {
-        callback: resolve,
-        onerror: () => reject(new Error('Failed to load Google client')),
-      });
-    });
-
-    await window.gapi.client.init({
-      discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-    });
-
-    console.log('Google Sheets API initialized successfully');
+    if (!window.gapi?.client?.sheets) {
+      throw new Error('Google Sheets API not initialized');
+    }
     return true;
   } catch (error) {
     console.error('Error initializing Google Sheets API:', error);
@@ -37,136 +14,56 @@ export const initGoogleSheetsAPI = async () => {
   }
 };
 
-export const initializeSpreadsheet = async (spreadsheetId: string, gid?: string) => {
-  try {
-    console.log('Getting Google auth token...');
-    const accessToken = await getGoogleAuthToken();
-    window.gapi.client.setToken({ access_token: accessToken });
-
-    const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
-      spreadsheetId,
-    });
-
-    let targetSheet;
-    if (gid) {
-      targetSheet = spreadsheet.result.sheets?.find(
-        (s: any) => s.properties?.sheetId === parseInt(gid)
-      );
-      if (!targetSheet) {
-        throw new Error(`Sheet with GID ${gid} not found`);
-      }
-    } else {
-      targetSheet = spreadsheet.result.sheets?.find(
-        (s: any) => s.properties?.title === SHEET_NAME
-      );
-    }
-
-    let sheetId = 0;
-    if (!targetSheet) {
-      console.log('Sheet not found, creating new sheet...');
-      const addSheetResponse = await window.gapi.client.sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        resource: {
-          requests: [{
-            addSheet: {
-              properties: {
-                title: SHEET_NAME,
-                sheetId: gid ? parseInt(gid) : undefined
-              }
-            }
-          }]
-        }
-      });
-
-      sheetId = addSheetResponse.result.replies?.[0]?.addSheet?.properties?.sheetId || 0;
-      
-      const range = gid ? `${SHEET_NAME}!A1:${COLUMN_LIMIT}1` : `${SHEET_NAME}!A1:${COLUMN_LIMIT}1`;
-      await window.gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range,
-        valueInputOption: 'RAW',
-        resource: {
-          values: [BASE_HEADERS.slice(0, COLUMN_LIMIT.charCodeAt(0) - 64)]
-        }
-      });
-    } else {
-      sheetId = targetSheet.properties?.sheetId || 0;
-    }
-
-    await window.gapi.client.sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      resource: {
-        requests: [{
-          autoResizeDimensions: {
-            dimensions: {
-              sheetId: sheetId,
-              dimension: "COLUMNS",
-              startIndex: 0,
-              endIndex: MAX_COLUMNS
-            }
-          }
-        }]
-      }
-    });
-
-    return true;
-  } catch (error: any) {
-    console.error('Error initializing spreadsheet:', error);
-    if (error?.result?.error?.status === 'PERMISSION_DENIED') {
-      throw new Error('Permission denied. Please make sure you have edit access to this spreadsheet.');
-    }
-    throw new Error(error?.result?.error?.message || 'Failed to initialize spreadsheet');
-  }
-};
-
 export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: MediaItem[], gid?: string) => {
   try {
     console.log('Starting sync with Google Sheets...');
-    const { headers, data } = formatMediaForSheets(mediaItems);
     
-    const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
-      spreadsheetId,
-    });
+    if (!window.gapi?.client?.sheets) {
+      throw new Error('Google Sheets API not initialized');
+    }
+
+    const { data: configData, error: configError } = await supabase
+      .from('google_sheets_config')
+      .select('header_mapping')
+      .eq('spreadsheet_id', spreadsheetId)
+      .maybeSingle();
+
+    if (configError) throw configError;
     
-    let targetSheet;
+    const headerMapping = (configData?.header_mapping || {}) as Record<string, string>;
+    const formattedData = formatMediaForSheets(mediaItems, headerMapping);
+
+    // Get the sheet name based on GID if provided
+    let sheetName = SHEET_NAME;
     if (gid) {
-      targetSheet = spreadsheet.result.sheets?.find(
+      const response = await window.gapi.client.sheets.spreadsheets.get({
+        spreadsheetId,
+      });
+      
+      const sheet = response.result.sheets?.find(
         (s: any) => s.properties?.sheetId === parseInt(gid)
       );
-      if (!targetSheet) {
-        throw new Error(`Sheet with GID ${gid} not found`);
+      
+      if (sheet?.properties?.title) {
+        sheetName = sheet.properties.title;
       }
-    } else {
-      targetSheet = spreadsheet.result.sheets?.find(
-        (s: any) => s.properties?.title === SHEET_NAME
-      );
-    }
-    
-    if (!targetSheet) {
-      throw new Error('Sheet not found. Please initialize the spreadsheet first.');
     }
 
-    const sheetName = targetSheet.properties?.title;
-    
-    // Get existing headers first
-    const existingHeadersResponse = await window.gapi.client.sheets.spreadsheets.values.get({
+    // Clear existing data (except headers)
+    await window.gapi.client.sheets.spreadsheets.values.clear({
       spreadsheetId,
-      range: `${sheetName}!A1:${String.fromCharCode(64 + MAX_COLUMNS)}1`,
+      range: `${sheetName}!A2:Z`,
     });
 
-    const existingHeaders = existingHeadersResponse.result.values?.[0] || [];
-
-    // Only update data, preserve existing headers
-    if (data.length > 0) {
-      await window.gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: `${sheetName}!A2:${String.fromCharCode(64 + Math.max(headers.length, existingHeaders.length))}${data.length + 1}`,
-        valueInputOption: 'RAW',
-        resource: {
-          values: data
-        }
-      });
-    }
+    // Update with new data
+    await window.gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!A2:${String.fromCharCode(65 + BASE_HEADERS.length)}${formattedData.length + 1}`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: formattedData
+      }
+    });
 
     console.log('Google Sheets sync successful');
     return true;

@@ -1,5 +1,3 @@
-import { GoogleOAuthProvider } from '@react-oauth/google';
-import { useGoogleLogin } from '@react-oauth/google';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, AlertCircle } from "lucide-react";
@@ -18,21 +16,19 @@ interface GoogleDriveUploaderProps {
   onSuccess?: () => void;
 }
 
-const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
-
 const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: GoogleDriveUploaderProps) => {
   const { toast } = useToast();
 
-  const uploadToGoogleDrive = async (accessToken: string) => {
+  const uploadToGoogleDrive = async () => {
     try {
       if (selectedFiles && selectedFiles.length > 0) {
+        // Use Edge Function with service account
         const { data, error } = await supabase.functions.invoke('upload-to-drive', {
           body: { 
             files: selectedFiles.map(file => ({
               fileUrl: file.file_url,
               fileName: file.file_name
-            })),
-            accessToken 
+            }))
           }
         });
 
@@ -46,8 +42,9 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
         onSuccess?.();
         return data;
       } else if (fileUrl && fileName) {
+        // Single file upload using Edge Function
         const { data, error } = await supabase.functions.invoke('upload-to-drive', {
-          body: { fileUrl, fileName, accessToken }
+          body: { fileUrl, fileName }
         });
 
         if (error) throw error;
@@ -69,25 +66,18 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
     }
   };
 
-  const login = useGoogleLogin({
-    onSuccess: async (response) => {
-      await uploadToGoogleDrive(response.access_token);
-    },
-    scope: 'https://www.googleapis.com/auth/drive.file',
-  });
-
   return (
     <div className="space-y-4">
       <Alert>
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Important</AlertTitle>
+        <AlertTitle>Information</AlertTitle>
         <AlertDescription>
-          Make sure you're logged into the Google account where you want to upload the file{selectedFiles?.length > 1 ? 's' : ''}.
+          Files will be automatically uploaded to your Google Drive storage using service account authentication.
         </AlertDescription>
       </Alert>
       
       <Button
-        onClick={() => login()}
+        onClick={uploadToGoogleDrive}
         className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
       >
         <Upload className="w-4 h-4" />
