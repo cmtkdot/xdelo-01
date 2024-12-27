@@ -17,14 +17,14 @@ export const HeaderMappingSelect = ({
     <div className="flex items-center gap-4">
       <span className="min-w-[120px] text-sm">{header}</span>
       <Select
-        value={value || "none"}
+        value={value || ""}
         onValueChange={onChange}
       >
         <SelectTrigger className="w-[180px]">
           <SelectValue placeholder="Map to column" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="none">None</SelectItem>
+          <SelectItem value="">None</SelectItem>
           {dbColumns.map((column) => (
             <SelectItem key={column} value={column}>
               {column}

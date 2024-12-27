@@ -3,6 +3,7 @@ import useMediaData from "./media/hooks/useMediaData";
 import useMediaSubscription from "./media/hooks/useMediaSubscription";
 import { MediaFilter } from "./media/types";
 import { useToast } from "@/components/ui/use-toast";
+import WebhookInterface from "./webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "./media/types";
 import {
@@ -139,6 +140,10 @@ const MediaGallery = () => {
         isSyncingCaptions={isSyncingCaptions}
         isDeletingDuplicates={isDeletingDuplicates}
       />
+      
+      <div className="w-full">
+        <WebhookInterface selectedMedia={getSelectedMediaData()} />
+      </div>
       
       <div className="w-full backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
         <MediaFilters
