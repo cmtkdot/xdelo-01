@@ -17,7 +17,7 @@ import SuggestionItem from "./components/SuggestionItem";
 import { Suggestion } from "./types/webhookTypes";
 
 interface SuggestionProps {
-  suggestions: Suggestion[];
+  suggestions?: Suggestion[];
   value: string;
   onSelect: (suggestion: Suggestion) => void;
   placeholder?: string;
