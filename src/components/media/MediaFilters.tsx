@@ -6,6 +6,8 @@ interface MediaFiltersProps {
   setSelectedChannel: (value: string) => void;
   selectedType: string;
   setSelectedType: (value: string) => void;
+  uploadStatus: string;
+  setUploadStatus: (value: string) => void;
   channels?: Channel[];
 }
 
@@ -14,6 +16,8 @@ const MediaFilters = ({
   setSelectedChannel,
   selectedType,
   setSelectedType,
+  uploadStatus,
+  setUploadStatus,
   channels = [],
 }: MediaFiltersProps) => {
   return (
@@ -60,6 +64,23 @@ const MediaFilters = ({
           </SelectItem>
           <SelectItem value="channel_post" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
             Channel Posts
+          </SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select value={uploadStatus} onValueChange={setUploadStatus}>
+        <SelectTrigger className="w-full md:w-[180px] bg-[#1A1F2C] border-white/10 text-white/90 font-medium hover:bg-[#222632] focus:ring-purple-500/50">
+          <SelectValue placeholder="Upload Status" />
+        </SelectTrigger>
+        <SelectContent className="bg-[#1A1F2C] border-white/10">
+          <SelectItem value="all" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+            All Files
+          </SelectItem>
+          <SelectItem value="not_uploaded" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+            Not Uploaded
+          </SelectItem>
+          <SelectItem value="uploaded" className="text-white/90 hover:bg-[#222632] focus:bg-[#222632]">
+            Uploaded
           </SelectItem>
         </SelectContent>
       </Select>
