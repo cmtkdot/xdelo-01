@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 const useMediaData = (filter: MediaFilter) => {
   const { toast } = useToast();
   
-  const { data, isLoading, refetch } = useQuery({
+  return useQuery({
     queryKey: ['media', filter],
     queryFn: async () => {
       console.log("Fetching media with filter:", filter);
@@ -45,12 +45,9 @@ const useMediaData = (filter: MediaFilter) => {
         throw error;
       }
       
-      console.log("Fetched media data:", data);
       return data as MediaItem[];
     },
   });
-
-  return { data: data || [], isLoading, refetch };
 };
 
 export default useMediaData;

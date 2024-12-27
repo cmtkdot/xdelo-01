@@ -4,13 +4,12 @@ import useMediaSubscription from "./hooks/useMediaSubscription";
 import MediaCard from "./MediaCard";
 import MediaFilters from "./MediaFilters";
 import MediaGallerySkeleton from "./MediaGallerySkeleton";
-import { MediaFilter } from "./types";
+import { MediaFilter, Channel } from "./types";
 import { Image } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
 import WebhookInterface from "../webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
-import { Channel } from "./types";
 
 const MediaGallery = () => {
   const [filter, setFilter] = useState<MediaFilter>({
@@ -28,7 +27,7 @@ const MediaGallery = () => {
   const fetchChannels = async () => {
     const { data, error } = await supabase
       .from('channels')
-      .select('title, chat_id');
+      .select('id, title, chat_id');  // Added id to the selection
     
     if (error) {
       console.error('Error fetching channels:', error);
@@ -40,7 +39,7 @@ const MediaGallery = () => {
       return;
     }
     
-    setChannels(data || []);
+    setChannels(data as Channel[]);  // Type assertion to Channel[]
   };
 
   useEffect(() => {

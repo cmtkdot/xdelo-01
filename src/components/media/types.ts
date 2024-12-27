@@ -6,7 +6,7 @@ export interface MediaItem {
   file_url: string;
   media_type: string;
   caption?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, any> | null;
   created_at?: string;
   updated_at?: string;
   media_group_id?: string;
@@ -20,8 +20,14 @@ export interface MediaItem {
 }
 
 export interface Channel {
-  id: string;
+  id?: string;  // Made optional since it's not always available from the API
   chat_id: number;
   title: string;
   username?: string;
+}
+
+export interface MediaFilter {
+  selectedChannel: string;
+  selectedType: string;
+  uploadStatus: string;
 }

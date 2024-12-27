@@ -25,18 +25,19 @@ const MediaTable = () => {
   useMediaSubscription(spreadsheetId);
   
   // Fetch channels for the filter
+
   const { data: channels } = useQuery({
     queryKey: ['channels'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('channels')
-        .select('chat_id, title');
+        .select('id, chat_id, title');  // Added id to the selection
       
       if (error) throw error;
-      return data;
+      return data as Channel[];  // Type assertion to Channel[]
     },
   });
-  
+
   const { data: mediaItems, isLoading, error, refetch } = useQuery({
     queryKey: ['media-table', uploadStatus, selectedChannel, selectedType],
     queryFn: async () => {
