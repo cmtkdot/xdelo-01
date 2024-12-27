@@ -18,53 +18,19 @@ import AiChat from "./pages/AiChat";
 import DatabaseChat from "./pages/DatabaseChat";
 import { Toaster } from "./components/ui/toaster";
 import { SidebarProvider } from "./components/ui/sidebar";
-import { useToast } from "./components/ui/use-toast";
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
-    const handleAuthChange = async (event: string, session: any) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        console.log('No session found, redirecting to login');
-        navigate("/login");
-        return;
-      }
-
-      // Check if the session is valid
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error || !user) {
-          console.error('Auth error:', error);
-          toast({
-            title: "Session Expired",
-            description: "Please sign in again",
-            variant: "destructive",
-          });
-          navigate("/login");
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
         navigate("/login");
       }
-    };
-
-    // Set up auth state listener
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(handleAuthChange);
-
-    // Initial auth check
-    handleAuthChange('INITIAL', supabase.auth.getSession());
-
-    // Cleanup subscription
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate, toast]);
+    });
+  }, [navigate]);
 
   return <>{children}</>;
 };
