@@ -6,7 +6,7 @@ export interface MediaItem {
   file_url: string;
   media_type: string;
   caption?: string;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, any> | string | null;  // Updated to handle Json type from Supabase
   created_at?: string;
   updated_at?: string;
   media_group_id?: string;

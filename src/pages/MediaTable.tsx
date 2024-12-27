@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { MediaItem } from "@/components/media/types";
+import { MediaItem, Channel } from "@/components/media/types";  // Added Channel import
 import { useToast } from "@/hooks/use-toast";
 import { GoogleSheetsConfig } from "@/components/media/GoogleSheetsConfig";
 import useMediaSubscription from "@/components/media/hooks/useMediaSubscription";
@@ -31,10 +31,10 @@ const MediaTable = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('channels')
-        .select('id, chat_id, title');  // Added id to the selection
+        .select('id, chat_id, title');
       
       if (error) throw error;
-      return data as Channel[];  // Type assertion to Channel[]
+      return data as Channel[];
     },
   });
 

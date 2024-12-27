@@ -6,6 +6,7 @@ import { AddSpreadsheetForm } from "./google-sheets/AddSpreadsheetForm";
 import { SpreadsheetCard } from "./google-sheets/SpreadsheetCard";
 import { GoogleSheetsConfigProps } from "./google-sheets/types";
 import { syncWithGoogleSheets } from "./utils/googleSheetsSync";
+import { MediaItem } from "./types";
 
 export const GoogleSheetsConfig = ({ 
   onSpreadsheetIdSet, 
@@ -32,7 +33,12 @@ export const GoogleSheetsConfig = ({
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      
+      // Type assertion to handle Supabase Json type
+      return (data || []).map(item => ({
+        ...item,
+        metadata: typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata
+      })) as MediaItem[];
     },
   });
 
