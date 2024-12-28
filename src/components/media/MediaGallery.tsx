@@ -3,6 +3,7 @@ import useMediaData from "./hooks/useMediaData";
 import useMediaSubscription from "./hooks/useMediaSubscription";
 import { MediaFilter } from "./types";
 import { useToast } from "@/components/ui/use-toast";
+import WebhookInterface from "../webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "./types";
 import {
@@ -19,6 +20,9 @@ import MediaGalleryHeader from "./MediaGalleryHeader";
 import MediaFilters from "./MediaFilters";
 import MediaGalleryContent from "./MediaGalleryContent";
 import MediaGallerySkeleton from "./MediaGallerySkeleton";
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
+const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
 const MediaGallery = () => {
   const [filter, setFilter] = useState<MediaFilter>({
@@ -34,7 +38,7 @@ const MediaGallery = () => {
   const { toast } = useToast();
 
   const { data: mediaItems, isLoading, refetch } = useMediaData(filter);
-  useMediaSubscription(refetch);
+  useMediaSubscription(() => refetch());
 
   const fetchChannels = async () => {
     const { data, error } = await supabase
@@ -132,49 +136,55 @@ const MediaGallery = () => {
   }
 
   return (
-    <div className="w-full max-w-[2000px] mx-auto space-y-4 px-4 md:px-6">
-      <MediaGalleryHeader
-        onSyncCaptions={handleSyncCaptions}
-        onDeleteDuplicates={handleDeleteDuplicates}
-        isSyncingCaptions={isSyncingCaptions}
-        isDeletingDuplicates={isDeletingDuplicates}
-      />
-      
-      <div className="w-full backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
-        <MediaFilters
-          selectedChannel={filter.selectedChannel}
-          setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
-          selectedType={filter.selectedType}
-          setSelectedType={(value) => setFilter(prev => ({ ...prev, selectedType: value }))}
-          uploadStatus={filter.uploadStatus}
-          setUploadStatus={(value) => setFilter(prev => ({ ...prev, uploadStatus: value }))}
-          channels={channels}
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <div className="w-full max-w-[2000px] mx-auto space-y-4 px-4 md:px-6">
+        <MediaGalleryHeader
+          onSyncCaptions={handleSyncCaptions}
+          onDeleteDuplicates={handleDeleteDuplicates}
+          isSyncingCaptions={isSyncingCaptions}
+          isDeletingDuplicates={isDeletingDuplicates}
         />
+        
+        <div className="w-full">
+          <WebhookInterface selectedMedia={getSelectedMediaData()} />
+        </div>
+        
+        <div className="w-full backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
+          <MediaFilters
+            selectedChannel={filter.selectedChannel}
+            setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
+            selectedType={filter.selectedType}
+            setSelectedType={(value) => setFilter(prev => ({ ...prev, selectedType: value }))}
+            uploadStatus={filter.uploadStatus}
+            setUploadStatus={(value) => setFilter(prev => ({ ...prev, uploadStatus: value }))}
+            channels={channels}
+          />
+        </div>
+
+        <MediaGalleryContent
+          mediaItems={mediaItems || []}
+          selectedMedia={selectedMedia}
+          onToggleSelect={handleToggleSelect}
+        />
+
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Duplicate Media</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove all duplicate media files, keeping only the newest version of each file. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteDuplicates}>
+                Continue
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-
-      <MediaGalleryContent
-        mediaItems={mediaItems || []}
-        selectedMedia={selectedMedia}
-        onToggleSelect={handleToggleSelect}
-      />
-
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Duplicate Media</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove all duplicate media files, keeping only the newest version of each file. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteDuplicates}>
-              Continue
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+    </GoogleOAuthProvider>
   );
 };
 
