@@ -7,7 +7,7 @@ import {
   getMediaItem,
   formatMediaMetadata 
 } from "./utils/fileHandling.ts";
-import { saveChannel, saveMessage, saveMedia } from "./utils/database.ts";
+import { saveChannel, saveMessage, saveMedia, saveBotUser } from "./utils/database.ts";
 import { uploadToGoogleDrive } from "./utils/googleDrive.ts";
 import { determineMessageType } from "./utils/messageTypes.ts";
 
@@ -74,37 +74,22 @@ serve(async (req) => {
 
     const chat = message.chat;
     
-    const { data: botUser, error: botUserError } = await supabase
-      .from('bot_users')
-      .select('id')
-      .eq('telegram_user_id', message.from?.id?.toString())
-      .single();
-
-    if (botUserError && botUserError.code !== 'PGRST116') {
-      console.error('Error fetching bot user:', botUserError);
-      throw botUserError;
-    }
-
-    let userId;
-    if (!botUser) {
-      const { data: newBotUser, error: createError } = await supabase
-        .from('bot_users')
-        .insert({
-          telegram_user_id: message.from?.id?.toString(),
-          username: message.from?.username,
-          first_name: message.from?.first_name,
-          last_name: message.from?.last_name
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error('Error creating bot user:', createError);
-        throw createError;
-      }
-      userId = newBotUser.id;
-    } else {
-      userId = botUser.id;
+    // Generate a UUID for the user if they don't exist
+    const userId = crypto.randomUUID();
+    
+    // Create or update bot user with proper error handling
+    try {
+      await saveBotUser(
+        supabase,
+        userId,
+        message.from?.id?.toString(),
+        message.from?.username,
+        message.from?.first_name,
+        message.from?.last_name
+      );
+    } catch (error) {
+      console.error('Error creating bot user:', error);
+      throw error;
     }
 
     await saveChannel(supabase, chat, userId);
