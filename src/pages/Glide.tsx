@@ -67,7 +67,7 @@ const Glide = () => {
         <div className="grid gap-4">
           {products?.map((product) => (
             <div 
-              key={product.glide_row_id}
+              key={product.glide_product_row_id}
               className="p-4 rounded-lg border bg-card"
             >
               <pre className="text-sm">
