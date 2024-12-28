@@ -8,8 +8,11 @@ interface GoogleCredentials {
 
 export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
   try {
+    console.log('Starting Google Drive upload for:', fileName);
+    
     const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
     if (!credentialsStr) {
+      console.error('Google credentials not found in environment');
       throw new Error('Google credentials not found');
     }
 
@@ -17,21 +20,23 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
     try {
       // Try to parse credentials, if it fails, assume it's a base64 encoded string
       try {
+        console.log('Attempting direct JSON parse of credentials...');
         credentials = JSON.parse(credentialsStr);
       } catch (parseError) {
-        // If direct parsing fails, try decoding from base64
+        console.log('Direct parse failed, attempting base64 decode...');
         const decodedStr = atob(credentialsStr);
         credentials = JSON.parse(decodedStr);
       }
+      console.log('Successfully parsed Google credentials for:', credentials.client_email);
     } catch (parseError) {
       console.error('Error parsing Google credentials:', parseError);
       throw new Error('Invalid Google credentials format');
     }
 
-    console.log('Successfully parsed Google credentials');
-    
+    console.log('Generating JWT token...');
     const jwt = await generateJWT(credentials);
     
+    console.log('Requesting access token...');
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -44,10 +49,13 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to get access token:', errorText);
       throw new Error(`Failed to get access token: ${response.statusText}`);
     }
 
     const { access_token } = await response.json();
+    console.log('Successfully obtained access token');
 
     // Upload to Google Drive
     const metadata = {
@@ -58,7 +66,7 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
 
-    // Fetch the file from Supabase
+    console.log('Fetching file from:', fileUrl);
     const fileResponse = await fetch(fileUrl);
     if (!fileResponse.ok) {
       throw new Error(`Failed to fetch file from Supabase: ${fileResponse.statusText}`);
@@ -67,6 +75,7 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
     const fileBlob = await fileResponse.blob();
     form.append('file', fileBlob);
 
+    console.log('Uploading file to Google Drive...');
     const uploadResponse = await fetch(
       'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
       {
@@ -85,6 +94,8 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
     }
 
     const driveFile = await uploadResponse.json();
+    console.log('Successfully uploaded to Google Drive. File ID:', driveFile.id);
+    
     return {
       fileId: driveFile.id,
       webViewLink: `https://drive.google.com/file/d/${driveFile.id}/view`
