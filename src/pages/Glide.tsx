@@ -27,9 +27,11 @@ const Glide = () => {
   const handleSync = async () => {
     try {
       setIsSyncing(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const { error } = await supabase.functions.invoke('glide-sync', {
         headers: {
-          Authorization: `Bearer ${supabase.auth.session()?.access_token}`
+          Authorization: `Bearer ${session?.access_token}`
         }
       });
       
