@@ -1,73 +1,81 @@
-export async function generateJWT(credentials: any) {
-  const now = Math.floor(Date.now() / 1000);
-  const exp = now + 3600; // Token expires in 1 hour
+import { generateJWT } from './auth.ts';
 
-  const header = {
-    alg: 'RS256',
-    typ: 'JWT',
-    kid: credentials.private_key_id
-  };
+export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
+  try {
+    const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
+    if (!credentialsStr) {
+      throw new Error('Google credentials not found');
+    }
 
-  const claim = {
-    iss: credentials.client_email,
-    scope: 'https://www.googleapis.com/auth/drive.file',
-    aud: 'https://oauth2.googleapis.com/token',
-    exp: exp,
-    iat: now
-  };
+    let credentials;
+    try {
+      credentials = JSON.parse(credentialsStr);
+    } catch (parseError) {
+      console.error('Error parsing Google credentials:', parseError);
+      throw new Error('Invalid Google credentials format');
+    }
 
-  const encoder = new TextEncoder();
-  const headerB64 = btoa(JSON.stringify(header));
-  const claimB64 = btoa(JSON.stringify(claim));
-  const message = `${headerB64}.${claimB64}`;
+    const jwt = await generateJWT(credentials);
+    
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: jwt,
+      }),
+    });
 
-  const privateKey = await crypto.subtle.importKey(
-    'pkcs8',
-    str2ab(credentials.private_key),
-    {
-      name: 'RSASSA-PKCS1-v1_5',
-      hash: 'SHA-256',
-    },
-    false,
-    ['sign']
-  );
+    if (!response.ok) {
+      throw new Error(`Failed to get access token: ${response.statusText}`);
+    }
 
-  const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    privateKey,
-    encoder.encode(message)
-  );
+    const { access_token } = await response.json();
 
-  return `${message}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`;
-}
+    // Upload to Google Drive
+    const metadata = {
+      name: fileName,
+      parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet']
+    };
 
-function str2ab(str: string): ArrayBuffer {
-  const buf = new ArrayBuffer(str.length);
-  const bufView = new Uint8Array(buf);
-  for (let i = 0, strLen = str.length; i < strLen; i++) {
-    bufView[i] = str.charCodeAt(i);
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+
+    // Fetch the file from Supabase
+    const fileResponse = await fetch(fileUrl);
+    if (!fileResponse.ok) {
+      throw new Error(`Failed to fetch file from Supabase: ${fileResponse.statusText}`);
+    }
+
+    const fileBlob = await fileResponse.blob();
+    form.append('file', fileBlob);
+
+    const uploadResponse = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+        },
+        body: form,
+      }
+    );
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('Google Drive API Error:', errorText);
+      throw new Error(`Failed to upload to Google Drive: ${uploadResponse.statusText}`);
+    }
+
+    const driveFile = await uploadResponse.json();
+    return {
+      fileId: driveFile.id,
+      webViewLink: `https://drive.google.com/file/d/${driveFile.id}/view`
+    };
+  } catch (error) {
+    console.error('Error uploading to Google Drive:', error);
+    throw error;
   }
-  return buf;
-}
-
-export async function getAccessToken(credentials: any) {
-  const jwt = await generateJWT(credentials);
-  
-  const response = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to get access token: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.access_token;
 }
