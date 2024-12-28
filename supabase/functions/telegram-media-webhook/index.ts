@@ -9,7 +9,6 @@ import {
 } from "./utils/fileHandling.ts";
 import { saveChannel, saveMessage, saveMedia } from "./utils/database.ts";
 import { uploadToGoogleDrive } from "./utils/googleDrive.ts";
-import { convertToMp4 } from "./utils/videoProcessing.ts";
 import { determineMessageType } from "./utils/messageTypes.ts";
 
 const corsHeaders = {
@@ -47,11 +46,6 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
     const payload = await req.json();
     console.log("Received webhook payload:", JSON.stringify(payload, null, 2));
 
@@ -70,7 +64,6 @@ serve(async (req) => {
 
     const chat = message.chat;
     
-    // Get or create bot user
     const { data: botUser, error: botUserError } = await supabase
       .from('bot_users')
       .select('id')
@@ -107,7 +100,6 @@ serve(async (req) => {
     await saveChannel(supabase, chat, userId);
     await saveMessage(supabase, chat, message, userId);
 
-    // Log the activity
     await supabase.from("bot_activities").insert({
       event_type: "message_received",
       message_type: messageType,
@@ -142,27 +134,12 @@ serve(async (req) => {
       }
 
       const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
-      const mediaResponse = await fetch(fileUrl);
-      const mediaBuffer = await mediaResponse.arrayBuffer();
-
-      const fileExt = fileData.result.file_path.split('.').pop();
-      const fileName = generateSafeFileName(messageCaption || mediaItem.file_id, fileExt);
-
-      // Convert video to MP4 if needed
-      let finalBuffer = mediaBuffer;
-      if (mediaType === 'video') {
-        try {
-          finalBuffer = await convertToMp4(new Uint8Array(mediaBuffer));
-        } catch (error) {
-          console.error('Error converting video:', error);
-          // Continue with original buffer if conversion fails
-        }
-      }
+      const fileName = generateSafeFileName(messageCaption || mediaItem.file_id, fileData.result.file_path.split('.').pop());
 
       // Upload to Supabase Storage
       const { data: storageData, error: storageError } = await supabase.storage
         .from("telegram-media")
-        .upload(fileName, finalBuffer, {
+        .upload(fileName, await (await fetch(fileUrl)).arrayBuffer(), {
           contentType: mediaItem.mime_type || 'application/octet-stream',
           upsert: true,
         });
@@ -175,7 +152,7 @@ serve(async (req) => {
         .from("telegram-media")
         .getPublicUrl(fileName);
 
-      // Upload to Google Drive
+      // Upload to Google Drive with video conversion if needed
       let driveData;
       try {
         driveData = await uploadToGoogleDrive(publicUrl.publicUrl, fileName);
@@ -184,10 +161,10 @@ serve(async (req) => {
         console.error('Failed to upload to Google Drive:', error);
       }
 
-      // Save media with Google Drive information and correct user_id
+      // Save media with Google Drive information
       const mediaData = await saveMedia(
         supabase,
-        userId, // Use the correct user_id from bot_users
+        userId,
         chat.id,
         fileName,
         publicUrl.publicUrl,

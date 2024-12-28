@@ -1,12 +1,6 @@
 import { generateJWT } from './auth.ts';
 
-interface GoogleCredentials {
-  client_email: string;
-  private_key: string;
-  [key: string]: string;
-}
-
-export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
+export const uploadToGoogleDrive = async (fileUrl: string, fileName: string) => {
   try {
     console.log('Starting Google Drive upload for:', fileName);
     
@@ -16,18 +10,19 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
       throw new Error('Google credentials not found');
     }
 
-    let credentials: GoogleCredentials;
+    let credentials;
     try {
-      // Try to parse credentials, if it fails, assume it's a base64 encoded string
+      // Try parsing as JSON first
+      console.log('Attempting to parse Google credentials...');
       try {
-        console.log('Attempting direct JSON parse of credentials...');
         credentials = JSON.parse(credentialsStr);
-      } catch (parseError) {
+      } catch {
+        // If that fails, try base64 decode
         console.log('Direct parse failed, attempting base64 decode...');
         const decodedStr = atob(credentialsStr);
         credentials = JSON.parse(decodedStr);
       }
-      console.log('Successfully parsed Google credentials for:', credentials.client_email);
+      console.log('Successfully parsed Google credentials');
     } catch (parseError) {
       console.error('Error parsing Google credentials:', parseError);
       throw new Error('Invalid Google credentials format');
@@ -37,7 +32,7 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
     const jwt = await generateJWT(credentials);
     
     console.log('Requesting access token...');
-    const response = await fetch('https://oauth2.googleapis.com/token', {
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -48,34 +43,55 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
       console.error('Failed to get access token:', errorText);
-      throw new Error(`Failed to get access token: ${response.statusText}`);
+      throw new Error(`Failed to get access token: ${tokenResponse.statusText}`);
     }
 
-    const { access_token } = await response.json();
+    const { access_token } = await tokenResponse.json();
     console.log('Successfully obtained access token');
 
-    // Upload to Google Drive
+    // Fetch the file from the provided URL
+    console.log('Fetching file from:', fileUrl);
+    const fileResponse = await fetch(fileUrl);
+    if (!fileResponse.ok) {
+      throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
+    }
+
+    const fileBuffer = await fileResponse.arrayBuffer();
+    const fileType = fileResponse.headers.get('content-type');
+    
+    // Check if video conversion is needed
+    let finalBuffer = new Uint8Array(fileBuffer);
+    let finalFileName = fileName;
+    
+    if (fileType?.startsWith('video/') || fileName.toLowerCase().endsWith('.mov')) {
+      console.log('Video file detected, attempting conversion...');
+      try {
+        finalBuffer = await convertToMp4(fileBuffer);
+        // Update filename to .mp4 if it was converted
+        if (fileName.toLowerCase().endsWith('.mov')) {
+          finalFileName = fileName.replace(/\.mov$/i, '.mp4');
+        }
+        console.log('Video conversion completed');
+      } catch (convError) {
+        console.error('Video conversion failed:', convError);
+        console.log('Using original video file as fallback');
+      }
+    }
+
+    // Prepare metadata for Google Drive
     const metadata = {
-      name: fileName,
-      parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet']
+      name: finalFileName,
+      parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet'] // Telegram Media folder
     };
 
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', new Blob([finalBuffer]));
 
-    console.log('Fetching file from:', fileUrl);
-    const fileResponse = await fetch(fileUrl);
-    if (!fileResponse.ok) {
-      throw new Error(`Failed to fetch file from Supabase: ${fileResponse.statusText}`);
-    }
-
-    const fileBlob = await fileResponse.blob();
-    form.append('file', fileBlob);
-
-    console.log('Uploading file to Google Drive...');
+    console.log('Uploading to Google Drive...');
     const uploadResponse = await fetch(
       'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
       {
@@ -88,9 +104,9 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
     );
 
     if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      console.error('Google Drive API Error:', errorText);
-      throw new Error(`Failed to upload to Google Drive: ${uploadResponse.statusText}`);
+      const errorData = await uploadResponse.text();
+      console.error('Google Drive API Error:', errorData);
+      throw new Error(`Failed to upload to Google Drive: ${finalFileName}`);
     }
 
     const driveFile = await uploadResponse.json();
@@ -104,4 +120,4 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
     console.error('Error uploading to Google Drive:', error);
     throw error;
   }
-}
+};
