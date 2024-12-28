@@ -1,6 +1,3 @@
-import { parseGoogleCredentials } from './credentials.ts';
-import { generateServiceAccountToken } from './auth.ts';
-
 const TELEGRAM_MEDIA_FOLDER = '1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet';
 
 export const uploadToDrive = async (fileUrl: string, fileName: string, accessToken: string) => {
@@ -18,7 +15,7 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
     // Prepare metadata for Google Drive
     const metadata = {
       name: fileName,
-      mimeType: blob.type,
+      mimeType: blob.type || 'application/octet-stream',
       parents: [TELEGRAM_MEDIA_FOLDER]
     };
 
@@ -48,21 +45,13 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
 
     const result = await uploadResponse.json();
     console.log('Successfully uploaded to Google Drive. File ID:', result.id);
-    return result;
+    
+    return {
+      fileId: result.id,
+      webViewLink: `https://drive.google.com/file/d/${result.id}/view`
+    };
   } catch (error) {
     console.error('Error in uploadToDrive:', error);
     throw error;
   }
-};
-
-export const initializeDriveUpload = async () => {
-  const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
-  if (!credentialsStr) {
-    throw new Error('Google credentials not found in environment');
-  }
-
-  const credentials = parseGoogleCredentials(credentialsStr);
-  const accessToken = await generateServiceAccountToken(credentials);
-  
-  return accessToken;
 };

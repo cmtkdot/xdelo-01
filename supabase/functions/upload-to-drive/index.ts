@@ -18,11 +18,7 @@ serve(async (req) => {
     console.log('Starting upload-to-drive function...');
     
     // Parse request body
-    const requestBody = await req.json().catch(error => {
-      console.error('Error parsing request body:', error);
-      throw new Error(`Invalid JSON in request body: ${error.message}`);
-    });
-
+    const requestBody = await req.json();
     if (!requestBody) {
       throw new Error('Request body is empty');
     }
@@ -44,6 +40,9 @@ serve(async (req) => {
       console.log('Processing multiple files:', requestBody.files.length);
       results = await Promise.all(
         requestBody.files.map(async (file) => {
+          if (!file.fileUrl || !file.fileName) {
+            throw new Error('Missing file information');
+          }
           console.log('Processing file:', file.fileName);
           return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
         })

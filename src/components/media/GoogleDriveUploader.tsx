@@ -43,6 +43,30 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
           throw error;
         }
 
+        // Update media records with Google Drive URLs
+        if (data?.results) {
+          const results = Array.isArray(data.results) ? data.results : [data.results];
+          
+          for (let i = 0; i < results.length; i++) {
+            const result = results[i];
+            const mediaItem = selectedFiles[i];
+            
+            if (result.fileId && result.webViewLink) {
+              const { error: updateError } = await supabase
+                .from('media')
+                .update({
+                  google_drive_id: result.fileId,
+                  google_drive_url: result.webViewLink
+                })
+                .eq('id', mediaItem.id);
+
+              if (updateError) {
+                console.error('Error updating media record:', updateError);
+              }
+            }
+          }
+        }
+
         toast({
           title: "Success!",
           description: `Successfully uploaded ${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''} to Google Drive`,
