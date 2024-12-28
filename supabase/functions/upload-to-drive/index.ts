@@ -1,33 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-import { FFmpeg } from 'https://esm.sh/@ffmpeg/ffmpeg@0.12.7'
-import { fetchFile } from 'https://esm.sh/@ffmpeg/util@0.12.1'
+import { isVideoFile, convertToMp4 } from './videoUtils.ts'
+import { uploadToDrive } from './driveUtils.ts'
+import { generateServiceAccountToken } from './authUtils.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
-
-const isVideoFile = (mimeType: string) => {
-  return mimeType.startsWith('video/');
-};
-
-const convertToMp4 = async (inputBuffer: ArrayBuffer, fileName: string): Promise<Blob> => {
-  const ffmpeg = new FFmpeg();
-  await ffmpeg.load();
-  
-  console.log('Starting video conversion for:', fileName);
-  
-  const inputUint8Array = new Uint8Array(inputBuffer);
-  await ffmpeg.writeFile('input', inputUint8Array);
-  
-  await ffmpeg.exec(['-i', 'input', '-c:v', 'libx264', '-preset', 'medium', '-crf', '23', 'output.mp4']);
-  
-  const data = await ffmpeg.readFile('output.mp4');
-  console.log('Video conversion completed');
-  
-  return new Blob([data], { type: 'video/mp4' });
-};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -35,7 +15,21 @@ serve(async (req) => {
   }
 
   try {
-    const { files, fileUrl, fileName } = await req.json()
+    // Ensure the request has a body and it's valid JSON
+    const requestText = await req.text();
+    if (!requestText) {
+      throw new Error('Request body is empty');
+    }
+
+    let requestData;
+    try {
+      requestData = JSON.parse(requestText);
+    } catch (e) {
+      console.error('JSON Parse Error:', e);
+      throw new Error(`Invalid JSON in request body: ${e.message}`);
+    }
+
+    const { files, fileUrl, fileName } = requestData;
     
     // Initialize Supabase client
     const supabase = createClient(
@@ -69,37 +63,8 @@ serve(async (req) => {
         finalFileName = fileName.replace(/\.[^/.]+$/, '.mp4');
       }
 
-      // Prepare metadata for Google Drive
-      const metadata = {
-        name: finalFileName,
-        mimeType: blob.type,
-        parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet'] // Telegram Media folder
-      };
-
-      // Create form data for the Google Drive API
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', blob);
-
-      // Upload to Google Drive using service account
-      const uploadResponse = await fetch(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-          body: form,
-        }
-      );
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.text();
-        console.error('Google Drive API Error:', errorData);
-        throw new Error(`Failed to upload to Google Drive: ${fileName}`);
-      }
-
-      const result = await uploadResponse.json();
+      // Upload to Google Drive
+      const result = await uploadToDrive(blob, finalFileName, jwtToken);
       console.log('Successfully uploaded to Google Drive:', result);
 
       // Get the Google Drive file link
@@ -147,73 +112,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Helper function to generate a JWT token for service account authentication
-async function generateServiceAccountToken(credentials: any) {
-  const now = Math.floor(Date.now() / 1000);
-  const exp = now + 3600; // Token expires in 1 hour
-
-  const header = {
-    alg: 'RS256',
-    typ: 'JWT',
-    kid: credentials.private_key_id
-  };
-
-  const claim = {
-    iss: credentials.client_email,
-    scope: 'https://www.googleapis.com/auth/drive.file',
-    aud: 'https://oauth2.googleapis.com/token',
-    exp: exp,
-    iat: now
-  };
-
-  const encoder = new TextEncoder();
-  const headerB64 = btoa(JSON.stringify(header));
-  const claimB64 = btoa(JSON.stringify(claim));
-  const message = `${headerB64}.${claimB64}`;
-
-  // Convert PEM to CryptoKey
-  const privateKey = await crypto.subtle.importKey(
-    'pkcs8',
-    str2ab(credentials.private_key),
-    {
-      name: 'RSASSA-PKCS1-v1_5',
-      hash: 'SHA-256',
-    },
-    false,
-    ['sign']
-  );
-
-  const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    privateKey,
-    encoder.encode(message)
-  );
-
-  const jwt = `${message}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`;
-
-  // Exchange JWT for access token
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
-    }),
-  });
-
-  const tokenData = await tokenResponse.json();
-  return tokenData.access_token;
-}
-
-// Helper function to convert string to ArrayBuffer
-function str2ab(str: string): ArrayBuffer {
-  const buf = new ArrayBuffer(str.length);
-  const bufView = new Uint8Array(buf);
-  for (let i = 0, strLen = str.length; i < strLen; i++) {
-    bufView[i] = str.charCodeAt(i);
-  }
-  return buf;
-}
