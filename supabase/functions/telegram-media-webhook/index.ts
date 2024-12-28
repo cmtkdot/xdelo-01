@@ -10,6 +10,7 @@ import {
 import { saveChannel, saveMessage, saveMedia } from "./utils/database.ts";
 import { uploadToGoogleDrive } from "./utils/googleDrive.ts";
 import { convertToMp4 } from "./utils/videoProcessing.ts";
+import { determineMessageType } from "./utils/messageTypes.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
