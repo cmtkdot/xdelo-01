@@ -21,7 +21,7 @@ const MediaTable = () => {
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   
-  useMediaSubscription(spreadsheetId);
+  useMediaSubscription(() => refetch());
   
   // Fetch channels for the filter
   const { data: channels } = useQuery({

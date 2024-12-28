@@ -1,10 +1,7 @@
-import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const useMediaSubscription = (refetch: () => void) => {
-  const { toast } = useToast();
-
   useEffect(() => {
     const channel = supabase
       .channel('media_changes')
@@ -15,22 +12,9 @@ const useMediaSubscription = (refetch: () => void) => {
           schema: 'public',
           table: 'media'
         },
-        async (payload) => {
-          console.log('Received real-time update:', payload);
-          
-          // Invalidate and refetch media data
-          await refetch();
-          
-          const eventMessages = {
-            INSERT: 'New media file added',
-            UPDATE: 'Media file updated',
-            DELETE: 'Media file removed'
-          };
-
-          toast({
-            title: eventMessages[payload.eventType as keyof typeof eventMessages] || 'Media changed',
-            description: "The media gallery has been updated",
-          });
+        () => {
+          console.log('Media table changed, refetching...');
+          refetch();
         }
       )
       .subscribe();
@@ -38,7 +22,7 @@ const useMediaSubscription = (refetch: () => void) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refetch, toast]);
+  }, [refetch]);
 };
 
 export default useMediaSubscription;

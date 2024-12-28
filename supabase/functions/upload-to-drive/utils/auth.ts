@@ -4,6 +4,14 @@ export const generateServiceAccountToken = async (credentials: any) => {
   try {
     console.log('Generating service account token...');
     
+    if (!credentials || typeof credentials !== 'object') {
+      throw new Error('Invalid credentials format');
+    }
+
+    if (!credentials.client_email || !credentials.private_key) {
+      throw new Error('Missing required credential fields: client_email or private_key');
+    }
+    
     const now = Math.floor(Date.now() / 1000);
     const claims = {
       iss: credentials.client_email,
