@@ -34,7 +34,7 @@ const MediaGalleryContainer = () => {
   const { toast } = useToast();
 
   const { data: mediaItems, isLoading, refetch } = useMediaData(filter);
-  useMediaSubscription();
+  useMediaSubscription(() => refetch());
 
   const fetchChannels = async () => {
     const { data, error } = await supabase
