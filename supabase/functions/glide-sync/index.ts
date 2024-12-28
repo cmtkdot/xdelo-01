@@ -6,8 +6,14 @@ import { mapGlideProductToSupabase } from './productMapper.ts';
 const GLIDE_BATCH_LIMIT = 500;
 
 serve(async (req) => {
+  // Always handle CORS preflight requests first
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Max-Age': '86400',
+      } 
+    });
   }
 
   try {
@@ -18,12 +24,11 @@ serve(async (req) => {
     const glideTableProducts = Deno.env.get('GLIDE_TABLE_PRODUCTS');
 
     if (!glideApiToken || !glideAppId || !glideTableProducts) {
-      throw new Error('Missing Glide configuration');
+      throw new Error('Missing required Glide configuration');
     }
 
-    console.log('Using table:', glideTableProducts);
-
-    // Fetch products from Glide with limit
+    console.log('Fetching products from Glide API...');
+    
     const response = await fetch('https://api.glideapp.io/api/function/queryTables', {
       method: 'POST',
       headers: {
@@ -43,8 +48,8 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Glide API error:', errorText);
-      throw new Error(`Glide API error: ${response.statusText}`);
+      console.error('Glide API error response:', errorText);
+      throw new Error(`Glide API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -60,7 +65,12 @@ serve(async (req) => {
           message: 'No products to sync',
           count: 0 
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
       );
     }
 
@@ -75,6 +85,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Map and validate products
+    console.log('Mapping products to Supabase schema...');
     const mappedProducts = products
       .map(mapGlideProductToSupabase)
       .filter(product => {
@@ -89,7 +100,7 @@ serve(async (req) => {
       throw new Error('No valid products to sync after filtering');
     }
 
-    console.log(`Attempting to sync ${mappedProducts.length} valid products`);
+    console.log(`Attempting to sync ${mappedProducts.length} valid products to Supabase...`);
 
     const { error: productsError } = await supabase
       .from('glide_products')
@@ -108,15 +119,26 @@ serve(async (req) => {
         message: 'Products synced successfully',
         count: mappedProducts.length 
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
     );
   } catch (error) {
     console.error('Error syncing Glide products:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack
+      }),
       { 
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        }
       }
     );
   }
