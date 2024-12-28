@@ -1,5 +1,11 @@
 import { generateJWT } from './auth.ts';
 
+interface GoogleCredentials {
+  client_email: string;
+  private_key: string;
+  [key: string]: string;
+}
+
 export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
   try {
     const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
@@ -7,14 +13,23 @@ export async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
       throw new Error('Google credentials not found');
     }
 
-    let credentials;
+    let credentials: GoogleCredentials;
     try {
-      credentials = JSON.parse(credentialsStr);
+      // Try to parse credentials, if it fails, assume it's a base64 encoded string
+      try {
+        credentials = JSON.parse(credentialsStr);
+      } catch (parseError) {
+        // If direct parsing fails, try decoding from base64
+        const decodedStr = atob(credentialsStr);
+        credentials = JSON.parse(decodedStr);
+      }
     } catch (parseError) {
       console.error('Error parsing Google credentials:', parseError);
       throw new Error('Invalid Google credentials format');
     }
 
+    console.log('Successfully parsed Google credentials');
+    
     const jwt = await generateJWT(credentials);
     
     const response = await fetch('https://oauth2.googleapis.com/token', {
