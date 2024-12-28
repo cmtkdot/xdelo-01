@@ -156,8 +156,8 @@ export const saveMedia = async (
   caption: string | null,
   metadata: any,
   mediaGroupId?: string,
-  googleDriveId?: string,
-  googleDriveUrl?: string
+  googleDriveId?: string | null,
+  googleDriveUrl?: string | null
 ) => {
   try {
     // Ensure metadata is a valid JSON object
@@ -187,10 +187,10 @@ export const saveMedia = async (
         return updatedMedia;
       }
       
-      console.log(`Skipping duplicate media upload and keeping existing data`);
       return existingMedia;
     }
 
+    // Insert new media record even if Google Drive upload failed
     const { data: mediaData, error: mediaError } = await supabase
       .from("media")
       .insert({
@@ -215,7 +215,6 @@ export const saveMedia = async (
 
     // If this media is part of a group, automatically sync captions
     if (mediaGroupId && caption) {
-      console.log(`Auto-syncing caption for media group ${mediaGroupId}`);
       try {
         await syncMediaGroupCaption(supabase, mediaGroupId, caption);
       } catch (syncError) {

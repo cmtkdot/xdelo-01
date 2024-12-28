@@ -7,31 +7,26 @@ export const uploadToGoogleDrive = async (fileUrl: string, fileName: string) => 
     const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
     if (!credentialsStr) {
       console.error('Google credentials not found in environment');
-      throw new Error('Google credentials not found');
+      return null;
     }
 
     let credentials;
     try {
-      // Try parsing as JSON first
-      console.log('Attempting to parse Google credentials...');
+      // First try parsing as JSON
+      credentials = JSON.parse(credentialsStr);
+    } catch {
       try {
-        credentials = JSON.parse(credentialsStr);
-      } catch {
-        // If that fails, try base64 decode
-        console.log('Direct parse failed, attempting base64 decode...');
+        // If JSON parse fails, try base64 decode
         const decodedStr = atob(credentialsStr);
         credentials = JSON.parse(decodedStr);
+      } catch (error) {
+        console.error('Failed to parse Google credentials:', error);
+        return null;
       }
-      console.log('Successfully parsed Google credentials');
-    } catch (parseError) {
-      console.error('Error parsing Google credentials:', parseError);
-      throw new Error('Invalid Google credentials format');
     }
 
-    console.log('Generating JWT token...');
     const jwt = await generateJWT(credentials);
     
-    console.log('Requesting access token...');
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -44,54 +39,31 @@ export const uploadToGoogleDrive = async (fileUrl: string, fileName: string) => 
     });
 
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('Failed to get access token:', errorText);
-      throw new Error(`Failed to get access token: ${tokenResponse.statusText}`);
+      console.error('Failed to get access token:', await tokenResponse.text());
+      return null;
     }
 
     const { access_token } = await tokenResponse.json();
-    console.log('Successfully obtained access token');
 
-    // Fetch the file from the provided URL
-    console.log('Fetching file from:', fileUrl);
+    // Fetch the file
     const fileResponse = await fetch(fileUrl);
     if (!fileResponse.ok) {
-      throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
+      console.error('Failed to fetch file:', fileResponse.statusText);
+      return null;
     }
 
     const fileBuffer = await fileResponse.arrayBuffer();
-    const fileType = fileResponse.headers.get('content-type');
     
-    // Check if video conversion is needed
-    let finalBuffer = new Uint8Array(fileBuffer);
-    let finalFileName = fileName;
-    
-    if (fileType?.startsWith('video/') || fileName.toLowerCase().endsWith('.mov')) {
-      console.log('Video file detected, attempting conversion...');
-      try {
-        finalBuffer = await convertToMp4(fileBuffer);
-        // Update filename to .mp4 if it was converted
-        if (fileName.toLowerCase().endsWith('.mov')) {
-          finalFileName = fileName.replace(/\.mov$/i, '.mp4');
-        }
-        console.log('Video conversion completed');
-      } catch (convError) {
-        console.error('Video conversion failed:', convError);
-        console.log('Using original video file as fallback');
-      }
-    }
-
     // Prepare metadata for Google Drive
     const metadata = {
-      name: finalFileName,
+      name: fileName,
       parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet'] // Telegram Media folder
     };
 
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', new Blob([finalBuffer]));
+    form.append('file', new Blob([fileBuffer]));
 
-    console.log('Uploading to Google Drive...');
     const uploadResponse = await fetch(
       'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
       {
@@ -104,9 +76,8 @@ export const uploadToGoogleDrive = async (fileUrl: string, fileName: string) => 
     );
 
     if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.text();
-      console.error('Google Drive API Error:', errorData);
-      throw new Error(`Failed to upload to Google Drive: ${finalFileName}`);
+      console.error('Google Drive API Error:', await uploadResponse.text());
+      return null;
     }
 
     const driveFile = await uploadResponse.json();
@@ -117,7 +88,7 @@ export const uploadToGoogleDrive = async (fileUrl: string, fileName: string) => 
       webViewLink: `https://drive.google.com/file/d/${driveFile.id}/view`
     };
   } catch (error) {
-    console.error('Error uploading to Google Drive:', error);
-    throw error;
+    console.error('Error in uploadToGoogleDrive:', error);
+    return null;
   }
 };
