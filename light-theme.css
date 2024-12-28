@@ -1,0 +1,325 @@
+/* Light Theme with Enhanced Glassmorphism */
+
+/* Global Background and Container Styles */
+body, #page-root {
+  background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%) !important;
+  min-height: 100vh !important;
+}
+
+/* Enhanced Glassmorphism Card Effect */
+[class*="StyledDiv2"][class*="card-collection-card"]>div,
+[class*="dropdown"],
+[class*="select"],
+.select-container,
+.media-gallery {
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  background: rgba(255, 255, 255, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.05),
+    0 2px 8px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  border-radius: 12px !important;
+}
+
+/* Media Item Card Styles */
+.media-item {
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  transition: all 0.2s ease !important;
+}
+
+.media-item h3,
+.media-item h4,
+.media-item p,
+.media-item span {
+  color: #333333 !important;
+  font-weight: 500 !important;
+}
+
+.media-item .title {
+  color: #222222 !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  margin: 8px 12px !important;
+}
+
+.media-item .subtitle {
+  color: #666666 !important;
+  font-size: 14px !important;
+  margin: 4px 12px !important;
+}
+
+/* Dropdown Styles */
+[class*="dropdown"],
+[class*="select"] {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  color: #333333 !important;
+}
+
+[class*="dropdown"] span,
+[class*="dropdown"] div,
+[class*="select"] span,
+[class*="select"] div {
+  color: #333333 !important;
+  font-weight: 500 !important;
+}
+
+[class*="dropdown-option"],
+[class*="select-option"] {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #333333 !important;
+  padding: 10px 16px !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+[class*="dropdown-option"]:hover,
+[class*="select-option"]:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #222222 !important;
+}
+
+[class*="dropdown-option"].active,
+[class*="select-option"].selected {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: #222222 !important;
+  font-weight: 600 !important;
+}
+
+/* Controls Container */
+.controls {
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  padding: 12px !important;
+  border-radius: 12px !important;
+  display: flex !important;
+  gap: 12px !important;
+  margin-bottom: 20px !important;
+}
+
+.controls button {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  color: #333333 !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
+.controls button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.9) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.controls button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+.controls .delete-btn {
+  color: #dc2626 !important;
+  border-color: rgba(220, 38, 38, 0.2) !important;
+}
+
+.controls .delete-btn:hover:not(:disabled) {
+  background: rgba(254, 242, 242, 0.9) !important;
+  border-color: rgba(220, 38, 38, 0.3) !important;
+}
+
+/* Media Grid Layout */
+.media-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 20px !important;
+  padding: 20px !important;
+}
+
+/* Media Gallery Specific Styles */
+.media-gallery {
+  padding: 24px !important;
+  border-radius: 12px !important;
+}
+
+/* Text Hierarchy with Improved Contrast */
+h1, h2, h3, h4, h5, h6 {
+  color: #333333 !important;
+  background: linear-gradient(90deg, #333333, #666666) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  font-weight: 600 !important;
+}
+
+/* Body Text */
+p, span, div {
+  color: #666666 !important;
+}
+
+/* Secondary Text */
+.secondary-text {
+  color: #999999 !important;
+}
+
+/* Button Styling */
+button, .button {
+  background: linear-gradient(135deg, #cccccc 0%, #999999 100%) !important;
+  color: #333333 !important;
+  border: none !important;
+  backdrop-filter: blur(4px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Input Fields */
+input, textarea, select {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #666666 !important;
+}
+
+/* Links */
+a {
+  color: #666666 !important;
+  text-decoration: none !important;
+}
+
+/* Table Styling */
+table {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+th {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #333333 !important;
+}
+
+td {
+  color: #666666 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Card Hover Effects */
+[class*="card-collection-card"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.3s ease !important;
+}
+
+/* Accent Elements */
+.accent-element {
+  background: linear-gradient(135deg, #cccccc 0%, #999999 100%) !important;
+  color: #333333 !important;
+}
+
+/* Status Indicators */
+.status-active {
+  background: linear-gradient(135deg, #cccccc 0%, #999999 100%) !important;
+  color: #333333 !important;
+}
+
+.status-pending {
+  background: linear-gradient(135deg, #cccccc 0%, #999999 100%) !important;
+  color: #666666 !important;
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Navigation Elements */
+nav {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(229, 233, 255, 0.5) !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #cccccc 0%, #999999 100%) !important;
+  border-radius: 4px !important;
+}
+
+/* Focus States */
+*:focus {
+  outline: 2px solid rgba(0, 0, 0, 0.5) !important;
+  outline-offset: 2px !important;
+}
+
+/* Messages */
+.message {
+  padding: 12px 16px !important;
+  border-radius: 6px !important;
+  margin: 16px 0 !important;
+  font-weight: 500 !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.message.success {
+  background: rgba(167, 243, 208, 0.2) !important;
+  border: 1px solid rgba(16, 185, 129, 0.2) !important;
+  color: #059669 !important;
+}
+
+.message.error {
+  background: rgba(254, 242, 242, 0.2) !important;
+  border: 1px solid rgba(220, 38, 38, 0.2) !important;
+  color: #dc2626 !important;
+}
+
+.media-item img {
+  width: 100% !important;
+  height: 200px !important;
+  object-fit: cover !important;
+}
+
+.media-item textarea {
+  width: 100% !important;
+  padding: 12px !important;
+  border: none !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #333333 !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  resize: vertical !important;
+  min-height: 60px !important;
+}
+
+.media-item.selected {
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.media-item.duplicate {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3) !important;
+}

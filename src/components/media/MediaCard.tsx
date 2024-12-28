@@ -26,44 +26,44 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   return (
     <>
       <Card 
-        className="group relative overflow-hidden backdrop-blur-xl bg-black/40 border border-white/10 hover:bg-black/50 transition-all duration-300 cursor-pointer"
+        className="group relative overflow-hidden backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-gray-200/50 dark:border-white/10 hover:bg-white/95 dark:hover:bg-black/50 transition-all duration-300 cursor-pointer shadow-sm h-full"
         onClick={handleCardClick}
       >
-        <div className="absolute top-2 left-2 z-10 checkbox-area">
+        <div className="absolute top-1.5 left-1.5 z-10 checkbox-area">
           <Checkbox
             checked={isSelected}
             onCheckedChange={() => onToggleSelect(item.id)}
-            className="bg-white/20 border-white/30 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+            className="h-[18px] w-[18px] bg-white/80 border-gray-300 dark:bg-white/20 dark:border-white/30 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
           />
         </div>
         
         <CardContent className="p-0 flex flex-col h-full">
-          <div className="relative w-full h-48 group-hover:scale-105 transition-transform duration-300">
+          <div className="relative w-full aspect-square group-hover:scale-105 transition-transform duration-300">
             {isVideo ? (
               <video
                 src={item.file_url}
-                className="absolute inset-0 w-full h-full object-cover rounded-t-lg"
+                className="absolute inset-0 w-full h-full object-cover"
                 preload="metadata"
               />
             ) : (
               <img
                 src={item.file_url}
                 alt={item.caption || "Media"}
-                className="absolute inset-0 w-full h-full object-cover rounded-t-lg"
+                className="absolute inset-0 w-full h-full object-cover"
                 loading="lazy"
               />
             )}
           </div>
           
-          <div className="p-2 md:p-3 space-y-1.5 flex-1 flex flex-col bg-black/60 backdrop-blur-sm">
+          <div className="p-1.5 sm:p-2 md:p-3 space-y-1 flex-1 flex flex-col bg-white/95 dark:bg-black/60 backdrop-blur-sm">
             {item.caption && (
-              <p className="text-xs md:text-sm text-white/90 font-medium line-clamp-2 flex-1">
+              <p className="text-[11px] sm:text-xs md:text-sm text-gray-700 dark:text-white/90 font-medium line-clamp-2 flex-1">
                 {item.caption}
               </p>
             )}
             
-            <div className="flex justify-between items-center text-[10px] md:text-xs text-white/90 mt-auto font-medium">
-              <span className="truncate max-w-[100px] md:max-w-[120px]">
+            <div className="flex justify-between items-center text-[9px] sm:text-[10px] md:text-xs text-gray-600 dark:text-white/90 mt-auto font-medium">
+              <span className="truncate max-w-[80px] sm:max-w-[100px] md:max-w-[120px]">
                 {item.chat?.title || "Unknown Channel"}
               </span>
               <span className="shrink-0">

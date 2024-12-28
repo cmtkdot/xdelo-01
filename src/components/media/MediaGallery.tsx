@@ -8,7 +8,6 @@ import { MediaFilter, Channel } from "./types";
 import { Image } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
-import WebhookInterface from "../webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
 
 const MediaGallery = () => {
@@ -27,7 +26,7 @@ const MediaGallery = () => {
   const fetchChannels = async () => {
     const { data, error } = await supabase
       .from('channels')
-      .select('id, title, chat_id');  // Added id to the selection
+      .select('id, title, chat_id');
     
     if (error) {
       console.error('Error fetching channels:', error);
@@ -39,7 +38,7 @@ const MediaGallery = () => {
       return;
     }
     
-    setChannels(data as Channel[]);  // Type assertion to Channel[]
+    setChannels(data as Channel[]);
   };
 
   useEffect(() => {
@@ -69,18 +68,14 @@ const MediaGallery = () => {
 
   return (
     <div className="w-full max-w-[2000px] mx-auto space-y-4">
-      <div className="flex items-center gap-2 backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
-        <Image className="w-6 h-6 text-purple-400" />
-        <h2 className="text-lg md:text-xl font-bold text-white/90">
+      <div className="flex items-center gap-2 backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-gray-200/50 dark:border-white/10 p-4 rounded-lg shadow-sm">
+        <Image className="w-6 h-6 text-blue-500 dark:text-purple-400" />
+        <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white/90">
           Media Gallery
         </h2>
       </div>
       
-      <div className="backdrop-blur-xl bg-black/40 border border-white/10 p-4 md:p-6 rounded-lg">
-        <WebhookInterface selectedMedia={getSelectedMediaData()} />
-      </div>
-      
-      <div className="backdrop-blur-xl bg-black/40 border border-white/10 p-4 md:p-6 rounded-lg">
+      <div className="backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-gray-200/50 dark:border-white/10 p-4 md:p-6 rounded-lg shadow-sm">
         <MediaFilters
           selectedChannel={filter.selectedChannel}
           setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
@@ -93,17 +88,17 @@ const MediaGallery = () => {
       </div>
 
       {!mediaItems || mediaItems.length === 0 ? (
-        <div className="backdrop-blur-xl bg-black/40 border border-white/10 p-4 md:p-6 rounded-lg text-center">
-          <p className="text-white/90 text-sm md:text-base font-medium">
+        <div className="backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-gray-200/50 dark:border-white/10 p-4 md:p-6 rounded-lg text-center shadow-sm">
+          <p className="text-gray-600 dark:text-white/90 text-sm md:text-base font-medium">
             No media files yet. Send some media to your Telegram bot!
           </p>
         </div>
       ) : (
         <ScrollArea className="h-[calc(100vh-16rem)]">
-          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4 pb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 pb-6">
             {mediaItems.map((item) => (
               <MediaCard 
-                key={item.id} 
+                key={item.id}
                 item={item}
                 isSelected={selectedMedia.has(item.id)}
                 onToggleSelect={handleToggleSelect}

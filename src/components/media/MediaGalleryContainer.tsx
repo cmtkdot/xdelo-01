@@ -4,12 +4,21 @@ import useMediaSubscription from "./hooks/useMediaSubscription";
 import { MediaFilter, Channel } from "./types";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import MediaGalleryHeader from "./MediaGalleryHeader";
 import MediaFilters from "./MediaFilters";
 import MediaGalleryContent from "./MediaGalleryContent";
 import MediaGallerySkeleton from "./MediaGallerySkeleton";
 import DeleteMediaDialog from "./DeleteMediaDialog";
-import WebhookInterface from "../webhook/WebhookInterface";
 
 const MediaGalleryContainer = () => {
   const [filter, setFilter] = useState<MediaFilter>({
@@ -130,10 +139,6 @@ const MediaGalleryContainer = () => {
         isSyncingCaptions={isSyncingCaptions}
         isDeletingDuplicates={isDeletingDuplicates}
       />
-      
-      <div className="w-full">
-        <WebhookInterface selectedMedia={getSelectedMediaData()} />
-      </div>
       
       <div className="w-full backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
         <MediaFilters

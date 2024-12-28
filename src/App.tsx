@@ -41,12 +41,18 @@ function App() {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <Router>
           <SidebarProvider>
-            <div className="min-h-screen w-full bg-gradient-to-br from-blue-50/80 via-white to-blue-50/80 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] dark:from-blue-900 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
-              {/* Animated background elements - subtle in light mode */}
+            <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50 via-blue-100/50 to-indigo-100/50 dark:from-blue-900 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
+              {/* Animated background elements - tech-inspired for both modes */}
               <div className="fixed inset-0 pointer-events-none">
-                <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-40"></div>
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-100/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-100/20 dark:bg-teal-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
+                {/* Dot pattern - tech grid */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(59,130,246,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(59,130,246,0.1)_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+                
+                {/* Gradient orbs - more vibrant in light mode */}
+                <div className="absolute -top-24 -left-24 w-96 h-96 bg-gradient-to-r from-blue-400/30 to-indigo-400/30 dark:from-blue-500/10 dark:to-indigo-500/10 rounded-full blur-3xl animate-float"></div>
+                <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-gradient-to-r from-indigo-400/30 to-purple-400/30 dark:from-indigo-500/10 dark:to-purple-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
+                
+                {/* Tech-inspired accent lines */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_500px_at_50%_200px,rgba(59,130,246,0.1),transparent)] dark:bg-[radial-gradient(circle_500px_at_50%_200px,rgba(59,130,246,0.05),transparent)]"></div>
               </div>
               
               <Routes>

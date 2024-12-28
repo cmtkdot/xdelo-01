@@ -75,11 +75,19 @@ const Login = () => {
                 input: "bg-black/20 border-white/10 text-white placeholder:text-white/50 focus:border-blue-500/50 transition-all duration-200",
                 anchor: "text-blue-400 hover:text-blue-300 transition-colors",
                 divider: "text-white/50",
-                message: "text-white",
+                message: "text-white bg-red-500 p-3 rounded-md",
               },
               style: {
                 input: {
                   color: 'white',
+                },
+                message: {
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  marginBottom: '16px',
+                  fontWeight: '500',
                 },
               },
             }}
