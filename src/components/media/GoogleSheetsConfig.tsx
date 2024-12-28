@@ -7,10 +7,12 @@ import { SpreadsheetCard } from "./google-sheets/SpreadsheetCard";
 import { GoogleSheetsConfigProps } from "./google-sheets/types";
 import { syncWithGoogleSheets } from "./utils/googleSheetsSync";
 import { MediaItem } from "./types";
+import { useToast } from "@/components/ui/use-toast";
 
 const SPECIFIC_SPREADSHEET_ID = "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w";
 const SPECIFIC_GID = "584740191";
 const SYNC_COLUMNS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+const SYNC_INTERVAL = 30000; // Sync every 30 seconds
 
 export const GoogleSheetsConfig = ({ 
   onSpreadsheetIdSet, 
@@ -18,6 +20,7 @@ export const GoogleSheetsConfig = ({
   googleSheetId,
   sheetsConfig = []
 }: GoogleSheetsConfigProps) => {
+  const { toast } = useToast();
   const {
     spreadsheets,
     handleAddSpreadsheet,
@@ -25,8 +28,9 @@ export const GoogleSheetsConfig = ({
     removeSpreadsheet
   } = useGoogleSheetsConfig(selectedMedia);
 
+  // Query to fetch all media or selected media
   const { data: allMedia } = useQuery({
-    queryKey: ['all-media'],
+    queryKey: ['all-media', selectedMedia.length],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('media')
@@ -38,34 +42,50 @@ export const GoogleSheetsConfig = ({
 
       if (error) throw error;
       
-      return (data || []).map(item => ({
+      // If there are selected media items, only sync those
+      const mediaToSync = selectedMedia.length > 0 
+        ? data?.filter(item => selectedMedia.includes(item.id))
+        : data;
+      
+      return (mediaToSync || []).map(item => ({
         ...item,
         metadata: typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata
       })) as MediaItem[];
     },
   });
 
+  // Function to perform sync
+  const performSync = async (spreadsheetId: string, gid?: string) => {
+    const sheet = spreadsheets.find(s => s.id === spreadsheetId);
+    if (!sheet?.isHeadersMapped || !sheet.autoSync || !allMedia) {
+      console.log('Skipping sync - conditions not met:', {
+        isHeadersMapped: sheet?.isHeadersMapped,
+        autoSync: sheet?.autoSync,
+        hasMedia: Boolean(allMedia)
+      });
+      return;
+    }
+
+    try {
+      await syncWithGoogleSheets(spreadsheetId, allMedia, gid, SYNC_COLUMNS);
+      console.log(`Synced with spreadsheet: ${spreadsheetId}${gid ? ` (GID: ${gid})` : ''}`);
+      toast({
+        title: "Sync Successful",
+        description: "Media data has been synchronized with Google Sheets",
+      });
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Sync Failed",
+        description: error instanceof Error ? error.message : "Failed to sync with Google Sheets",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Set up automatic sync interval
   useEffect(() => {
-    const syncData = async (spreadsheetId: string, gid?: string) => {
-      const sheet = spreadsheets.find(s => s.id === spreadsheetId);
-      if (!sheet?.isHeadersMapped || !sheet.autoSync || !allMedia) {
-        console.log('Skipping sync - conditions not met:', {
-          isHeadersMapped: sheet?.isHeadersMapped,
-          autoSync: sheet?.autoSync,
-          hasMedia: Boolean(allMedia)
-        });
-        return;
-      }
-
-      try {
-        await syncWithGoogleSheets(spreadsheetId, allMedia, gid, SYNC_COLUMNS);
-        console.log(`Auto-synced with spreadsheet: ${spreadsheetId}${gid ? ` (GID: ${gid})` : ''}`);
-      } catch (error) {
-        console.error('Auto-sync error:', error);
-      }
-    };
-
-    // Add specific spreadsheet on mount
+    // Add specific spreadsheet on mount if not already configured
     const isConfigured = spreadsheets.some(sheet => 
       sheet.id === SPECIFIC_SPREADSHEET_ID && sheet.gid === SPECIFIC_GID
     );
@@ -78,6 +98,16 @@ export const GoogleSheetsConfig = ({
       );
     }
 
+    // Set up interval for auto-sync
+    const syncInterval = setInterval(() => {
+      spreadsheets.forEach(sheet => {
+        if (sheet.autoSync && sheet.isHeadersMapped) {
+          performSync(sheet.id, sheet.gid);
+        }
+      });
+    }, SYNC_INTERVAL);
+
+    // Set up real-time sync on media changes
     const channels = spreadsheets
       .filter(sheet => sheet.autoSync && sheet.isHeadersMapped)
       .map(sheet => {
@@ -88,12 +118,13 @@ export const GoogleSheetsConfig = ({
             schema: 'public', 
             table: 'media' 
           }, async () => {
-            await syncData(sheet.id, sheet.gid);
+            await performSync(sheet.id, sheet.gid);
           })
           .subscribe();
       });
 
     return () => {
+      clearInterval(syncInterval);
       channels.forEach(channel => channel.unsubscribe());
     };
   }, [spreadsheets, allMedia]);
@@ -114,14 +145,25 @@ export const GoogleSheetsConfig = ({
 
       if (error) throw error;
 
+      // Perform initial sync after mapping is complete
       const sheet = spreadsheets.find(s => s.id === spreadsheetId);
       if (sheet?.autoSync && allMedia) {
-        await syncWithGoogleSheets(spreadsheetId, allMedia, sheet.gid, SYNC_COLUMNS);
+        await performSync(spreadsheetId, sheet.gid);
       }
+
+      toast({
+        title: "Success",
+        description: "Header mapping completed and initial sync performed",
+      });
 
       onSpreadsheetIdSet(spreadsheetId);
     } catch (error) {
       console.error('Error completing header mapping:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete header mapping",
+        variant: "destructive",
+      });
     }
   };
 
