@@ -2,7 +2,7 @@ import { Json } from '../base';
 
 export interface GlideProducts {
   Row: {
-    glide_row_id: string;
+    glide_product_row_id: string;
     product_data: Json;
     last_synced: string | null;
     created_at: string | null;
@@ -43,7 +43,7 @@ export interface GlideProducts {
     supabase_google_url: string | null;
   };
   Insert: {
-    glide_row_id: string;
+    glide_product_row_id: string;
     product_data: Json;
     last_synced?: string | null;
     created_at?: string | null;
@@ -84,7 +84,7 @@ export interface GlideProducts {
     supabase_google_url?: string | null;
   };
   Update: {
-    glide_row_id?: string;
+    glide_product_row_id?: string;
     product_data?: Json;
     last_synced?: string | null;
     created_at?: string | null;
