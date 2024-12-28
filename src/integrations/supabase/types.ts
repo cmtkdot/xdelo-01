@@ -173,6 +173,36 @@ export type Database = {
         }
         Relationships: []
       }
+      file_links: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          id: string
+          public_url: string
+          updated_at: string | null
+          uploaded_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          id?: string
+          public_url: string
+          updated_at?: string | null
+          uploaded_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          id?: string
+          public_url?: string
+          updated_at?: string | null
+          uploaded_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       glide_products: {
         Row: {
           account_row_id: string | null
@@ -353,6 +383,7 @@ export type Database = {
           media_group_id: string | null
           media_type: string
           metadata: Json | null
+          public_url: string | null
           updated_at: string | null
           user_id: string
         }
@@ -370,6 +401,7 @@ export type Database = {
           media_group_id?: string | null
           media_type: string
           metadata?: Json | null
+          public_url?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -387,6 +419,7 @@ export type Database = {
           media_group_id?: string | null
           media_type?: string
           metadata?: Json | null
+          public_url?: string | null
           updated_at?: string | null
           user_id?: string
         }

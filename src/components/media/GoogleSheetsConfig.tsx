@@ -10,8 +10,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { useGoogleLogin } from '@react-oauth/google';
 import { SyncManager } from "./google-sheets/SyncManager";
 import { SPECIFIC_SPREADSHEET_ID, SPECIFIC_GID } from "./google-sheets/constants";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
-export const GoogleSheetsConfig = ({ 
+const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
+
+const GoogleSheetsConfigContent = ({ 
   onSpreadsheetIdSet, 
   selectedMedia = [], 
   googleSheetId,
@@ -145,5 +148,13 @@ export const GoogleSheetsConfig = ({
         allMedia={allMedia}
       />
     </div>
+  );
+};
+
+export const GoogleSheetsConfig = (props: GoogleSheetsConfigProps) => {
+  return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <GoogleSheetsConfigContent {...props} />
+    </GoogleOAuthProvider>
   );
 };
