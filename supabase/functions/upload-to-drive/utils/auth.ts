@@ -22,7 +22,7 @@ export const generateServiceAccountToken = async (credentials: any) => {
     };
 
     // Create JWT with proper algorithm configuration
-    const key = credentials.private_key;
+    const key = credentials.private_key.replace(/\\n/g, '\n');
     const jwt = await create(
       { alg: "RS256", typ: "JWT" },
       claims,
