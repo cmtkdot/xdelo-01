@@ -26,8 +26,9 @@ serve(async (req) => {
     }
 
     console.log('Starting Glide products sync...')
+    console.log('Using table:', glideTableProducts)
 
-    // Fetch products from Glide
+    // Fetch products from Glide using the queryTables endpoint
     const response = await fetch('https://api.glideapp.io/api/function/queryTables', {
       method: 'POST',
       headers: {
@@ -39,18 +40,24 @@ serve(async (req) => {
         queries: [
           {
             tableName: glideTableProducts,
-            utc: true,
-          },
+            // No SQL query needed, we want all rows
+          }
         ],
       }),
     })
 
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Glide API error:', errorText)
       throw new Error(`Glide API error: ${response.statusText}`)
     }
 
     const data = await response.json()
     console.log('Successfully fetched Glide products:', data)
+
+    // The response contains an array of query results
+    // Each query result has a 'rows' property with the actual data
+    const products = data[0]?.rows || []
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -65,18 +72,25 @@ serve(async (req) => {
     // Store products in Supabase
     const { error: productsError } = await supabase
       .from('glide_products')
-      .upsert(data.map((product: GlideProduct) => ({
+      .upsert(products.map((product: GlideProduct) => ({
         glide_row_id: product.id,
         product_data: product.values,
         last_synced: new Date().toISOString(),
       })))
 
-    if (productsError) throw productsError
+    if (productsError) {
+      console.error('Supabase error:', productsError)
+      throw productsError
+    }
 
     console.log('Successfully synced products to Supabase')
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Products synced successfully' }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Products synced successfully',
+        count: products.length 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
