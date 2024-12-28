@@ -37,6 +37,10 @@ export interface GlideProducts {
     submission_date: string | null;
     submitter_email: string | null;
     last_edited_date: string | null;
+    supabase_media_id: string | null;
+    supabase_video_link: string | null;
+    supabase_caption: string | null;
+    supabase_google_url: string | null;
   };
   Insert: {
     glide_row_id: string;
@@ -74,6 +78,10 @@ export interface GlideProducts {
     submission_date?: string | null;
     submitter_email?: string | null;
     last_edited_date?: string | null;
+    supabase_media_id?: string | null;
+    supabase_video_link?: string | null;
+    supabase_caption?: string | null;
+    supabase_google_url?: string | null;
   };
   Update: {
     glide_row_id?: string;
@@ -111,6 +119,10 @@ export interface GlideProducts {
     submission_date?: string | null;
     submitter_email?: string | null;
     last_edited_date?: string | null;
+    supabase_media_id?: string | null;
+    supabase_video_link?: string | null;
+    supabase_caption?: string | null;
+    supabase_google_url?: string | null;
   };
   Relationships: [];
 }

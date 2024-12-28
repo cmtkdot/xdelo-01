@@ -204,6 +204,10 @@ export type Database = {
           sheet21pics_row_id: string | null
           submission_date: string | null
           submitter_email: string | null
+          supabase_caption: string | null
+          supabase_google_url: string | null
+          supabase_media_id: string | null
+          supabase_video_link: string | null
           total_qty_purchased: number | null
           total_units_behind_sample: number | null
           updated_at: string | null
@@ -241,6 +245,10 @@ export type Database = {
           sheet21pics_row_id?: string | null
           submission_date?: string | null
           submitter_email?: string | null
+          supabase_caption?: string | null
+          supabase_google_url?: string | null
+          supabase_media_id?: string | null
+          supabase_video_link?: string | null
           total_qty_purchased?: number | null
           total_units_behind_sample?: number | null
           updated_at?: string | null
@@ -278,6 +286,10 @@ export type Database = {
           sheet21pics_row_id?: string | null
           submission_date?: string | null
           submitter_email?: string | null
+          supabase_caption?: string | null
+          supabase_google_url?: string | null
+          supabase_media_id?: string | null
+          supabase_video_link?: string | null
           total_qty_purchased?: number | null
           total_units_behind_sample?: number | null
           updated_at?: string | null
