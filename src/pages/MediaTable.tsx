@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { MediaItem, Channel } from "@/components/media/types";  // Added Channel import
+import { MediaItem, Channel } from "@/components/media/types";
 import { useToast } from "@/hooks/use-toast";
 import { GoogleSheetsConfig } from "@/components/media/GoogleSheetsConfig";
 import useMediaSubscription from "@/components/media/hooks/useMediaSubscription";
@@ -11,7 +11,6 @@ import { useMediaTableSort } from "@/components/media/table/hooks/useMediaTableS
 import { useMediaTableSelection } from "@/components/media/table/hooks/useMediaTableSelection";
 import MediaTableFilters from "@/components/media/table/MediaTableFilters";
 import { MediaTableToolbar } from "@/components/media/table/MediaTableToolbar";
-import { useEffect } from "react";
 
 const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
 
@@ -25,7 +24,6 @@ const MediaTable = () => {
   useMediaSubscription(spreadsheetId);
   
   // Fetch channels for the filter
-
   const { data: channels } = useQuery({
     queryKey: ['channels'],
     queryFn: async () => {
@@ -83,38 +81,6 @@ const MediaTable = () => {
       return data as MediaItem[];
     },
   });
-
-  // Set up real-time subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel('media_changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'media' 
-      }, async (payload) => {
-        console.log('Media change received:', payload);
-        await refetch();
-        
-        const eventMessages = {
-          INSERT: 'New media file added',
-          UPDATE: 'Media file updated',
-          DELETE: 'Media file removed'
-        };
-
-        toast({
-          title: eventMessages[payload.eventType as keyof typeof eventMessages] || 'Media changed',
-          description: `The media gallery has been updated`,
-          variant: "default",
-        });
-      })
-      .subscribe();
-
-    return () => {
-      console.log("Cleaning up subscription");
-      channel.unsubscribe();
-    };
-  }, [refetch, toast]);
 
   const { sortedMediaItems, handleSort, sortConfig } = useMediaTableSort(mediaItems);
   const {
