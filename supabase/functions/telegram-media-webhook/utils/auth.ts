@@ -17,7 +17,13 @@ export const validateBotToken = (botToken: string | null): boolean => {
   return true;
 };
 
-export const generateJWT = async (credentials: any): Promise<string> => {
+interface GoogleCredentials {
+  private_key_id: string;
+  private_key: string;
+  client_email: string;
+}
+
+export const generateJWT = async (credentials: GoogleCredentials): Promise<string> => {
   try {
     const header = {
       alg: 'RS256',
