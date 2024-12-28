@@ -1,7 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { uploadToDrive } from './driveUtils.ts'
-import { generateServiceAccountToken } from './authUtils.ts'
-import { isVideoFile, convertToMp4 } from './videoUtils.ts'
+import { uploadToDrive, initializeDriveUpload } from './utils/drive.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,41 +9,39 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get the request body
+    console.log('Starting upload-to-drive function...');
+    
+    // Parse request body
     const requestBody = await req.json().catch(error => {
       console.error('Error parsing request body:', error);
       throw new Error(`Invalid JSON in request body: ${error.message}`);
     });
 
-    console.log('Parsed request body:', requestBody);
-
     if (!requestBody) {
       throw new Error('Request body is empty');
     }
 
-    // Get service account credentials
-    const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
-    
-    // Generate JWT token for service account
-    const jwtToken = await generateServiceAccountToken(credentials);
+    // Initialize Google Drive authentication
+    const accessToken = await initializeDriveUpload();
 
+    // Handle single or multiple file uploads
     let results;
     if (requestBody.files && Array.isArray(requestBody.files)) {
       // Handle multiple files
       results = await Promise.all(
         requestBody.files.map(async (file) => {
           console.log('Processing file:', file);
-          return await uploadToDrive(file.fileUrl, file.fileName, jwtToken);
+          return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
         })
       );
     } else if (requestBody.fileUrl && requestBody.fileName) {
       // Handle single file
       console.log('Processing single file:', requestBody);
-      results = await uploadToDrive(requestBody.fileUrl, requestBody.fileName, jwtToken);
+      results = await uploadToDrive(requestBody.fileUrl, requestBody.fileName, accessToken);
     } else {
       throw new Error('Invalid request format: missing file information');
     }
