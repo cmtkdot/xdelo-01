@@ -1,10 +1,33 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { FFmpeg } from 'https://esm.sh/@ffmpeg/ffmpeg@0.12.7'
+import { fetchFile } from 'https://esm.sh/@ffmpeg/util@0.12.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const isVideoFile = (mimeType: string) => {
+  return mimeType.startsWith('video/');
+};
+
+const convertToMp4 = async (inputBuffer: ArrayBuffer, fileName: string): Promise<Blob> => {
+  const ffmpeg = new FFmpeg();
+  await ffmpeg.load();
+  
+  console.log('Starting video conversion for:', fileName);
+  
+  const inputUint8Array = new Uint8Array(inputBuffer);
+  await ffmpeg.writeFile('input', inputUint8Array);
+  
+  await ffmpeg.exec(['-i', 'input', '-c:v', 'libx264', '-preset', 'medium', '-crf', '23', 'output.mp4']);
+  
+  const data = await ffmpeg.readFile('output.mp4');
+  console.log('Video conversion completed');
+  
+  return new Blob([data], { type: 'video/mp4' });
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -34,11 +57,21 @@ serve(async (req) => {
       if (!response.ok) {
         throw new Error(`Failed to fetch file from Supabase: ${fileName}`);
       }
-      const blob = await response.blob();
+      
+      let blob = await response.blob();
+      let finalFileName = fileName;
+      
+      // Convert video files to MP4 if needed
+      if (isVideoFile(blob.type)) {
+        console.log('Converting video to MP4 format');
+        const arrayBuffer = await blob.arrayBuffer();
+        blob = await convertToMp4(arrayBuffer, fileName);
+        finalFileName = fileName.replace(/\.[^/.]+$/, '.mp4');
+      }
 
       // Prepare metadata for Google Drive
       const metadata = {
-        name: fileName,
+        name: finalFileName,
         mimeType: blob.type,
         parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet'] // Telegram Media folder
       };
