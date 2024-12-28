@@ -25,13 +25,17 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
         console.log('Uploading multiple files:', selectedFiles);
         
         // Format files data properly
-        const filesData = selectedFiles.map(file => ({
-          fileUrl: file.file_url,
-          fileName: file.file_name
-        }));
+        const payload = {
+          files: selectedFiles.map(file => ({
+            fileUrl: file.file_url,
+            fileName: file.file_name
+          }))
+        };
+        
+        console.log('Request payload:', payload);
 
         const { data, error } = await supabase.functions.invoke('upload-to-drive', {
-          body: JSON.stringify({ files: filesData })
+          body: payload
         });
 
         if (error) {
@@ -49,8 +53,11 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
       } else if (fileUrl && fileName) {
         console.log('Uploading single file:', { fileUrl, fileName });
         
+        const payload = { fileUrl, fileName };
+        console.log('Request payload:', payload);
+
         const { data, error } = await supabase.functions.invoke('upload-to-drive', {
-          body: JSON.stringify({ fileUrl, fileName })
+          body: payload
         });
 
         if (error) {
