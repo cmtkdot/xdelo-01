@@ -5,10 +5,11 @@ import { useGoogleSheetsConfig } from "./google-sheets/hooks/useGoogleSheetsConf
 import { AddSpreadsheetForm } from "./google-sheets/AddSpreadsheetForm";
 import { SpreadsheetCard } from "./google-sheets/SpreadsheetCard";
 import { GoogleSheetsConfigProps } from "./google-sheets/types";
-import { syncWithGoogleSheets } from "./utils/googleSheetsSync";
 import { MediaItem } from "./types";
 import { useToast } from "@/components/ui/use-toast";
 import { useGoogleLogin } from '@react-oauth/google';
+import { SyncManager } from "./google-sheets/SyncManager";
+import { SPECIFIC_SPREADSHEET_ID, SPECIFIC_GID } from "./google-sheets/constants";
 
 export const GoogleSheetsConfig = ({ 
   onSpreadsheetIdSet, 
@@ -57,7 +58,6 @@ export const GoogleSheetsConfig = ({
 
       if (error) throw error;
       
-      // If there are selected media items, only sync those
       const mediaToSync = selectedMedia.length > 0 
         ? data?.filter(item => selectedMedia.includes(item.id))
         : data;
@@ -69,46 +69,8 @@ export const GoogleSheetsConfig = ({
     },
   });
 
-  // Function to perform sync
-  const performSync = async (spreadsheetId: string, gid?: string) => {
-    const sheet = spreadsheets.find(s => s.id === spreadsheetId);
-    if (!sheet?.isHeadersMapped || !sheet.autoSync || !allMedia) {
-      console.log('Skipping sync - conditions not met:', {
-        isHeadersMapped: sheet?.isHeadersMapped,
-        autoSync: sheet?.autoSync,
-        hasMedia: Boolean(allMedia)
-      });
-      return;
-    }
-
-    try {
-      await syncWithGoogleSheets(spreadsheetId, allMedia, gid);
-      console.log(`Synced with spreadsheet: ${spreadsheetId}${gid ? ` (GID: ${gid})` : ''}`);
-      toast({
-        title: "Sync Successful",
-        description: "Media data has been synchronized with Google Sheets",
-      });
-    } catch (error) {
-      console.error('Sync error:', error);
-      if (error.message?.includes('No access token found')) {
-        toast({
-          title: "Authentication Required",
-          description: "Please authenticate with Google to sync data",
-          action: <button onClick={() => login()} className="bg-primary text-white px-4 py-2 rounded">Login</button>,
-        });
-      } else {
-        toast({
-          title: "Sync Failed",
-          description: error instanceof Error ? error.message : "Failed to sync with Google Sheets",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  // Set up automatic sync interval
+  // Set up specific spreadsheet on mount
   useEffect(() => {
-    // Add specific spreadsheet on mount if not already configured
     const isConfigured = spreadsheets.some(sheet => 
       sheet.id === SPECIFIC_SPREADSHEET_ID && sheet.gid === SPECIFIC_GID
     );
@@ -120,37 +82,7 @@ export const GoogleSheetsConfig = ({
         SPECIFIC_GID
       );
     }
-
-    // Set up interval for auto-sync
-    const syncInterval = setInterval(() => {
-      spreadsheets.forEach(sheet => {
-        if (sheet.autoSync && sheet.isHeadersMapped) {
-          performSync(sheet.id, sheet.gid);
-        }
-      });
-    }, SYNC_INTERVAL);
-
-    // Set up real-time sync on media changes
-    const channels = spreadsheets
-      .filter(sheet => sheet.autoSync && sheet.isHeadersMapped)
-      .map(sheet => {
-        return supabase
-          .channel(`media_changes_${sheet.id}`)
-          .on('postgres_changes', { 
-            event: '*', 
-            schema: 'public', 
-            table: 'media' 
-          }, async () => {
-            await performSync(sheet.id, sheet.gid);
-          })
-          .subscribe();
-      });
-
-    return () => {
-      clearInterval(syncInterval);
-      channels.forEach(channel => channel.unsubscribe());
-    };
-  }, [spreadsheets, allMedia]);
+  }, []);
 
   const handleHeaderMappingComplete = async (spreadsheetId: string, mapping: Record<string, string>) => {
     try {
@@ -167,12 +99,6 @@ export const GoogleSheetsConfig = ({
         .eq('user_id', user.id);
 
       if (error) throw error;
-
-      // Perform initial sync after mapping is complete
-      const sheet = spreadsheets.find(s => s.id === spreadsheetId);
-      if (sheet?.autoSync && allMedia) {
-        await performSync(spreadsheetId, sheet.gid);
-      }
 
       toast({
         title: "Success",
@@ -213,6 +139,11 @@ export const GoogleSheetsConfig = ({
           />
         ))}
       </div>
+
+      <SyncManager 
+        spreadsheets={spreadsheets}
+        allMedia={allMedia}
+      />
     </div>
   );
 };
