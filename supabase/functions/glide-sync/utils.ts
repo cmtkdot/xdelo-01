@@ -1,23 +1,16 @@
-import { corsHeaders } from './cors.ts';
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-export { corsHeaders };
-
-export const parseDate = (dateStr: string | null | undefined): string | null => {
-  if (!dateStr) return null;
-  try {
-    const date = new Date(dateStr);
-    return date.toISOString();
-  } catch {
-    return null;
-  }
+export const parseDate = (value: any): string | null => {
+  if (!value) return null;
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? null : date.toISOString();
 };
 
 export const parseNumber = (value: any): number | null => {
-  if (value === null || value === undefined) return null;
-  
-  // Convert string to number if needed
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  
-  // Check if it's a valid number
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
   return isNaN(num) ? null : num;
 };

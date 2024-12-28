@@ -24,7 +24,7 @@ export const mapGlideProductToSupabase = (product: Record<string, any>) => {
     po_date: parseDate(product["6KEY6"]),
     vendor_product_name: product["7vTwD"] || null,
     purchase_date: parseDate(product["j1byF"]),
-    total_qty_purchased: parseNumber(product["2vbZN"]),
+    total_qty_purchased: parseNumber(product["2vbZN"]), // This will now handle decimal values
     cost: parseNumber(product["Cost"]),
     cost_update: parseNumber(product["2Oifn"]),
     is_sample: product["BtdUy"] || null,
