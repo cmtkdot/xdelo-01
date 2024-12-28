@@ -1,14 +1,25 @@
 import { useEffect, useState } from "react";
 import useMediaData from "./hooks/useMediaData";
 import useMediaSubscription from "./hooks/useMediaSubscription";
-import MediaCard from "./MediaCard";
-import MediaFilters from "./MediaFilters";
-import MediaGallerySkeleton from "./MediaGallerySkeleton";
-import { MediaFilter, Channel } from "./types";
-import { Image } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { MediaFilter } from "./types";
 import { useToast } from "@/components/ui/use-toast";
+import WebhookInterface from "./webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
+import { Channel } from "./types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import MediaGalleryHeader from "./MediaGalleryHeader";
+import MediaFilters from "./MediaFilters";
+import MediaGalleryContent from "./MediaGalleryContent";
+import MediaGallerySkeleton from "./MediaGallerySkeleton";
 
 const MediaGallery = () => {
   const [filter, setFilter] = useState<MediaFilter>({
@@ -18,15 +29,18 @@ const MediaGallery = () => {
   });
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isSyncingCaptions, setSyncingCaptions] = useState(false);
+  const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
   const { toast } = useToast();
 
-  const { data: mediaItems, isLoading } = useMediaData(filter);
+  const { data: mediaItems, isLoading, refetch } = useMediaData(filter);
   useMediaSubscription();
 
   const fetchChannels = async () => {
     const { data, error } = await supabase
       .from('channels')
-      .select('id, title, chat_id');
+      .select('title, chat_id');
     
     if (error) {
       console.error('Error fetching channels:', error);
@@ -38,7 +52,7 @@ const MediaGallery = () => {
       return;
     }
     
-    setChannels(data as Channel[]);
+    setChannels(data || []);
   };
 
   useEffect(() => {
@@ -62,20 +76,76 @@ const MediaGallery = () => {
     return mediaItems.filter(item => selectedMedia.has(item.id));
   };
 
+  const handleDeleteDuplicates = async () => {
+    try {
+      setDeletingDuplicates(true);
+      const { error } = await supabase.functions.invoke('delete-duplicates', {
+        body: { keepNewest: true }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Duplicate media files have been cleaned up",
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('Error deleting duplicates:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete duplicate media files",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingDuplicates(false);
+    }
+  };
+
+  const handleSyncCaptions = async () => {
+    try {
+      setSyncingCaptions(true);
+      const { error } = await supabase.functions.invoke('sync-media-captions');
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Media captions have been synchronized",
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('Error syncing captions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync media captions",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingCaptions(false);
+    }
+  };
+
   if (isLoading) {
     return <MediaGallerySkeleton />;
   }
 
   return (
-    <div className="w-full max-w-[2000px] mx-auto space-y-4">
-      <div className="flex items-center gap-2 backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-gray-200/50 dark:border-white/10 p-4 rounded-lg shadow-sm">
-        <Image className="w-6 h-6 text-blue-500 dark:text-purple-400" />
-        <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white/90">
-          Media Gallery
-        </h2>
+    <div className="w-full max-w-[2000px] mx-auto space-y-4 px-4 md:px-6">
+      <MediaGalleryHeader
+        onSyncCaptions={handleSyncCaptions}
+        onDeleteDuplicates={handleDeleteDuplicates}
+        isSyncingCaptions={isSyncingCaptions}
+        isDeletingDuplicates={isDeletingDuplicates}
+      />
+      
+      <div className="w-full">
+        <WebhookInterface selectedMedia={getSelectedMediaData()} />
       </div>
       
-      <div className="backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-gray-200/50 dark:border-white/10 p-4 md:p-6 rounded-lg shadow-sm">
+      <div className="w-full backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
         <MediaFilters
           selectedChannel={filter.selectedChannel}
           setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
@@ -87,26 +157,28 @@ const MediaGallery = () => {
         />
       </div>
 
-      {!mediaItems || mediaItems.length === 0 ? (
-        <div className="backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-gray-200/50 dark:border-white/10 p-4 md:p-6 rounded-lg text-center shadow-sm">
-          <p className="text-gray-600 dark:text-white/90 text-sm md:text-base font-medium">
-            No media files yet. Send some media to your Telegram bot!
-          </p>
-        </div>
-      ) : (
-        <ScrollArea className="h-[calc(100vh-16rem)]">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 pb-6">
-            {mediaItems.map((item) => (
-              <MediaCard 
-                key={item.id}
-                item={item}
-                isSelected={selectedMedia.has(item.id)}
-                onToggleSelect={handleToggleSelect}
-              />
-            ))}
-          </div>
-        </ScrollArea>
-      )}
+      <MediaGalleryContent
+        mediaItems={mediaItems || []}
+        selectedMedia={selectedMedia}
+        onToggleSelect={handleToggleSelect}
+      />
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Duplicate Media</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all duplicate media files, keeping only the newest version of each file. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteDuplicates}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
