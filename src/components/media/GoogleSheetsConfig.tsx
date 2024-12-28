@@ -8,6 +8,10 @@ import { GoogleSheetsConfigProps } from "./google-sheets/types";
 import { syncWithGoogleSheets } from "./utils/googleSheetsSync";
 import { MediaItem } from "./types";
 
+const SPECIFIC_SPREADSHEET_ID = "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w";
+const SPECIFIC_GID = "584740191";
+const SYNC_COLUMNS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+
 export const GoogleSheetsConfig = ({ 
   onSpreadsheetIdSet, 
   selectedMedia = [], 
@@ -34,7 +38,6 @@ export const GoogleSheetsConfig = ({
 
       if (error) throw error;
       
-      // Type assertion to handle Supabase Json type
       return (data || []).map(item => ({
         ...item,
         metadata: typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata
@@ -55,12 +58,25 @@ export const GoogleSheetsConfig = ({
       }
 
       try {
-        await syncWithGoogleSheets(spreadsheetId, allMedia, gid);
+        await syncWithGoogleSheets(spreadsheetId, allMedia, gid, SYNC_COLUMNS);
         console.log(`Auto-synced with spreadsheet: ${spreadsheetId}${gid ? ` (GID: ${gid})` : ''}`);
       } catch (error) {
         console.error('Auto-sync error:', error);
       }
     };
+
+    // Add specific spreadsheet on mount
+    const isConfigured = spreadsheets.some(sheet => 
+      sheet.id === SPECIFIC_SPREADSHEET_ID && sheet.gid === SPECIFIC_GID
+    );
+
+    if (!isConfigured) {
+      handleAddSpreadsheet(
+        "Synced Media Sheet",
+        SPECIFIC_SPREADSHEET_ID,
+        SPECIFIC_GID
+      );
+    }
 
     const channels = spreadsheets
       .filter(sheet => sheet.autoSync && sheet.isHeadersMapped)
@@ -100,7 +116,7 @@ export const GoogleSheetsConfig = ({
 
       const sheet = spreadsheets.find(s => s.id === spreadsheetId);
       if (sheet?.autoSync && allMedia) {
-        await syncWithGoogleSheets(spreadsheetId, allMedia, sheet.gid);
+        await syncWithGoogleSheets(spreadsheetId, allMedia, sheet.gid, SYNC_COLUMNS);
       }
 
       onSpreadsheetIdSet(spreadsheetId);

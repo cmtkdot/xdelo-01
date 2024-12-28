@@ -135,7 +135,12 @@ const formatDataWithMapping = (mediaItems: MediaItem[], headerMapping: Record<st
   return { headers: mappedHeaders, data: formattedData };
 };
 
-export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: MediaItem[], gid?: string) => {
+export const syncWithGoogleSheets = async (
+  spreadsheetId: string, 
+  mediaItems: MediaItem[], 
+  gid?: string,
+  columns: string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+) => {
   try {
     console.log('Starting sync with Google Sheets...');
     
@@ -166,21 +171,21 @@ export const syncWithGoogleSheets = async (spreadsheetId: string, mediaItems: Me
       }
     }
 
-    // Clear existing data (except headers)
-    const clearRange = `${sheetName}!A2:Z`;
+    // Clear existing data in specified columns only
+    const clearRange = `${sheetName}!${columns[0]}2:${columns[columns.length - 1]}`;
     await window.gapi.client.sheets.spreadsheets.values.clear({
       spreadsheetId,
       range: clearRange,
     });
 
-    // Update with new data
-    const updateRange = `${sheetName}!A2:${String.fromCharCode(65 + headers.length)}${data.length + 1}`;
+    // Update with new data in specified columns only
+    const updateRange = `${sheetName}!${columns[0]}2:${columns[columns.length - 1]}${data.length + 1}`;
     await window.gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
       range: updateRange,
       valueInputOption: 'RAW',
       resource: {
-        values: data
+        values: data.map(row => row.slice(0, columns.length)) // Only take the first N columns
       }
     });
 
