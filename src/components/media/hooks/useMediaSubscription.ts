@@ -1,12 +1,8 @@
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MediaItem } from "../types";
-import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
-import { syncWithGoogleSheets } from "../utils/googleSheetsSync";
 
-const useMediaSubscription = (spreadsheetId?: string) => {
-  const queryClient = useQueryClient();
+const useMediaSubscription = (refetch: () => void) => {
   const { toast } = useToast();
 
   useEffect(() => {
@@ -23,22 +19,18 @@ const useMediaSubscription = (spreadsheetId?: string) => {
           console.log('Received real-time update:', payload);
           
           // Invalidate and refetch media data
-          await queryClient.invalidateQueries({ queryKey: ['media'] });
+          await refetch();
           
-          // If spreadsheetId is provided, sync with Google Sheets
-          if (spreadsheetId) {
-            try {
-              await syncWithGoogleSheets(spreadsheetId);
-              console.log('Synced with Google Sheets after media update');
-            } catch (error) {
-              console.error('Error syncing with Google Sheets:', error);
-              toast({
-                title: "Sync Error",
-                description: "Failed to sync with Google Sheets",
-                variant: "destructive",
-              });
-            }
-          }
+          const eventMessages = {
+            INSERT: 'New media file added',
+            UPDATE: 'Media file updated',
+            DELETE: 'Media file removed'
+          };
+
+          toast({
+            title: eventMessages[payload.eventType as keyof typeof eventMessages] || 'Media changed',
+            description: "The media gallery has been updated",
+          });
         }
       )
       .subscribe();
@@ -46,7 +38,7 @@ const useMediaSubscription = (spreadsheetId?: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient, spreadsheetId, toast]);
+  }, [refetch, toast]);
 };
 
 export default useMediaSubscription;
