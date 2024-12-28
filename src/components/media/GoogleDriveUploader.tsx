@@ -22,17 +22,22 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
   const uploadToGoogleDrive = async () => {
     try {
       if (selectedFiles && selectedFiles.length > 0) {
-        // Use Edge Function with service account
+        console.log('Uploading multiple files:', selectedFiles);
+        
+        // Format files data properly
+        const filesData = selectedFiles.map(file => ({
+          fileUrl: file.file_url,
+          fileName: file.file_name
+        }));
+
         const { data, error } = await supabase.functions.invoke('upload-to-drive', {
-          body: { 
-            files: selectedFiles.map(file => ({
-              fileUrl: file.file_url,
-              fileName: file.file_name
-            }))
-          }
+          body: JSON.stringify({ files: filesData })
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase function error:', error);
+          throw error;
+        }
 
         toast({
           title: "Success!",
@@ -42,12 +47,16 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
         onSuccess?.();
         return data;
       } else if (fileUrl && fileName) {
-        // Single file upload using Edge Function
+        console.log('Uploading single file:', { fileUrl, fileName });
+        
         const { data, error } = await supabase.functions.invoke('upload-to-drive', {
-          body: { fileUrl, fileName }
+          body: JSON.stringify({ fileUrl, fileName })
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase function error:', error);
+          throw error;
+        }
 
         toast({
           title: "Success!",

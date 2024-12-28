@@ -15,12 +15,11 @@ serve(async (req) => {
   }
 
   try {
-    // Ensure the request has a body and it's valid JSON
+    // Get the request body as text first
     const requestText = await req.text();
-    if (!requestText) {
-      throw new Error('Request body is empty');
-    }
+    console.log('Raw request body:', requestText);
 
+    // Safely parse JSON
     let requestData;
     try {
       requestData = JSON.parse(requestText);
