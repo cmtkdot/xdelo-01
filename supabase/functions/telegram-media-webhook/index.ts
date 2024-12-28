@@ -69,7 +69,40 @@ serve(async (req) => {
     }
 
     const chat = message.chat;
-    const userId = '00000000-0000-0000-0000-000000000000'; // Default system user ID
+    
+    // Get or create bot user
+    const { data: botUser, error: botUserError } = await supabase
+      .from('bot_users')
+      .select('id')
+      .eq('telegram_user_id', message.from?.id?.toString())
+      .single();
+
+    if (botUserError && botUserError.code !== 'PGRST116') {
+      console.error('Error fetching bot user:', botUserError);
+      throw botUserError;
+    }
+
+    let userId;
+    if (!botUser) {
+      const { data: newBotUser, error: createError } = await supabase
+        .from('bot_users')
+        .insert({
+          telegram_user_id: message.from?.id?.toString(),
+          username: message.from?.username,
+          first_name: message.from?.first_name,
+          last_name: message.from?.last_name
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Error creating bot user:', createError);
+        throw createError;
+      }
+      userId = newBotUser.id;
+    } else {
+      userId = botUser.id;
+    }
 
     await saveChannel(supabase, chat, userId);
     await saveMessage(supabase, chat, message, userId);
@@ -151,10 +184,10 @@ serve(async (req) => {
         console.error('Failed to upload to Google Drive:', error);
       }
 
-      // Save media with Google Drive information
+      // Save media with Google Drive information and correct user_id
       const mediaData = await saveMedia(
         supabase,
-        userId,
+        userId, // Use the correct user_id from bot_users
         chat.id,
         fileName,
         publicUrl.publicUrl,
