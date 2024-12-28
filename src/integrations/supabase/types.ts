@@ -183,7 +183,7 @@ export type Database = {
           cost_update: number | null
           created_at: string | null
           fronted_terms: string | null
-          glide_row_id: string
+          glide_product_row_id: string
           is_fronted: boolean | null
           is_miscellaneous: boolean | null
           is_sample: boolean | null
@@ -224,7 +224,7 @@ export type Database = {
           cost_update?: number | null
           created_at?: string | null
           fronted_terms?: string | null
-          glide_row_id: string
+          glide_product_row_id: string
           is_fronted?: boolean | null
           is_miscellaneous?: boolean | null
           is_sample?: boolean | null
@@ -265,7 +265,7 @@ export type Database = {
           cost_update?: number | null
           created_at?: string | null
           fronted_terms?: string | null
-          glide_row_id?: string
+          glide_product_row_id?: string
           is_fronted?: boolean | null
           is_miscellaneous?: boolean | null
           is_sample?: boolean | null

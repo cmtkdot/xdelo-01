@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { corsHeaders } from './utils.ts';
+import { corsHeaders } from './cors.ts';
 import { mapGlideProductToSupabase } from './productMapper.ts';
 
 const GLIDE_BATCH_LIMIT = 500;
@@ -78,8 +78,8 @@ serve(async (req) => {
     const mappedProducts = products
       .map(mapGlideProductToSupabase)
       .filter(product => {
-        if (!product.glide_row_id) {
-          console.warn('Skipping product with missing glide_row_id:', product);
+        if (!product.glide_product_row_id) {
+          console.warn('Skipping product with missing glide_product_row_id:', product);
           return false;
         }
         return true;

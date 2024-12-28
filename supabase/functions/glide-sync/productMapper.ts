@@ -4,14 +4,14 @@ import { parseDate, parseNumber } from './utils.ts';
 export const mapGlideProductToSupabase = (product: Record<string, any>) => {
   console.log('Processing product:', product);
   
-  // Ensure glide_row_id is set from the $rowID
+  // Ensure glide_product_row_id is set from the $rowID
   if (!product.$rowID) {
     console.warn('Product is missing $rowID:', product);
     throw new Error('Product $rowID is required');
   }
 
   return {
-    glide_row_id: product.$rowID,
+    glide_product_row_id: product.$rowID,
     product_data: product,
     account_row_id: product["9aBFI"] || null,
     purchase_order_row_id: product["FoyGX"] || null,

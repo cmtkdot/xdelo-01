@@ -1,13 +1,25 @@
-export const parseDate = (dateStr: string | undefined) => {
+import { corsHeaders } from './cors.ts';
+
+export { corsHeaders };
+
+export const parseDate = (dateStr: string | null | undefined): string | null => {
   if (!dateStr) return null;
-  const date = new Date(dateStr);
-  return isNaN(date.getTime()) ? null : date.toISOString();
+  try {
+    const date = new Date(dateStr);
+    return date.toISOString();
+  } catch {
+    return null;
+  }
 };
 
-export const parseNumber = (num: any) => {
-  if (num === undefined || num === null) return null;
-  const parsed = Number(num);
-  return isNaN(parsed) ? null : parsed;
+export const parseNumber = (value: any): number | null => {
+  if (value === null || value === undefined) return null;
+  
+  // Convert string to number if needed
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  
+  // Check if it's a valid number
+  return isNaN(num) ? null : num;
 };
 
 export const corsHeaders = {
