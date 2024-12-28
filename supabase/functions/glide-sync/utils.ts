@@ -21,8 +21,3 @@ export const parseNumber = (value: any): number | null => {
   // Check if it's a valid number
   return isNaN(num) ? null : num;
 };
-
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
