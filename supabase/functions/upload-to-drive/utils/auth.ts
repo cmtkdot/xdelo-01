@@ -2,11 +2,21 @@ import { create, getNumericDate } from "https://deno.land/x/djwt@v2.8/mod.ts";
 
 export const generateServiceAccountToken = async (credentials: any) => {
   try {
-    console.log('Generating service account token...');
+    console.log('Starting service account token generation...');
 
-    if (!credentials?.client_email || !credentials?.private_key) {
+    // Validate required credential fields
+    if (!credentials) {
+      throw new Error('Credentials object is undefined');
+    }
+
+    if (!credentials.client_email || !credentials.private_key) {
+      console.error('Invalid credentials:', JSON.stringify(credentials, null, 2));
       throw new Error('Invalid credentials: missing client_email or private_key');
     }
+
+    // Ensure private key is properly formatted
+    const privateKey = credentials.private_key.replace(/\\n/g, '\n');
+    console.log('Client email:', credentials.client_email);
 
     const now = Math.floor(Date.now() / 1000);
     const claims = {
@@ -17,12 +27,11 @@ export const generateServiceAccountToken = async (credentials: any) => {
       iat: now
     };
 
-    // Create JWT with proper algorithm configuration
-    const key = credentials.private_key;
+    // Create JWT with explicit algorithm configuration
     const jwt = await create(
       { alg: "RS256", typ: "JWT" },
       claims,
-      key
+      privateKey
     );
 
     // Exchange JWT for access token
@@ -39,10 +48,12 @@ export const generateServiceAccountToken = async (credentials: any) => {
 
     if (!response.ok) {
       const error = await response.text();
+      console.error('Token exchange failed:', error);
       throw new Error(`Failed to get access token: ${error}`);
     }
 
     const data = await response.json();
+    console.log('Successfully generated access token');
     return data.access_token;
   } catch (error) {
     console.error('Error generating service account token:', error);

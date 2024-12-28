@@ -41,10 +41,13 @@ serve(async (req) => {
     // Get and validate credentials
     const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
     if (!credentialsStr) {
+      console.error('Google credentials not found in environment');
       throw new Error('Google credentials not found in environment');
     }
 
+    console.log('Parsing Google credentials...');
     const credentials = parseGoogleCredentials(credentialsStr);
+    console.log('Generating access token...');
     const accessToken = await generateServiceAccountToken(credentials);
 
     // Handle single or multiple file uploads
