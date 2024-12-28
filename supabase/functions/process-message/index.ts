@@ -13,6 +13,7 @@ serve(async (req) => {
 
   try {
     const { message, settings } = await req.json();
+    console.log("Received request with message:", message, "and settings:", settings);
     
     // Get API keys based on selected model
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
@@ -21,7 +22,8 @@ serve(async (req) => {
 
     let response;
     
-    if (settings.model.startsWith('claude')) {
+    if (settings?.model?.startsWith('claude')) {
+      console.log("Using Claude model");
       // Claude API call
       response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -39,11 +41,20 @@ serve(async (req) => {
       });
       
       const data = await response.json();
-      return new Response(JSON.stringify({ response: data.content[0].text }), {
+      console.log("Claude API response:", data);
+
+      if (!data.content || !Array.isArray(data.content)) {
+        throw new Error('Invalid response format from Claude API');
+      }
+
+      return new Response(JSON.stringify({ 
+        response: data.content[0]?.text || "No response generated" 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } 
-    else if (settings.model.startsWith('gemini')) {
+    else if (settings?.model?.startsWith('gemini')) {
+      console.log("Using Gemini model");
       // Gemini API call
       const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${settings.model}:generateContent?key=${geminiApiKey}`;
       response = await fetch(apiUrl, {
@@ -59,13 +70,20 @@ serve(async (req) => {
       });
       
       const data = await response.json();
+      console.log("Gemini API response:", data);
+
+      if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error('Invalid response format from Gemini API');
+      }
+
       return new Response(JSON.stringify({ 
         response: data.candidates[0].content.parts[0].text 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    else if (settings.model.startsWith('gpt')) {
+    else if (settings?.model?.startsWith('gpt')) {
+      console.log("Using OpenAI model");
       // OpenAI API call
       response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -85,6 +103,12 @@ serve(async (req) => {
       });
       
       const data = await response.json();
+      console.log("OpenAI API response:", data);
+
+      if (!data.choices?.[0]?.message?.content) {
+        throw new Error('Invalid response format from OpenAI API');
+      }
+
       return new Response(JSON.stringify({ 
         response: data.choices[0].message.content 
       }), {
@@ -95,7 +119,10 @@ serve(async (req) => {
     throw new Error('Unsupported model selected');
   } catch (error) {
     console.error('Error in process-message function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      details: error.stack
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
