@@ -1,4 +1,5 @@
 import { generateJWT } from './auth.ts';
+import { parseGoogleCredentials } from '../../upload-to-drive/utils/credentials.ts';
 
 export const uploadToGoogleDrive = async (fileUrl: string, fileName: string) => {
   try {
@@ -10,19 +11,10 @@ export const uploadToGoogleDrive = async (fileUrl: string, fileName: string) => 
       return null;
     }
 
-    let credentials;
-    try {
-      // First try parsing as JSON
-      credentials = JSON.parse(credentialsStr);
-    } catch {
-      try {
-        // If JSON parse fails, try base64 decode
-        const decodedStr = atob(credentialsStr);
-        credentials = JSON.parse(decodedStr);
-      } catch (error) {
-        console.error('Failed to parse Google credentials:', error);
-        return null;
-      }
+    const credentials = parseGoogleCredentials(credentialsStr);
+    if (!credentials?.client_email || !credentials?.private_key) {
+      console.error('Invalid credentials structure');
+      return null;
     }
 
     const jwt = await generateJWT(credentials);
