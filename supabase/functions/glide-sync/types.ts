@@ -1,5 +1,5 @@
 export interface GlideProduct {
-  id: string;
+  $rowID: string;
   values: {
     "9aBFI"?: string; // account_row_id
     "FoyGX"?: string; // purchase_order_row_id
@@ -40,5 +40,5 @@ export interface GlideProduct {
 }
 
 export interface GlideResponse {
-  rows: GlideProduct[];
+  rows: Array<Record<string, any>>;
 }

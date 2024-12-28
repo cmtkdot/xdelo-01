@@ -1,53 +1,52 @@
 import { GlideProduct } from './types.ts';
 import { parseDate, parseNumber } from './utils.ts';
 
-export const mapGlideProductToSupabase = (product: GlideProduct) => {
-  const values = product.values || {};
-  console.log('Processing product:', product.id, 'with values:', values);
+export const mapGlideProductToSupabase = (product: Record<string, any>) => {
+  console.log('Processing product:', product);
   
-  // Ensure glide_row_id is set from the product id
-  if (!product.id) {
-    console.warn('Product is missing id:', product);
-    throw new Error('Product id is required');
+  // Ensure glide_row_id is set from the $rowID
+  if (!product.$rowID) {
+    console.warn('Product is missing $rowID:', product);
+    throw new Error('Product $rowID is required');
   }
 
   return {
-    glide_row_id: product.id, // Use the product id as glide_row_id
-    product_data: values,
-    account_row_id: values["9aBFI"] || null,
-    purchase_order_row_id: values["FoyGX"] || null,
-    vpay_row_id: values["9ZlF5"] || null,
-    sheet21pics_row_id: values["PIRCt"] || null,
-    product_choice_row_id: values["JnZ0i"] || null,
-    po_uid: values["qKFKb"] || null,
-    product_name: values["Product Name"] || values["8rNtB"] || null,
-    vendor_uid: values["0TFnd"] || null,
-    po_date: parseDate(values["6KEY6"]),
-    vendor_product_name: values["7vTwD"] || null,
-    purchase_date: parseDate(values["j1byF"]),
-    total_qty_purchased: parseNumber(values["2vbZN"]),
-    cost: parseNumber(values["Cost"]),
-    cost_update: parseNumber(values["2Oifn"]),
-    is_sample: values["BtdUy"] || null,
-    more_units_behind: values["zOV1T"] || null,
-    is_fronted: values["PhXNJ"] || null,
-    rename_product: values["TXvDh"] || null,
-    fronted_terms: values["yGgnd"] || null,
-    total_units_behind_sample: parseNumber(values["6ELPK"]),
-    leave_no: values["sWTUg"] || null,
-    purchase_notes: values["5Cedf"] || null,
-    is_miscellaneous: values["edjhe"] || null,
-    category: values["vccH4"] || null,
-    product_image_1: values["Product Image 1"] || null,
-    cart_note: values["qSE5p"] || null,
-    cart_rename: values["pSr0T"] || null,
-    submission_date: parseDate(values["SXT3o"]),
-    submitter_email: values["RD7cH"] || null,
-    last_edited_date: parseDate(values["t9wgm"]),
-    supabase_media_id: values["eb7jA"] || null,
-    supabase_video_link: values["Qr1Tl"] || null,
-    supabase_caption: values["zwLpG"] || null,
-    supabase_google_url: values["iIFAY"] || null,
+    glide_row_id: product.$rowID,
+    product_data: product,
+    account_row_id: product["9aBFI"] || null,
+    purchase_order_row_id: product["FoyGX"] || null,
+    vpay_row_id: product["9ZlF5"] || null,
+    sheet21pics_row_id: product["PIRCt"] || null,
+    product_choice_row_id: product["JnZ0i"] || null,
+    po_uid: product["qKFKb"] || null,
+    product_name: product["Product Name"] || product["8rNtB"] || null,
+    vendor_uid: product["0TFnd"] || null,
+    po_date: parseDate(product["6KEY6"]),
+    vendor_product_name: product["7vTwD"] || null,
+    purchase_date: parseDate(product["j1byF"]),
+    total_qty_purchased: parseNumber(product["2vbZN"]),
+    cost: parseNumber(product["Cost"]),
+    cost_update: parseNumber(product["2Oifn"]),
+    is_sample: product["BtdUy"] || null,
+    more_units_behind: product["zOV1T"] || null,
+    is_fronted: product["PhXNJ"] || null,
+    rename_product: product["TXvDh"] || null,
+    fronted_terms: product["yGgnd"] || null,
+    total_units_behind_sample: parseNumber(product["6ELPK"]),
+    leave_no: product["sWTUg"] || null,
+    purchase_notes: product["5Cedf"] || null,
+    is_miscellaneous: product["edjhe"] || null,
+    category: product["vccH4"] || null,
+    product_image_1: product["Product Image 1"] || null,
+    cart_note: product["qSE5p"] || null,
+    cart_rename: product["pSr0T"] || null,
+    submission_date: parseDate(product["SXT3o"]),
+    submitter_email: product["RD7cH"] || null,
+    last_edited_date: parseDate(product["t9wgm"]),
+    supabase_media_id: product["eb7jA"] || null,
+    supabase_video_link: product["Qr1Tl"] || null,
+    supabase_caption: product["zwLpG"] || null,
+    supabase_google_url: product["iIFAY"] || null,
     last_synced: new Date().toISOString(),
   };
 };
