@@ -18,28 +18,39 @@ serve(async (req) => {
     console.log('Starting upload-to-drive function...');
     
     // Parse request body
-    const requestBody = await req.json();
-    console.log('Request body:', JSON.stringify(requestBody));
-
-    if (!requestBody) {
-      throw new Error('Request body is empty');
+    let requestBody;
+    try {
+      const text = await req.text();
+      console.log('Raw request body:', text);
+      requestBody = JSON.parse(text);
+      console.log('Parsed request body:', requestBody);
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid request body format',
+          details: parseError.message 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 400 
+        }
+      );
     }
 
-    // Get and parse Google credentials
+    // Get and validate credentials
     const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
     if (!credentialsStr) {
       throw new Error('Google credentials not found in environment');
     }
 
-    // Parse credentials and get access token
     const credentials = parseGoogleCredentials(credentialsStr);
     const accessToken = await generateServiceAccountToken(credentials);
 
     // Handle single or multiple file uploads
     let results;
     if (requestBody.files && Array.isArray(requestBody.files)) {
-      // Handle multiple files
-      console.log('Processing multiple files:', requestBody.files.length);
+      console.log(`Processing ${requestBody.files.length} files for upload`);
       results = await Promise.all(
         requestBody.files.map(async (file) => {
           if (!file.fileUrl || !file.fileName) {
@@ -50,7 +61,6 @@ serve(async (req) => {
         })
       );
     } else if (requestBody.fileUrl && requestBody.fileName) {
-      // Handle single file
       console.log('Processing single file:', requestBody.fileName);
       results = await uploadToDrive(requestBody.fileUrl, requestBody.fileName, accessToken);
     } else {
@@ -60,10 +70,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ success: true, results }),
       { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   } catch (error) {
@@ -74,10 +81,7 @@ serve(async (req) => {
         stack: error.stack 
       }),
       { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500 
       }
     );

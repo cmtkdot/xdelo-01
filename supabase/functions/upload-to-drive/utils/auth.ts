@@ -3,15 +3,11 @@ import { create, getNumericDate } from "https://deno.land/x/djwt@v2.8/mod.ts";
 export const generateServiceAccountToken = async (credentials: any) => {
   try {
     console.log('Generating service account token...');
-    
-    if (!credentials || typeof credentials !== 'object') {
-      throw new Error('Invalid credentials format');
+
+    if (!credentials?.client_email || !credentials?.private_key) {
+      throw new Error('Invalid credentials: missing client_email or private_key');
     }
 
-    if (!credentials.client_email || !credentials.private_key) {
-      throw new Error('Missing required credential fields: client_email or private_key');
-    }
-    
     const now = Math.floor(Date.now() / 1000);
     const claims = {
       iss: credentials.client_email,
@@ -22,15 +18,15 @@ export const generateServiceAccountToken = async (credentials: any) => {
     };
 
     // Create JWT with proper algorithm configuration
-    const key = credentials.private_key.replace(/\\n/g, '\n');
+    const key = credentials.private_key;
     const jwt = await create(
       { alg: "RS256", typ: "JWT" },
       claims,
       key
     );
-    
+
     // Exchange JWT for access token
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -41,14 +37,13 @@ export const generateServiceAccountToken = async (credentials: any) => {
       }),
     });
 
-    if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.text();
-      console.error('Token exchange failed:', errorData);
-      throw new Error(`Failed to get access token: ${errorData}`);
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to get access token: ${error}`);
     }
 
-    const { access_token } = await tokenResponse.json();
-    return access_token;
+    const data = await response.json();
+    return data.access_token;
   } catch (error) {
     console.error('Error generating service account token:', error);
     throw error;
