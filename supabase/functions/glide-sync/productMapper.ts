@@ -5,8 +5,14 @@ export const mapGlideProductToSupabase = (product: GlideProduct) => {
   const values = product.values || {};
   console.log('Processing product:', product.id, 'with values:', values);
   
+  // Ensure glide_row_id is set from the product id
+  if (!product.id) {
+    console.warn('Product is missing id:', product);
+    throw new Error('Product id is required');
+  }
+
   return {
-    glide_row_id: product.id,
+    glide_row_id: product.id, // Use the product id as glide_row_id
     product_data: values,
     account_row_id: values["9aBFI"] || null,
     purchase_order_row_id: values["FoyGX"] || null,

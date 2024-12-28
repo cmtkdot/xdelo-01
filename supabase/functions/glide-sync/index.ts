@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { GlideResponse } from './types.ts';
 import { corsHeaders } from './utils.ts';
 import { mapGlideProductToSupabase } from './productMapper.ts';
 
@@ -65,10 +64,6 @@ serve(async (req) => {
       );
     }
 
-    if (products.length > GLIDE_BATCH_LIMIT) {
-      console.warn(`Retrieved ${products.length} products, exceeding the limit of ${GLIDE_BATCH_LIMIT}`);
-    }
-
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -79,8 +74,22 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Map and store products in Supabase
-    const mappedProducts = products.map(mapGlideProductToSupabase);
+    // Map and validate products
+    const mappedProducts = products
+      .map(mapGlideProductToSupabase)
+      .filter(product => {
+        if (!product.glide_row_id) {
+          console.warn('Skipping product with missing glide_row_id:', product);
+          return false;
+        }
+        return true;
+      });
+
+    if (mappedProducts.length === 0) {
+      throw new Error('No valid products to sync after filtering');
+    }
+
+    console.log(`Attempting to sync ${mappedProducts.length} valid products`);
 
     const { error: productsError } = await supabase
       .from('glide_products')
@@ -97,7 +106,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: 'Products synced successfully',
-        count: products.length 
+        count: mappedProducts.length 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
