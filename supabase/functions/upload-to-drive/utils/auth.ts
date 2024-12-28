@@ -13,10 +13,14 @@ export const generateServiceAccountToken = async (credentials: any) => {
       iat: now
     };
 
+    // Explicitly set the algorithm for JWT creation
     const key = credentials.private_key;
-    const alg = 'RS256';
+    const header = { 
+      alg: "RS256", 
+      typ: "JWT" 
+    };
 
-    const jwt = await create({ alg, typ: 'JWT' }, claims, key);
+    const jwt = await create(header, claims, key);
     
     // Exchange JWT for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -31,7 +35,9 @@ export const generateServiceAccountToken = async (credentials: any) => {
     });
 
     if (!tokenResponse.ok) {
-      throw new Error('Failed to get access token');
+      const errorData = await tokenResponse.text();
+      console.error('Token exchange failed:', errorData);
+      throw new Error(`Failed to get access token: ${errorData}`);
     }
 
     const { access_token } = await tokenResponse.json();
