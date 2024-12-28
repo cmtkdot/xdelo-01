@@ -40,6 +40,10 @@ interface GlideProduct {
     "SXT3o"?: string; // submission_date
     "RD7cH"?: string; // submitter_email
     "t9wgm"?: string; // last_edited_date
+    "eb7jA"?: string; // supabase_media_id
+    "Qr1Tl"?: string; // supabase_video_link
+    "zwLpG"?: string; // supabase_caption
+    "iIFAY"?: string; // supabase_google_url
   };
 }
 
@@ -98,42 +102,51 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Map Glide products to Supabase format
-    const mappedProducts = products.map((product: GlideProduct) => ({
-      glide_row_id: product.id,
-      product_data: product.values,
-      account_row_id: product.values["9aBFI"],
-      purchase_order_row_id: product.values["FoyGX"],
-      vpay_row_id: product.values["9ZlF5"],
-      sheet21pics_row_id: product.values["PIRCt"],
-      product_choice_row_id: product.values["JnZ0i"],
-      po_uid: product.values["qKFKb"],
-      product_name: product.values["Product Name"],
-      vendor_uid: product.values["0TFnd"],
-      po_date: product.values["6KEY6"],
-      vendor_product_name: product.values["7vTwD"],
-      purchase_date: product.values["j1byF"],
-      total_qty_purchased: product.values["2vbZN"],
-      cost: product.values["Cost"],
-      cost_update: product.values["2Oifn"],
-      is_sample: product.values["BtdUy"],
-      more_units_behind: product.values["zOV1T"],
-      is_fronted: product.values["PhXNJ"],
-      rename_product: product.values["TXvDh"],
-      fronted_terms: product.values["yGgnd"],
-      total_units_behind_sample: product.values["6ELPK"],
-      leave_no: product.values["sWTUg"],
-      purchase_notes: product.values["5Cedf"],
-      is_miscellaneous: product.values["edjhe"],
-      category: product.values["vccH4"],
-      product_image_1: product.values["Product Image 1"],
-      cart_note: product.values["qSE5p"],
-      cart_rename: product.values["pSr0T"],
-      submission_date: product.values["SXT3o"],
-      submitter_email: product.values["RD7cH"],
-      last_edited_date: product.values["t9wgm"],
-      last_synced: new Date().toISOString(),
-    }))
+    // Map Glide products to Supabase format with null checks
+    const mappedProducts = products.map((product: GlideProduct) => {
+      // Ensure product.values exists
+      const values = product.values || {};
+      
+      return {
+        glide_row_id: product.id,
+        product_data: values,
+        account_row_id: values["9aBFI"] || null,
+        purchase_order_row_id: values["FoyGX"] || null,
+        vpay_row_id: values["9ZlF5"] || null,
+        sheet21pics_row_id: values["PIRCt"] || null,
+        product_choice_row_id: values["JnZ0i"] || null,
+        po_uid: values["qKFKb"] || null,
+        product_name: values["Product Name"] || null,
+        vendor_uid: values["0TFnd"] || null,
+        po_date: values["6KEY6"] || null,
+        vendor_product_name: values["7vTwD"] || null,
+        purchase_date: values["j1byF"] || null,
+        total_qty_purchased: values["2vbZN"] || null,
+        cost: values["Cost"] || null,
+        cost_update: values["2Oifn"] || null,
+        is_sample: values["BtdUy"] || null,
+        more_units_behind: values["zOV1T"] || null,
+        is_fronted: values["PhXNJ"] || null,
+        rename_product: values["TXvDh"] || null,
+        fronted_terms: values["yGgnd"] || null,
+        total_units_behind_sample: values["6ELPK"] || null,
+        leave_no: values["sWTUg"] || null,
+        purchase_notes: values["5Cedf"] || null,
+        is_miscellaneous: values["edjhe"] || null,
+        category: values["vccH4"] || null,
+        product_image_1: values["Product Image 1"] || null,
+        cart_note: values["qSE5p"] || null,
+        cart_rename: values["pSr0T"] || null,
+        submission_date: values["SXT3o"] || null,
+        submitter_email: values["RD7cH"] || null,
+        last_edited_date: values["t9wgm"] || null,
+        supabase_media_id: values["eb7jA"] || null,
+        supabase_video_link: values["Qr1Tl"] || null,
+        supabase_caption: values["zwLpG"] || null,
+        supabase_google_url: values["iIFAY"] || null,
+        last_synced: new Date().toISOString(),
+      }
+    })
 
     // Store products in Supabase
     const { error: productsError } = await supabase
