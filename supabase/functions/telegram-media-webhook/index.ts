@@ -15,17 +15,22 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const determineMessageType = (payload: any): string => {
-  if (payload.edited_channel_post) return 'edited_channel_post';
-  if (payload.channel_post) return 'channel_post';
-  if (payload.edited_message) return 'edited_message';
-  if (payload.message) return 'message';
-  return 'unknown';
-};
-
 async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
   try {
-    const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
+    // Parse credentials properly
+    const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
+    if (!credentialsStr) {
+      throw new Error('Google credentials not found');
+    }
+
+    let credentials;
+    try {
+      credentials = JSON.parse(credentialsStr);
+    } catch (parseError) {
+      console.error('Error parsing Google credentials:', parseError);
+      throw new Error('Invalid Google credentials format');
+    }
+
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -33,16 +38,20 @@ async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
       },
       body: new URLSearchParams({
         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: credentials.private_key, // You'll need to implement proper JWT creation
+        assertion: credentials.private_key,
       }),
     });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get access token: ${response.statusText}`);
+    }
 
     const { access_token } = await response.json();
 
     // Upload to Google Drive
     const metadata = {
       name: fileName,
-      parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet'] // Your Telegram Media folder ID
+      parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet']
     };
 
     const form = new FormData();
@@ -50,6 +59,10 @@ async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
 
     // Fetch the file from Supabase
     const fileResponse = await fetch(fileUrl);
+    if (!fileResponse.ok) {
+      throw new Error(`Failed to fetch file from Supabase: ${fileResponse.statusText}`);
+    }
+
     const fileBlob = await fileResponse.blob();
     form.append('file', fileBlob);
 
@@ -65,7 +78,9 @@ async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
     );
 
     if (!uploadResponse.ok) {
-      throw new Error('Failed to upload to Google Drive');
+      const errorText = await uploadResponse.text();
+      console.error('Google Drive API Error:', errorText);
+      throw new Error(`Failed to upload to Google Drive: ${uploadResponse.statusText}`);
     }
 
     const driveFile = await uploadResponse.json();

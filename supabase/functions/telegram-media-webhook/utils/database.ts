@@ -54,11 +54,11 @@ export const checkForDuplicateMedia = async (supabase: any, telegramFileId: stri
   console.log(`Checking for duplicate media with Telegram file ID: ${telegramFileId}`);
   
   try {
-    // Use proper JSONB containment operator @> to check if metadata contains the telegram_file_id
+    // Use proper text search instead of JSONB containment
     const { data, error } = await supabase
       .from('media')
       .select('id, file_name, caption')
-      .filter('metadata', '@>', JSON.stringify({ telegram_file_id: telegramFileId }))
+      .filter('metadata->telegram_file_id', 'eq', telegramFileId)
       .maybeSingle();
 
     if (error) {
@@ -75,7 +75,6 @@ export const checkForDuplicateMedia = async (supabase: any, telegramFileId: stri
     return data;
   } catch (error) {
     console.error('Error in checkForDuplicateMedia:', error);
-    // Return null instead of throwing to allow the process to continue
     return null;
   }
 };
