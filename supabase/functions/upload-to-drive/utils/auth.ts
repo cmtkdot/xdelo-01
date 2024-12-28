@@ -13,14 +13,13 @@ export const generateServiceAccountToken = async (credentials: any) => {
       iat: now
     };
 
-    // Explicitly set the algorithm for JWT creation
+    // Create JWT with proper algorithm configuration
     const key = credentials.private_key;
-    const header = { 
-      alg: "RS256", 
-      typ: "JWT" 
-    };
-
-    const jwt = await create(header, claims, key);
+    const jwt = await create(
+      { alg: "RS256", typ: "JWT" },
+      claims,
+      key
+    );
     
     // Exchange JWT for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
