@@ -1,7 +1,7 @@
-import MediaGallery from "@/components/MediaGallery";
+import MediaGalleryContainer from "@/components/media/MediaGalleryContainer";
 
 const Media = () => {
-  return <MediaGallery />;
+  return <MediaGalleryContainer />;
 };
 
 export default Media;

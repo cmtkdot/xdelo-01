@@ -2,7 +2,6 @@ import { useState } from "react";
 import { HttpMethod } from "../WebhookMethodSelector";
 import { Header } from "../WebhookHeaderManager";
 import { QueryParam } from "../WebhookQueryManager";
-import { MediaItem } from "../../media/types";
 
 export const useWebhookState = (initialSchedule: "manual" | "hourly" | "daily" | "weekly" = "manual") => {
   const [webhookUrl, setWebhookUrl] = useState("");
