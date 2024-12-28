@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { uploadToDrive, initializeDriveUpload } from './utils/drive.ts'
+import { parseGoogleCredentials } from './utils/credentials.ts'
+import { generateServiceAccountToken } from './utils/auth.ts'
+import { uploadToDrive } from './utils/drive.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,22 +27,30 @@ serve(async (req) => {
       throw new Error('Request body is empty');
     }
 
-    // Initialize Google Drive authentication
-    const accessToken = await initializeDriveUpload();
+    // Get and parse Google credentials
+    const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
+    if (!credentialsStr) {
+      throw new Error('Google credentials not found in environment');
+    }
+
+    // Parse credentials and get access token
+    const credentials = parseGoogleCredentials(credentialsStr);
+    const accessToken = await generateServiceAccountToken(credentials);
 
     // Handle single or multiple file uploads
     let results;
     if (requestBody.files && Array.isArray(requestBody.files)) {
       // Handle multiple files
+      console.log('Processing multiple files:', requestBody.files.length);
       results = await Promise.all(
         requestBody.files.map(async (file) => {
-          console.log('Processing file:', file);
+          console.log('Processing file:', file.fileName);
           return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
         })
       );
     } else if (requestBody.fileUrl && requestBody.fileName) {
       // Handle single file
-      console.log('Processing single file:', requestBody);
+      console.log('Processing single file:', requestBody.fileName);
       results = await uploadToDrive(requestBody.fileUrl, requestBody.fileName, accessToken);
     } else {
       throw new Error('Invalid request format: missing file information');
