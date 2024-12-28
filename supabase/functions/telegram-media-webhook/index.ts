@@ -7,7 +7,7 @@ import {
   getMediaItem,
   formatMediaMetadata 
 } from "./utils/fileHandling.ts";
-import { saveChannel, saveMessage, saveMedia, syncMediaGroupCaption } from "./utils/database.ts";
+import { saveChannel, saveMessage, saveMedia } from "./utils/database.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +22,62 @@ const determineMessageType = (payload: any): string => {
   if (payload.message) return 'message';
   return 'unknown';
 };
+
+async function uploadToGoogleDrive(fileUrl: string, fileName: string) {
+  try {
+    const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: credentials.private_key, // You'll need to implement proper JWT creation
+      }),
+    });
+
+    const { access_token } = await response.json();
+
+    // Upload to Google Drive
+    const metadata = {
+      name: fileName,
+      parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet'] // Your Telegram Media folder ID
+    };
+
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+
+    // Fetch the file from Supabase
+    const fileResponse = await fetch(fileUrl);
+    const fileBlob = await fileResponse.blob();
+    form.append('file', fileBlob);
+
+    const uploadResponse = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+        },
+        body: form,
+      }
+    );
+
+    if (!uploadResponse.ok) {
+      throw new Error('Failed to upload to Google Drive');
+    }
+
+    const driveFile = await uploadResponse.json();
+    return {
+      fileId: driveFile.id,
+      webViewLink: `https://drive.google.com/file/d/${driveFile.id}/view`
+    };
+  } catch (error) {
+    console.error('Error uploading to Google Drive:', error);
+    throw error;
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -100,7 +156,6 @@ serve(async (req) => {
       const mediaType = determineMediaType(message);
       const mediaItem = getMediaItem(message);
       
-      // Format metadata properly
       const metadata = formatMediaMetadata(mediaItem, message);
       console.log("Formatted metadata:", metadata);
       
@@ -122,6 +177,7 @@ serve(async (req) => {
       const fileExt = fileData.result.file_path.split('.').pop();
       const fileName = generateSafeFileName(messageCaption || mediaItem.file_id, fileExt);
 
+      // Upload to Supabase Storage
       const { data: storageData, error: storageError } = await supabase.storage
         .from("telegram-media")
         .upload(fileName, mediaBlob, {
@@ -137,6 +193,16 @@ serve(async (req) => {
         .from("telegram-media")
         .getPublicUrl(fileName);
 
+      // Upload to Google Drive
+      let driveData;
+      try {
+        driveData = await uploadToGoogleDrive(publicUrl.publicUrl, fileName);
+        console.log('Successfully uploaded to Google Drive:', driveData);
+      } catch (error) {
+        console.error('Failed to upload to Google Drive:', error);
+      }
+
+      // Save media with Google Drive information if available
       const mediaData = await saveMedia(
         supabase,
         userId,
@@ -146,7 +212,9 @@ serve(async (req) => {
         mediaType,
         messageCaption,
         metadata,
-        message.media_group_id
+        message.media_group_id,
+        driveData?.fileId,
+        driveData?.webViewLink
       );
 
       console.log(`Successfully processed media with caption: "${messageCaption}" and media_group_id: ${message.media_group_id}`);
@@ -159,7 +227,8 @@ serve(async (req) => {
           media_type: mediaType,
           file_name: fileName,
           media_group_id: message.media_group_id,
-          caption: messageCaption
+          caption: messageCaption,
+          google_drive_id: driveData?.fileId
         },
       });
     }

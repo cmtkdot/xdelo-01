@@ -156,7 +156,9 @@ export const saveMedia = async (
   mediaType: string,
   caption: string | null,
   metadata: any,
-  mediaGroupId?: string
+  mediaGroupId?: string,
+  googleDriveId?: string,
+  googleDriveUrl?: string
 ) => {
   try {
     // Ensure metadata is a valid JSON object
@@ -168,13 +170,25 @@ export const saveMedia = async (
     if (existingMedia) {
       console.log(`Found duplicate media with file ID: ${validMetadata.telegram_file_id}`);
       
-      // If there's a new caption, update the existing media
-      if (caption !== null && caption !== existingMedia.caption) {
-        console.log(`Updating caption for existing media from "${existingMedia.caption}" to "${caption}"`);
-        return await updateDuplicateMedia(supabase, existingMedia.id, caption);
+      // If there's a new caption or Google Drive info, update the existing media
+      if (caption !== null && caption !== existingMedia.caption || googleDriveId) {
+        console.log(`Updating media with new caption or Google Drive info`);
+        const { data: updatedMedia, error: updateError } = await supabase
+          .from("media")
+          .update({
+            caption: caption || existingMedia.caption,
+            google_drive_id: googleDriveId || existingMedia.google_drive_id,
+            google_drive_url: googleDriveUrl || existingMedia.google_drive_url
+          })
+          .eq('id', existingMedia.id)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+        return updatedMedia;
       }
       
-      console.log(`Skipping duplicate media upload and keeping existing caption: "${existingMedia.caption}"`);
+      console.log(`Skipping duplicate media upload and keeping existing data`);
       return existingMedia;
     }
 
@@ -188,7 +202,9 @@ export const saveMedia = async (
         media_type: mediaType,
         caption,
         metadata: validMetadata,
-        media_group_id: mediaGroupId
+        media_group_id: mediaGroupId,
+        google_drive_id: googleDriveId,
+        google_drive_url: googleDriveUrl
       })
       .select()
       .single();
@@ -205,7 +221,6 @@ export const saveMedia = async (
         await syncMediaGroupCaption(supabase, mediaGroupId, caption);
       } catch (syncError) {
         console.error('Error auto-syncing captions:', syncError);
-        // Don't throw the error - we still want to return the saved media
       }
     }
 

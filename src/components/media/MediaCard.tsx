@@ -15,6 +15,9 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const isVideo = item.media_type === "video";
 
+  // Prioritize Google Drive URL if available
+  const displayUrl = item.google_drive_url || item.file_url;
+
   const handleCardClick = (e: React.MouseEvent) => {
     // Prevent opening dialog when clicking checkbox
     if ((e.target as HTMLElement).closest('.checkbox-area')) {
@@ -41,13 +44,13 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
           <div className="relative w-full aspect-square group-hover:scale-105 transition-transform duration-300">
             {isVideo ? (
               <video
-                src={item.file_url}
+                src={displayUrl}
                 className="absolute inset-0 w-full h-full object-cover"
                 preload="metadata"
               />
             ) : (
               <img
-                src={item.file_url}
+                src={displayUrl}
                 alt={item.caption || "Media"}
                 className="absolute inset-0 w-full h-full object-cover"
                 loading="lazy"
@@ -75,7 +78,10 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
       </Card>
 
       <MediaViewerDialog
-        item={item}
+        item={{
+          ...item,
+          file_url: displayUrl // Use the Google Drive URL in the viewer dialog
+        }}
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
       />
