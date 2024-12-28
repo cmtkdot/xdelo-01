@@ -1,7 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Channel } from "./types";
 
-interface MediaFiltersProps {
+export interface MediaFiltersProps {
   selectedChannel: string;
   setSelectedChannel: (value: string) => void;
   selectedType: string;
