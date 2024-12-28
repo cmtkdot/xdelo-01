@@ -3,6 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type GlideProduct = Database['public']['Tables']['glide_products']['Row'];
 
 const Glide = () => {
   const { toast } = useToast();
@@ -17,7 +20,7 @@ const Glide = () => {
         .order('last_synced', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as GlideProduct[];
     },
   });
 

@@ -173,6 +173,30 @@ export type Database = {
         }
         Relationships: []
       }
+      glide_products: {
+        Row: {
+          created_at: string | null
+          glide_row_id: string
+          last_synced: string | null
+          product_data: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          glide_row_id: string
+          last_synced?: string | null
+          product_data?: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          glide_row_id?: string
+          last_synced?: string | null
+          product_data?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       google_sheets_config: {
         Row: {
           auto_sync: boolean | null
