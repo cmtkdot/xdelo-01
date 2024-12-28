@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +24,8 @@ serve(async (req) => {
     if (!glideApiToken || !glideAppId || !glideTableProducts) {
       throw new Error('Missing Glide configuration')
     }
+
+    console.log('Starting Glide products sync...')
 
     // Fetch products from Glide
     const response = await fetch('https://api.glideapp.io/api/function/queryTables', {
@@ -49,12 +52,18 @@ serve(async (req) => {
     const data = await response.json()
     console.log('Successfully fetched Glide products:', data)
 
-    // Store products in Supabase
-    const { data: { user } } = await supabaseClient.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    // Create products table if it doesn't exist
-    const { error: productsError } = await supabaseClient
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase configuration')
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    // Store products in Supabase
+    const { error: productsError } = await supabase
       .from('glide_products')
       .upsert(data.map((product: GlideProduct) => ({
         glide_row_id: product.id,
@@ -63,6 +72,8 @@ serve(async (req) => {
       })))
 
     if (productsError) throw productsError
+
+    console.log('Successfully synced products to Supabase')
 
     return new Response(
       JSON.stringify({ success: true, message: 'Products synced successfully' }),

@@ -1,3 +1,5 @@
+import { Json } from './base';
+
 export interface DatabaseFunctions {
   execute_safe_query: {
     Args: { query_text: string };
