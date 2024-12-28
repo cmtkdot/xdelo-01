@@ -19,6 +19,12 @@ serve(async (req) => {
   try {
     console.log('Starting Glide products sync...');
 
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
+
     const glideApiToken = Deno.env.get('GLIDE_API_TOKEN');
     const glideAppId = Deno.env.get('GLIDE_APP_ID');
     const glideTableProducts = Deno.env.get('GLIDE_TABLE_PRODUCTS');

@@ -27,7 +27,11 @@ const Glide = () => {
   const handleSync = async () => {
     try {
       setIsSyncing(true);
-      const { error } = await supabase.functions.invoke('glide-sync');
+      const { error } = await supabase.functions.invoke('glide-sync', {
+        headers: {
+          Authorization: `Bearer ${supabase.auth.session()?.access_token}`
+        }
+      });
       
       if (error) throw error;
       
@@ -41,7 +45,7 @@ const Glide = () => {
       console.error('Error syncing products:', error);
       toast({
         title: "Error",
-        description: "Failed to sync products",
+        description: error instanceof Error ? error.message : "Failed to sync products",
         variant: "destructive",
       });
     } finally {
