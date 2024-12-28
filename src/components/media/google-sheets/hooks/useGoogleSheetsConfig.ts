@@ -2,7 +2,12 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { SpreadsheetConfig } from "../types";
-import { initGoogleSheetsAPI, syncWithGoogleSheets, initializeSpreadsheet } from "../../utils/googleSheetsSync";
+import { 
+  initGoogleSheetsAPI, 
+  initializeSpreadsheet,
+  SPECIFIC_SPREADSHEET_ID,
+  SPECIFIC_GID 
+} from "../../utils/googleSheetsSync";
 
 export const useGoogleSheetsConfig = (selectedMedia = []) => {
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConfig[]>([]);
@@ -10,18 +15,15 @@ export const useGoogleSheetsConfig = (selectedMedia = []) => {
 
   // Add specific spreadsheet on mount
   useEffect(() => {
-    const specificSpreadsheetId = "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w";
-    const specificGid = "1908422891";
-    
     const isConfigured = spreadsheets.some(sheet => 
-      sheet.id === specificSpreadsheetId && sheet.gid === specificGid
+      sheet.id === SPECIFIC_SPREADSHEET_ID && sheet.gid === SPECIFIC_GID
     );
 
     if (!isConfigured) {
       handleAddSpreadsheet(
         "Synced Media Sheet",
-        specificSpreadsheetId,
-        specificGid
+        SPECIFIC_SPREADSHEET_ID,
+        SPECIFIC_GID
       );
     }
   }, []);
