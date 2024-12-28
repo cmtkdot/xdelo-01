@@ -76,6 +76,7 @@ serve(async (req) => {
         queries: [
           {
             tableName: glideTableProducts,
+            limit: 100 // Add a limit to prevent timeout
           }
         ],
       }),
@@ -91,6 +92,18 @@ serve(async (req) => {
     console.log('Successfully fetched Glide products:', data)
 
     const products = data[0]?.rows || []
+    
+    if (products.length === 0) {
+      console.log('No products found in Glide response')
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'No products to sync',
+          count: 0 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -106,6 +119,7 @@ serve(async (req) => {
     const mappedProducts = products.map((product: GlideProduct) => {
       // Ensure product.values exists
       const values = product.values || {};
+      console.log('Processing product:', product.id, 'with values:', values);
       
       return {
         glide_row_id: product.id,
