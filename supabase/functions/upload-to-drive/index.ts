@@ -19,6 +19,8 @@ serve(async (req) => {
     
     // Parse request body
     const requestBody = await req.json();
+    console.log('Request body:', JSON.stringify(requestBody));
+
     if (!requestBody) {
       throw new Error('Request body is empty');
     }
@@ -41,7 +43,7 @@ serve(async (req) => {
       results = await Promise.all(
         requestBody.files.map(async (file) => {
           if (!file.fileUrl || !file.fileName) {
-            throw new Error('Missing file information');
+            throw new Error('Missing file information in files array');
           }
           console.log('Processing file:', file.fileName);
           return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
@@ -57,14 +59,25 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, results }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
     );
   } catch (error) {
     console.error('Error in upload-to-drive function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        stack: error.stack 
+      }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        },
         status: 500 
       }
     );
