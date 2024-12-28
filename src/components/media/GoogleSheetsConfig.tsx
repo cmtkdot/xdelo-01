@@ -8,11 +8,7 @@ import { GoogleSheetsConfigProps } from "./google-sheets/types";
 import { syncWithGoogleSheets } from "./utils/googleSheetsSync";
 import { MediaItem } from "./types";
 import { useToast } from "@/components/ui/use-toast";
-
-const SPECIFIC_SPREADSHEET_ID = "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w";
-const SPECIFIC_GID = "584740191";
-const SYNC_COLUMNS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
-const SYNC_INTERVAL = 30000; // Sync every 30 seconds
+import { useGoogleLogin } from '@react-oauth/google';
 
 export const GoogleSheetsConfig = ({ 
   onSpreadsheetIdSet, 
@@ -27,6 +23,25 @@ export const GoogleSheetsConfig = ({
     toggleAutoSync,
     removeSpreadsheet
   } = useGoogleSheetsConfig(selectedMedia);
+
+  const login = useGoogleLogin({
+    onSuccess: (response) => {
+      localStorage.setItem('google_access_token', response.access_token);
+      toast({
+        title: "Success",
+        description: "Successfully authenticated with Google",
+      });
+    },
+    onError: (error) => {
+      console.error('Google Login Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to authenticate with Google",
+        variant: "destructive",
+      });
+    },
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+  });
 
   // Query to fetch all media or selected media
   const { data: allMedia } = useQuery({
@@ -67,7 +82,7 @@ export const GoogleSheetsConfig = ({
     }
 
     try {
-      await syncWithGoogleSheets(spreadsheetId, allMedia, gid, SYNC_COLUMNS);
+      await syncWithGoogleSheets(spreadsheetId, allMedia, gid);
       console.log(`Synced with spreadsheet: ${spreadsheetId}${gid ? ` (GID: ${gid})` : ''}`);
       toast({
         title: "Sync Successful",
@@ -75,11 +90,19 @@ export const GoogleSheetsConfig = ({
       });
     } catch (error) {
       console.error('Sync error:', error);
-      toast({
-        title: "Sync Failed",
-        description: error instanceof Error ? error.message : "Failed to sync with Google Sheets",
-        variant: "destructive",
-      });
+      if (error.message?.includes('No access token found')) {
+        toast({
+          title: "Authentication Required",
+          description: "Please authenticate with Google to sync data",
+          action: <button onClick={() => login()} className="bg-primary text-white px-4 py-2 rounded">Login</button>,
+        });
+      } else {
+        toast({
+          title: "Sync Failed",
+          description: error instanceof Error ? error.message : "Failed to sync with Google Sheets",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -169,7 +192,15 @@ export const GoogleSheetsConfig = ({
 
   return (
     <div className="space-y-6">
-      <AddSpreadsheetForm onSubmit={handleAddSpreadsheet} />
+      <div className="flex items-center justify-between">
+        <AddSpreadsheetForm onSubmit={handleAddSpreadsheet} />
+        <button
+          onClick={() => login()}
+          className="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90 transition-colors"
+        >
+          Connect Google Account
+        </button>
+      </div>
 
       <div className="grid gap-4">
         {spreadsheets.map((sheet) => (
