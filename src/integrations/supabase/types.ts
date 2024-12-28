@@ -220,6 +220,7 @@ export type Database = {
           created_at: string | null
           file_name: string
           file_url: string
+          glide_row_id: string | null
           google_drive_id: string | null
           google_drive_url: string | null
           id: string
@@ -236,6 +237,7 @@ export type Database = {
           created_at?: string | null
           file_name: string
           file_url: string
+          glide_row_id?: string | null
           google_drive_id?: string | null
           google_drive_url?: string | null
           id?: string
@@ -252,6 +254,7 @@ export type Database = {
           created_at?: string | null
           file_name?: string
           file_url?: string
+          glide_row_id?: string | null
           google_drive_id?: string | null
           google_drive_url?: string | null
           id?: string
