@@ -29,8 +29,8 @@ export const MediaTableToolbar = ({ selectedMedia, onDeleteSuccess }: MediaTable
       // Delete associated messages if chatId and messageId exist
       for (const item of selectedMedia) {
         // Ensure metadata is a Record before accessing message_id
-        const messageId = typeof item.metadata === 'object' && item.metadata 
-          ? item.metadata.message_id 
+        const messageId = typeof item.metadata === 'object' && item.metadata !== null
+          ? (item.metadata as Record<string, any>).message_id
           : undefined;
 
         if (item.chat_id && messageId) {

@@ -146,6 +146,33 @@ export type Database = {
         }
         Relationships: []
       }
+      expense: {
+        Row: {
+          amount: string | null
+          category: Database["public"]["Enums"]["expense_category"] | null
+          date: string | null
+          expense_note: string | null
+          expenses_row_id: string | null
+          uuid: number
+        }
+        Insert: {
+          amount?: string | null
+          category?: Database["public"]["Enums"]["expense_category"] | null
+          date?: string | null
+          expense_note?: string | null
+          expenses_row_id?: string | null
+          uuid?: number
+        }
+        Update: {
+          amount?: string | null
+          category?: Database["public"]["Enums"]["expense_category"] | null
+          date?: string | null
+          expense_note?: string | null
+          expenses_row_id?: string | null
+          uuid?: number
+        }
+        Relationships: []
+      }
       google_sheets_config: {
         Row: {
           auto_sync: boolean | null
@@ -419,7 +446,17 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      expense_category:
+        | "company_supplies"
+        | "rent_utility"
+        | "payroll"
+        | "manufacture"
+        | "tp_expenses"
+        | "grow_expenses"
+        | "miscellaneous"
+        | "transportation"
+        | "dc_expenses"
+        | "automatic"
     }
     CompositeTypes: {
       [_ in never]: never

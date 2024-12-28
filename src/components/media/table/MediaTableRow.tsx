@@ -108,7 +108,9 @@ export const MediaTableRow = ({
   };
 
   // Extract message ID from metadata if available and ensure it's a Record
-  const messageId = typeof item.metadata === 'object' && item.metadata ? item.metadata.message_id : undefined;
+  const messageId = typeof item.metadata === 'object' && item.metadata !== null 
+    ? (item.metadata as Record<string, any>).message_id 
+    : undefined;
 
   return (
     <TableRow 
