@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -18,10 +17,25 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Get the user from the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      throw new Error('Unauthorized');
+    }
+
     // Get all media files from the database
     const { data: mediaFiles, error: mediaError } = await supabase
       .from('media')
-      .select('*');
+      .select('*')
+      .eq('user_id', user.id);
 
     if (mediaError) {
       console.error('Error fetching media:', mediaError);
@@ -69,13 +83,11 @@ serve(async (req) => {
           contentType = 'video/quicktime';
           break;
         default:
-          // If we can't determine from extension, use a generic binary type
           contentType = 'application/octet-stream';
       }
 
       try {
-        console.log(`Updating content type for ${fileName} to ${contentType}`);
-        
+        // Update content type
         const { error: updateError } = await supabase
           .storage
           .from('telegram-media')
@@ -94,9 +106,30 @@ serve(async (req) => {
           continue;
         }
 
+        // Update public URL
+        const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${fileName}`;
+        const { error: dbError } = await supabase
+          .from('media')
+          .update({ 
+            public_url: publicUrl,
+            user_id: user.id 
+          })
+          .eq('id', file.id);
+
+        if (dbError) {
+          console.error(`Error updating public URL for ${fileName}:`, dbError);
+          updates.push({
+            fileName,
+            error: dbError.message,
+            success: false
+          });
+          continue;
+        }
+
         updates.push({
           fileName,
           contentType,
+          publicUrl,
           success: true
         });
 
@@ -112,7 +145,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        message: 'Content types update completed',
+        message: 'Media files update completed',
         updates 
       }),
       { 
@@ -125,12 +158,12 @@ serve(async (req) => {
     console.error('Error in update-media-content-types:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        details: error.stack 
+        success: false,
+        error: error.message
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
+        status: 400 
       }
     );
   }
