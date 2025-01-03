@@ -27,7 +27,7 @@ async function findOrCreateRootFolder(accessToken: string): Promise<string> {
     return searchResult.files[0].id;
   }
 
-  // If folder doesn't exist, create it
+  // If folder doesn't exist, create it with specific permissions
   console.log('Creating new root folder');
   const createResponse = await fetch(
     'https://www.googleapis.com/drive/v3/files',
@@ -40,6 +40,9 @@ async function findOrCreateRootFolder(accessToken: string): Promise<string> {
       body: JSON.stringify({
         name: ROOT_FOLDER_NAME,
         mimeType: 'application/vnd.google-apps.folder',
+        // Make the folder accessible to the service account
+        permissionIds: ['anyone'],
+        writersCanShare: true
       }),
     }
   );
@@ -52,6 +55,32 @@ async function findOrCreateRootFolder(accessToken: string): Promise<string> {
 
   const folder = await createResponse.json();
   console.log('Created new root folder:', folder.id);
+
+  // Set permissions for the new folder
+  console.log('Setting folder permissions...');
+  const permissionResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${folder.id}/permissions`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        role: 'writer',
+        type: 'anyone',
+        allowFileDiscovery: true
+      }),
+    }
+  );
+
+  if (!permissionResponse.ok) {
+    const errorData = await permissionResponse.text();
+    console.error('Error setting folder permissions:', errorData);
+    throw new Error(`Failed to set folder permissions: ${errorData}`);
+  }
+
+  console.log('Folder permissions set successfully');
   return folder.id;
 }
 
