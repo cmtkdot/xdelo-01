@@ -34,8 +34,9 @@ const GoogleSheetsConfigContent = ({
   } = useGoogleSheetsConfig(selectedMedia);
 
   const login = useGoogleLogin({
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       localStorage.setItem('google_access_token', response.access_token);
+      console.log('Successfully obtained access token:', response.access_token);
       toast({
         title: "Success",
         description: "Successfully authenticated with Google",
@@ -159,7 +160,7 @@ export const GoogleSheetsConfig = (props: GoogleSheetsConfigProps) => {
     if (!clientId) {
       console.error('Google Client ID is not set. Please check your environment variables.');
     } else {
-      console.log('Google Client ID is configured successfully');
+      console.log('Google Client ID is configured successfully:', clientId);
     }
   }, [clientId]);
 
