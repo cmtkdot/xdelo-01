@@ -40,6 +40,14 @@ serve(async (req) => {
 
     // Get and validate credentials
     const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
+    if (!credentialsStr) {
+      console.error('Missing Google service account credentials');
+      return new Response(
+        JSON.stringify({ error: 'Google service account credentials not configured' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
     console.log('Parsing Google credentials...');
     const credentials = parseGoogleCredentials(credentialsStr);
     console.log('Generating access token...');
