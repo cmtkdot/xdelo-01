@@ -1,4 +1,3 @@
-import { MediaItem } from "../types";
 import { supabase } from "@/integrations/supabase/client";
 
 // Constants
@@ -19,17 +18,13 @@ export const initGoogleSheetsAPI = async () => {
 export const initializeSpreadsheet = async (spreadsheetId: string, gid?: string) => {
   try {
     console.log('Verifying spreadsheet access...');
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/init-google-sheet`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ spreadsheetId, gid }),
+    const { data, error } = await supabase.functions.invoke('init-google-sheet', {
+      body: { spreadsheetId, gid },
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to initialize spreadsheet');
+    if (error) {
+      console.error('Error initializing spreadsheet:', error);
+      throw error;
     }
 
     console.log('Spreadsheet initialized successfully');
@@ -42,19 +37,14 @@ export const initializeSpreadsheet = async (spreadsheetId: string, gid?: string)
 
 export const syncWithGoogleSheets = async (
   spreadsheetId: string,
-  mediaItems: MediaItem[],
+  mediaItems: any[],
   gid?: string
 ) => {
   try {
     console.log('Starting Google Sheets sync...');
     
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-google-sheet`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabase.functions.invoke('sync-google-sheet', {
+      body: {
         spreadsheetId,
         gid,
         data: mediaItems.map(item => [
@@ -67,11 +57,11 @@ export const syncWithGoogleSheets = async (
           item.google_drive_url || '',
           item.google_drive_id || ''
         ])
-      }),
+      },
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to sync with Google Sheets');
+    if (error) {
+      throw error;
     }
 
     console.log('Sync completed successfully');
