@@ -11,15 +11,16 @@ export const initGoogleSheetsAPI = async () => {
     // Check if gapi is already loaded
     if (typeof window.gapi === 'undefined') {
       console.log('Loading Google API client...');
-      await new Promise((resolve) => {
+      await new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = 'https://apis.google.com/js/api.js';
         script.async = true;
         script.defer = true;
+        script.crossOrigin = "anonymous";
         script.onload = resolve;
         script.onerror = (error) => {
           console.error('Error loading Google API script:', error);
-          throw new Error('Failed to load Google API client');
+          reject(new Error('Failed to load Google API client'));
         };
         document.body.appendChild(script);
       });
@@ -28,19 +29,31 @@ export const initGoogleSheetsAPI = async () => {
     // Initialize the client if not already initialized
     if (!window.gapi?.client?.sheets) {
       console.log('Initializing Google API client...');
-      await new Promise((resolve) => window.gapi.load('client', resolve));
       
-      const { data: { api_key } } = await supabase.functions.invoke('get-google-api-key');
-      
-      await window.gapi.client.init({
-        apiKey: api_key,
-        clientId: "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com",
-        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-        scope: 'https://www.googleapis.com/auth/spreadsheets'
+      // Load the client library
+      await new Promise((resolve, reject) => {
+        try {
+          window.gapi.load('client', { callback: resolve, onerror: reject });
+        } catch (error) {
+          console.error('Error during gapi.load:', error);
+          reject(error);
+        }
       });
+      
+      try {
+        const { data: { api_key } } = await supabase.functions.invoke('get-google-api-key');
+        
+        await window.gapi.client.init({
+          apiKey: api_key,
+          discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+        });
+      } catch (error) {
+        console.error('Error initializing gapi client:', error);
+        throw error;
+      }
     }
 
-    // Get the access token from localStorage
+    // Get and verify the access token
     const accessToken = localStorage.getItem('google_access_token');
     if (!accessToken) {
       console.error('No access token found');
