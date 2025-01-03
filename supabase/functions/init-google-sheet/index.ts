@@ -8,7 +8,7 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -42,13 +42,8 @@ serve(async (req) => {
     const token = await generateServiceAccountToken(credentials);
     console.log('Successfully obtained access token');
 
-    // Get spreadsheet info to verify access
-    let apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
-    if (gid) {
-      // If GID is provided, get specific sheet info
-      apiUrl = `${apiUrl}/sheets/${gid}`;
-    }
-
+    // Get spreadsheet info to verify access - only verify the main spreadsheet
+    const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
     console.log('Fetching spreadsheet from:', apiUrl);
     
     const getResponse = await fetch(apiUrl, {
@@ -64,11 +59,23 @@ serve(async (req) => {
         statusText: getResponse.statusText,
         error: errorText
       });
-      throw new Error(`Failed to get spreadsheet: Status ${getResponse.status} - ${errorText}`);
+      throw new Error(`Failed to access spreadsheet (${getResponse.status}): ${getResponse.statusText}`);
     }
 
     const spreadsheetData = await getResponse.json();
     console.log('Successfully verified spreadsheet access');
+
+    // If GID is provided, verify it exists in the spreadsheet
+    if (gid) {
+      const sheetExists = spreadsheetData.sheets?.some(
+        (sheet: any) => sheet.properties?.sheetId?.toString() === gid
+      );
+      
+      if (!sheetExists) {
+        throw new Error(`Sheet with GID ${gid} not found in spreadsheet`);
+      }
+      console.log(`Successfully verified sheet GID ${gid} exists`);
+    }
     
     return new Response(
       JSON.stringify({ 
