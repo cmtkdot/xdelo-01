@@ -19,10 +19,25 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Get the user from the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      throw new Error('Unauthorized');
+    }
+
     // Fetch all media items that need public URL updates
     const { data: mediaItems, error: fetchError } = await supabaseClient
       .from('media')
-      .select('*');
+      .select('*')
+      .eq('user_id', user.id);
 
     if (fetchError) {
       console.error('Error fetching media items:', fetchError);
@@ -36,6 +51,7 @@ serve(async (req) => {
       
       return {
         id: item.id,
+        user_id: user.id, // Ensure user_id is included in the update
         public_url: publicUrl
       };
     });
@@ -64,7 +80,7 @@ serve(async (req) => {
       
       const { data, error } = await supabaseClient
         .from('media')
-        .upsert(batch)
+        .upsert(batch, { onConflict: 'id' })
         .select();
 
       if (error) {
