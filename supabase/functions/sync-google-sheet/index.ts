@@ -1,146 +1,98 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const { spreadsheetId, gid, data } = await req.json();
-    console.log('Received request:', { spreadsheetId, gid });
+    
+    if (!spreadsheetId) {
+      throw new Error('Spreadsheet ID is required');
+    }
 
-    // Get service account credentials
-    const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
-    
-    // Get access token using JWT
-    const tokenEndpoint = 'https://oauth2.googleapis.com/token';
-    const now = Math.floor(Date.now() / 1000);
-    const claim = {
-      iss: credentials.client_email,
-      scope: 'https://www.googleapis.com/auth/spreadsheets',
-      aud: tokenEndpoint,
-      exp: now + 3600,
-      iat: now,
-    };
+    // Format data for Google Sheets
+    const formattedData = data.map((item: any) => [
+      item.file_name,
+      item.media_type,
+      item.chat?.title || '',
+      new Date(item.created_at || '').toLocaleString(),
+      item.caption || '',
+      item.file_url,
+      item.google_drive_url || '',
+      item.google_drive_id || '',
+      new Date(item.updated_at || '').toLocaleString(),
+      item.media_group_id || '',
+      item.id,
+      item.public_url || ''  // Added public URL
+    ]);
 
-    // Create JWT
-    const header = { alg: 'RS256', typ: 'JWT' };
-    const encodedHeader = btoa(JSON.stringify(header));
-    const encodedClaim = btoa(JSON.stringify(claim));
-    const signatureInput = `${encodedHeader}.${encodedClaim}`;
+    const range = gid ? `Sheet1!A1:L${formattedData.length + 1}` : 'A1:L';
+    const sheetsEndpoint = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`;
     
-    // Sign JWT with private key
-    const encoder = new TextEncoder();
-    const privateKey = credentials.private_key;
-    const keyData = await crypto.subtle.importKey(
-      'pkcs8',
-      new TextEncoder().encode(privateKey),
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
+    const accessToken = await getAccessToken();
     
-    const signature = await crypto.subtle.sign(
-      { name: 'RSASSA-PKCS1-v1_5' },
-      keyData,
-      encoder.encode(signatureInput)
-    );
-    
-    const jwt = `${signatureInput}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`;
-
-    // Exchange JWT for access token
-    const tokenResponse = await fetch(tokenEndpoint, {
-      method: 'POST',
+    const response = await fetch(sheetsEndpoint, {
+      method: 'PUT',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
       },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: jwt,
+      body: JSON.stringify({
+        values: formattedData,
+        majorDimension: 'ROWS',
       }),
     });
 
-    const { access_token } = await tokenResponse.json();
-    console.log('Obtained access token');
-
-    // Update headers and data in Google Sheet
-    const headers = [
-      'File Name',
-      'Type',
-      'Channel',
-      'Created At',
-      'Caption',
-      'Original File URL',
-      'Google Drive URL',
-      'Google Drive ID',
-      'Last Updated',
-      'Media Group ID',
-      'Row ID',
-      'Public URL'  // Added new column
-    ];
-
-    if (headers.length > 0) {
-      const sheetsEndpoint = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${gid}!A1:${String.fromCharCode(65 + headers.length)}1`;
-      
-      // Update headers
-      const headerResponse = await fetch(sheetsEndpoint, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          values: [headers],
-          majorDimension: 'ROWS',
-        }),
-      });
-
-      if (!headerResponse.ok) {
-        throw new Error(`Failed to update headers: ${await headerResponse.text()}`);
-      }
-      console.log('Updated headers successfully');
-
-      // Update data if provided
-      if (data && data.length > 0) {
-        const dataEndpoint = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${gid}!A2:${String.fromCharCode(65 + headers.length)}${data.length + 1}`;
-        
-        const dataResponse = await fetch(dataEndpoint, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            values: data,
-            majorDimension: 'ROWS',
-          }),
-        });
-
-        if (!dataResponse.ok) {
-          throw new Error(`Failed to update data: ${await dataResponse.text()}`);
-        }
-        console.log('Updated data successfully');
-      }
+    if (!response.ok) {
+      throw new Error(`Failed to sync with Google Sheets: ${response.statusText}`);
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    const result = await response.json();
+
+    return new Response(
+      JSON.stringify(result),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
   } catch (error) {
     console.error('Error in sync-google-sheet function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      details: error.stack
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400
+      }
+    );
   }
 });
+
+async function getAccessToken() {
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+  
+  if (!clientId || !clientSecret) {
+    throw new Error('Google credentials not configured');
+  }
+
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+
+  const tokenData = await tokenResponse.json();
+  if (!tokenResponse.ok) {
+    throw new Error(tokenData.error || 'Failed to obtain access token');
+  }
+
+  return tokenData.access_token;
+}
