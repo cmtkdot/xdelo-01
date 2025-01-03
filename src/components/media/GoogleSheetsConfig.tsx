@@ -77,6 +77,38 @@ const GoogleSheetsConfigContent = ({
   // Check if user is authenticated with Google
   const isGoogleAuthenticated = !!localStorage.getItem('google_access_token');
 
+  const handleHeaderMappingComplete = async (spreadsheetId: string, mapping: Record<string, string>) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { error } = await supabase
+        .from('google_sheets_config')
+        .update({ 
+          is_headers_mapped: true,
+          header_mapping: mapping
+        })
+        .eq('spreadsheet_id', spreadsheetId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Header mapping completed and initial sync performed",
+      });
+
+      onSpreadsheetIdSet(spreadsheetId);
+    } catch (error) {
+      console.error('Error completing header mapping:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete header mapping",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -117,38 +149,6 @@ const GoogleSheetsConfigContent = ({
       )}
     </div>
   );
-};
-
-const handleHeaderMappingComplete = async (spreadsheetId: string, mapping: Record<string, string>) => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    const { error } = await supabase
-      .from('google_sheets_config')
-      .update({ 
-        is_headers_mapped: true,
-        header_mapping: mapping
-      })
-      .eq('spreadsheet_id', spreadsheetId)
-      .eq('user_id', user.id);
-
-    if (error) throw error;
-
-    toast({
-      title: "Success",
-      description: "Header mapping completed and initial sync performed",
-    });
-
-    onSpreadsheetIdSet(spreadsheetId);
-  } catch (error) {
-    console.error('Error completing header mapping:', error);
-    toast({
-      title: "Error",
-      description: "Failed to complete header mapping",
-      variant: "destructive",
-    });
-  }
 };
 
 export const GoogleSheetsConfig = (props: GoogleSheetsConfigProps) => {
