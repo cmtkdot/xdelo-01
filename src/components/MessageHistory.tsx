@@ -11,6 +11,7 @@ interface Message {
   created_at: string;
   media_url?: string;
   media_type?: string;
+  public_url?: string;
 }
 
 const MessageHistory = () => {
@@ -50,12 +51,14 @@ const MessageHistory = () => {
   };
 
   const renderMediaPreview = (message: Message) => {
-    if (!message.media_url) return null;
+    // Prioritize public_url over media_url
+    const displayUrl = message.public_url || message.media_url;
+    if (!displayUrl) return null;
 
     if (message.media_type?.includes('video') || message.media_type?.includes('animation')) {
       return (
         <video
-          src={message.media_url}
+          src={displayUrl}
           controls
           className="max-w-full h-32 object-cover rounded mt-2"
         >
@@ -67,7 +70,7 @@ const MessageHistory = () => {
     if (message.media_type?.includes('photo')) {
       return (
         <img
-          src={message.media_url}
+          src={displayUrl}
           alt="Message attachment"
           className="max-w-full h-32 object-cover rounded mt-2"
         />
@@ -98,14 +101,14 @@ const MessageHistory = () => {
                 </span>
               </div>
               <p className="text-sm">{message.text}</p>
-              {message.media_url && (
+              {(message.public_url || message.media_url) && (
                 <div className="mt-2">
                   {renderMediaPreview(message)}
                   <Button
                     variant="ghost"
                     size="sm"
                     className="mt-2 text-xs hover:bg-white/10"
-                    onClick={() => window.open(message.media_url, '_blank')}
+                    onClick={() => window.open(message.public_url || message.media_url, '_blank')}
                   >
                     <ExternalLink className="w-4 h-4 mr-1" />
                     View Media

@@ -420,6 +420,7 @@ export type Database = {
           media_type: string | null
           media_url: string | null
           message_id: number
+          public_url: string | null
           sender_name: string
           text: string | null
           user_id: string
@@ -431,6 +432,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           message_id: number
+          public_url?: string | null
           sender_name: string
           text?: string | null
           user_id: string
@@ -442,6 +444,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           message_id?: number
+          public_url?: string | null
           sender_name?: string
           text?: string | null
           user_id?: string
