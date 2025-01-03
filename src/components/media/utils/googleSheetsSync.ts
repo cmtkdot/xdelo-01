@@ -8,7 +8,6 @@ export const SYNC_INTERVAL = 30000; // 30 seconds
 
 export const initGoogleSheetsAPI = async () => {
   try {
-    // Check if gapi is already loaded
     if (typeof window.gapi === 'undefined') {
       console.log('Loading Google API client...');
       await new Promise((resolve, reject) => {
@@ -23,11 +22,9 @@ export const initGoogleSheetsAPI = async () => {
       });
     }
 
-    // Initialize the client if not already initialized
     if (!window.gapi?.client?.sheets) {
       console.log('Initializing Google API client...');
       
-      // Load the client library
       await new Promise((resolve, reject) => {
         window.gapi.load('client', { callback: resolve, onerror: reject });
       });
@@ -36,18 +33,18 @@ export const initGoogleSheetsAPI = async () => {
       
       await window.gapi.client.init({
         apiKey: api_key,
-        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+        discoveryDocs: [
+          'https://sheets.googleapis.com/$discovery/rest?version=v4',
+          'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
+        ],
       });
     }
 
-    // Get and verify the access token
     const accessToken = localStorage.getItem('google_access_token');
     if (!accessToken) {
-      console.error('No access token found');
       throw new Error('No access token found. Please authenticate with Google.');
     }
 
-    // Set the access token for the client
     window.gapi.client.setToken({ access_token: accessToken });
     console.log('Google API client initialized successfully');
 

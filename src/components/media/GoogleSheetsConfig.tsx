@@ -11,6 +11,13 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { SyncManager } from "./google-sheets/SyncManager";
 import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
+const GOOGLE_SCOPES = [
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/drive.metadata.readonly'
+].join(' ');
 
 const GoogleSheetsConfigContent = ({ 
   onSpreadsheetIdSet, 
@@ -31,7 +38,7 @@ const GoogleSheetsConfigContent = ({
       localStorage.setItem('google_access_token', response.access_token);
       toast({
         title: "Success",
-        description: "Successfully authenticated with Google Sheets",
+        description: "Successfully authenticated with Google",
       });
     },
     onError: (error) => {
@@ -42,7 +49,7 @@ const GoogleSheetsConfigContent = ({
         variant: "destructive",
       });
     },
-    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+    scope: GOOGLE_SCOPES,
   });
 
   // Query to fetch all media or selected media

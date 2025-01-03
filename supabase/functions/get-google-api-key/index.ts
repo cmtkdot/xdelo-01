@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,30 +11,27 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('GOOGLE_API_KEY')
-    if (!apiKey) {
+    const api_key = Deno.env.get('GOOGLE_API_KEY')
+    if (!api_key) {
       throw new Error('Google API key not configured')
     }
 
     return new Response(
-      JSON.stringify({ api_key: apiKey }),
-      { 
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      }
+      JSON.stringify({
+        api_key,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      },
     )
   } catch (error) {
     return new Response(
       JSON.stringify({ error: error.message }),
-      { 
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 500
-      }
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      },
     )
   }
 })
