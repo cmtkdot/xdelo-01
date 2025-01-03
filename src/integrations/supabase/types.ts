@@ -410,6 +410,13 @@ export type Database = {
             referencedRelation: "channels"
             referencedColumns: ["chat_id"]
           },
+          {
+            foreignKeyName: "fk_media_glide_product"
+            columns: ["glide_row_id"]
+            isOneToOne: false
+            referencedRelation: "glide_products"
+            referencedColumns: ["glide_product_row_id"]
+          },
         ]
       }
       messages: {
