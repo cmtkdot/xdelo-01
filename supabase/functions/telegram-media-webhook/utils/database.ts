@@ -55,6 +55,8 @@ export const saveMedia = async (
   googleDriveUrl: string | null,
   publicUrl: string | null
 ) => {
+  console.log('Saving media with public URL:', publicUrl);
+  
   const { data: mediaData, error: mediaError } = await supabase
     .from('media')
     .insert({

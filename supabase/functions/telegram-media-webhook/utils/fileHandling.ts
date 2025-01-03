@@ -27,21 +27,43 @@ export const formatMediaMetadata = (mediaItem: any, message: any): any => {
 
 export const generatePublicUrl = (bucket: string, fileName: string): string => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  if (!supabaseUrl) {
+    throw new Error('SUPABASE_URL environment variable is not set');
+  }
   return `${supabaseUrl}/storage/v1/object/public/${bucket}/${fileName}`;
 };
 
 export const getContentType = (fileName: string, mediaType: string): string => {
-  const extension = fileName.split('.').pop();
-  switch (mediaType) {
-    case 'photo':
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
       return 'image/jpeg';
-    case 'video':
+    case 'png':
+      return 'image/png';
+    case 'gif':
+      return 'image/gif';
+    case 'mp4':
       return 'video/mp4';
-    case 'audio':
+    case 'mov':
+      return 'video/quicktime';
+    case 'mp3':
       return 'audio/mpeg';
-    case 'document':
+    case 'wav':
+      return 'audio/wav';
+    case 'pdf':
       return 'application/pdf';
     default:
-      return 'application/octet-stream';
+      switch (mediaType) {
+        case 'photo':
+          return 'image/jpeg';
+        case 'video':
+          return 'video/mp4';
+        case 'audio':
+          return 'audio/mpeg';
+        default:
+          return 'application/octet-stream';
+      }
   }
 };

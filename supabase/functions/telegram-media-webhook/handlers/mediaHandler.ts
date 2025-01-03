@@ -45,13 +45,15 @@ export const handleMediaUpload = async (
     });
 
   if (storageError) {
+    console.error('Storage upload error:', storageError);
     throw storageError;
   }
 
   // Generate public URL
   const publicUrl = generatePublicUrl("telegram-media", fileName);
+  console.log('Generated public URL:', publicUrl);
 
-  // Upload to Google Drive with video conversion if needed
+  // Upload to Google Drive if needed
   let driveData;
   try {
     driveData = await uploadToGoogleDrive(publicUrl, fileName);
