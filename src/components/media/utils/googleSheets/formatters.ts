@@ -1,3 +1,5 @@
+import { MediaItem } from "../../types";
+
 export const SHEET_NAME = 'MediaData';
 
 export const BASE_HEADERS = [
