@@ -85,27 +85,30 @@ export type Database = {
       }
       bot_users: {
         Row: {
+          bot_user_id: string
           created_at: string | null
           first_name: string | null
-          id: string
+          id: string | null
           last_name: string | null
           telegram_user_id: string | null
           updated_at: string | null
           username: string | null
         }
         Insert: {
+          bot_user_id?: string
           created_at?: string | null
           first_name?: string | null
-          id: string
+          id?: string | null
           last_name?: string | null
           telegram_user_id?: string | null
           updated_at?: string | null
           username?: string | null
         }
         Update: {
+          bot_user_id?: string
           created_at?: string | null
           first_name?: string | null
-          id?: string
+          id?: string | null
           last_name?: string | null
           telegram_user_id?: string | null
           updated_at?: string | null
