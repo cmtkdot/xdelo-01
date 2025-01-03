@@ -1,9 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileSpreadsheet, CheckCircle } from "lucide-react";
+import { FileSpreadsheet, CheckCircle, ExternalLink } from "lucide-react";
 import { GoogleSheetsConfig } from "../media/GoogleSheetsConfig";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 interface SheetConfigurationProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -16,7 +17,7 @@ export const SheetConfiguration = ({
   googleSheetId, 
   parsedMapping 
 }: SheetConfigurationProps) => {
-  const { data: sheetsConfig } = useQuery({
+  const { data: sheetsConfig, isLoading } = useQuery({
     queryKey: ['google-sheets-config'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -28,6 +29,11 @@ export const SheetConfiguration = ({
       return data;
     },
   });
+
+  const getSheetUrl = (sheetId: string, gid?: string) => {
+    const baseUrl = `https://docs.google.com/spreadsheets/d/${sheetId}`;
+    return gid ? `${baseUrl}/edit#gid=${gid}` : `${baseUrl}/edit`;
+  };
 
   return (
     <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
@@ -51,25 +57,33 @@ export const SheetConfiguration = ({
         {googleSheetId && (
           <div className="space-y-4">
             <Alert>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <AlertDescription>
-                  Connected to sheet: {googleSheetId}
-                  <a
-                    href={`https://docs.google.com/spreadsheets/d/${googleSheetId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-2 text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    Open in Google Sheets
-                  </a>
-                </AlertDescription>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <AlertDescription>
+                    Connected to Google Sheet
+                  </AlertDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-400 hover:text-blue-300 transition-colors"
+                  onClick={() => window.open(getSheetUrl(googleSheetId), '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open Sheet
+                </Button>
               </div>
             </Alert>
 
             {Object.keys(parsedMapping).length > 0 && (
               <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-                <h3 className="text-sm font-medium text-white mb-2">Field Mappings</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-white">Field Mappings</h3>
+                  <span className="text-xs text-gray-400">
+                    {Object.keys(parsedMapping).length} fields mapped
+                  </span>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {Object.entries(parsedMapping).map(([sheet, db]) => (
                     <div 
