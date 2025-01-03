@@ -13,6 +13,8 @@ interface MediaCardProps {
 
 const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const isVideo = item.media_type === "video";
 
   // Prioritize file_url from Supabase over Google Drive URL
@@ -24,6 +26,16 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
       return;
     }
     setIsDialogOpen(true);
+  };
+
+  const handleMediaLoad = () => {
+    setIsLoading(false);
+    setHasError(false);
+  };
+
+  const handleMediaError = () => {
+    setIsLoading(false);
+    setHasError(true);
   };
 
   return (
@@ -42,6 +54,18 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
         
         <CardContent className="p-0 flex flex-col h-full">
           <div className="relative w-full aspect-square group-hover:scale-105 transition-transform duration-300">
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                <div className="animate-pulse w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700" />
+              </div>
+            )}
+            
+            {hasError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load media</p>
+              </div>
+            )}
+
             {isVideo ? (
               <video
                 src={displayUrl}
@@ -49,6 +73,8 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
                 preload="metadata"
                 playsInline
                 muted
+                onLoadedData={handleMediaLoad}
+                onError={handleMediaError}
               />
             ) : (
               <img
@@ -56,6 +82,8 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
                 alt={item.caption || "Media"}
                 className="absolute inset-0 w-full h-full object-cover"
                 loading="lazy"
+                onLoad={handleMediaLoad}
+                onError={handleMediaError}
               />
             )}
           </div>
@@ -80,10 +108,7 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
       </Card>
 
       <MediaViewerDialog
-        item={{
-          ...item,
-          file_url: displayUrl // Use the Supabase URL in the viewer dialog
-        }}
+        item={item}
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
       />
