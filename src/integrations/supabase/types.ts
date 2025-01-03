@@ -241,6 +241,8 @@ export type Database = {
           total_qty_purchased: number | null
           total_units_behind_sample: number | null
           updated_at: string | null
+          uuid: string
+          uuif: string | null
           vendor_product_name: string | null
           vendor_uid: string | null
           vpay_row_id: string | null
@@ -282,6 +284,8 @@ export type Database = {
           total_qty_purchased?: number | null
           total_units_behind_sample?: number | null
           updated_at?: string | null
+          uuid?: string
+          uuif?: string | null
           vendor_product_name?: string | null
           vendor_uid?: string | null
           vpay_row_id?: string | null
@@ -323,6 +327,8 @@ export type Database = {
           total_qty_purchased?: number | null
           total_units_behind_sample?: number | null
           updated_at?: string | null
+          uuid?: string
+          uuif?: string | null
           vendor_product_name?: string | null
           vendor_uid?: string | null
           vpay_row_id?: string | null
