@@ -8,6 +8,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface GoogleDriveUploaderProps {
   fileUrl?: string;
@@ -25,6 +26,7 @@ const GoogleDriveUploader = ({
   onClose 
 }: GoogleDriveUploaderProps) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const uploadToGoogleDrive = async () => {
     try {
@@ -86,6 +88,9 @@ const GoogleDriveUploader = ({
           }
         }
 
+        // Invalidate the media query to trigger a refresh
+        await queryClient.invalidateQueries({ queryKey: ['media-table'] });
+
         toast({
           title: "Success!",
           description: `Successfully uploaded ${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''} to Google Drive`,
@@ -133,6 +138,9 @@ const GoogleDriveUploader = ({
             console.log('Successfully updated media record with public URL:', publicUrl);
           }
         }
+
+        // Invalidate the media query to trigger a refresh
+        await queryClient.invalidateQueries({ queryKey: ['media-table'] });
 
         toast({
           title: "Success!",
