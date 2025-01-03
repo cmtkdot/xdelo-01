@@ -7,11 +7,14 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    console.log('Starting public URL update process')
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -23,14 +26,19 @@ serve(async (req) => {
       .select('*')
       .is('public_url', null)
 
-    if (fetchError) throw fetchError
+    if (fetchError) {
+      console.error('Error fetching media items:', fetchError)
+      throw fetchError
+    }
+
+    console.log(`Found ${mediaItems?.length || 0} media items to update`)
 
     const updates = mediaItems?.map(item => {
       // Extract bucket and path from file_url
       const fileUrl = new URL(item.file_url)
       const pathParts = fileUrl.pathname.split('/')
-      const bucket = pathParts[1] // Usually 'telegram-media'
-      const objectPath = pathParts.slice(2).join('/')
+      const bucket = pathParts[4] // Usually 'telegram-media'
+      const objectPath = pathParts.slice(5).join('/')
       
       // Construct public URL
       const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucket}/${objectPath}`
@@ -41,20 +49,42 @@ serve(async (req) => {
       }
     })
 
+    if (!updates?.length) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'No media items need updating',
+          updatedCount: 0
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      )
+    }
+
     // Update records in batches
     const batchSize = 100
     const results = []
     
     for (let i = 0; i < updates.length; i += batchSize) {
       const batch = updates.slice(i, i + batchSize)
+      console.log(`Processing batch ${i/batchSize + 1} of ${Math.ceil(updates.length/batchSize)}`)
+      
       const { data, error } = await supabaseClient
         .from('media')
         .upsert(batch)
         .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('Error updating batch:', error)
+        throw error
+      }
+      
       results.push(...(data || []))
     }
+
+    console.log(`Successfully updated ${results.length} media records`)
 
     return new Response(
       JSON.stringify({
@@ -69,6 +99,7 @@ serve(async (req) => {
     )
 
   } catch (error) {
+    console.error('Error in update-media-public-urls function:', error)
     return new Response(
       JSON.stringify({
         success: false,
