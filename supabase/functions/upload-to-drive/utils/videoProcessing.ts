@@ -10,14 +10,23 @@ export const convertToMp4 = async (inputBuffer: ArrayBuffer): Promise<Uint8Array
     const ffmpeg = new FFmpeg();
     await ffmpeg.load();
     
-    const inputUint8Array = new Uint8Array(inputBuffer);
-    await ffmpeg.writeFile('input', inputUint8Array);
+    // Process in smaller chunks to reduce memory usage
+    const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+    const inputArray = new Uint8Array(inputBuffer);
+    let processedChunks = [];
     
+    for (let i = 0; i < inputArray.length; i += CHUNK_SIZE) {
+      const chunk = inputArray.slice(i, i + CHUNK_SIZE);
+      await ffmpeg.writeFile(`chunk_${i}`, chunk);
+      console.log(`Processed chunk ${i / CHUNK_SIZE + 1}`);
+    }
+    
+    // Concatenate and convert chunks
     await ffmpeg.exec([
-      '-i', 'input',
+      '-i', 'concat:' + Array.from({ length: Math.ceil(inputArray.length / CHUNK_SIZE) }, (_, i) => `chunk_${i * CHUNK_SIZE}`).join('|'),
       '-c:v', 'libx264',
-      '-preset', 'medium',
-      '-crf', '23',
+      '-preset', 'ultrafast', // Use faster preset to reduce processing time
+      '-crf', '28', // Slightly reduce quality to improve processing speed
       '-c:a', 'aac',
       '-b:a', '128k',
       'output.mp4'
@@ -41,9 +50,10 @@ async function convertWithCloudConvert(inputBuffer: ArrayBuffer): Promise<Uint8A
   }
 
   try {
-    console.log('Starting CloudConvert conversion...');
+    console.log('Starting CloudConvert API request...');
     
-    const response = await fetch('https://api.cloudconvert.com/v2/jobs', {
+    // Create a conversion job
+    const createJobResponse = await fetch('https://api.cloudconvert.com/v2/jobs', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -54,19 +64,18 @@ async function convertWithCloudConvert(inputBuffer: ArrayBuffer): Promise<Uint8A
           'import-1': {
             operation: 'import/raw',
             file: new Uint8Array(inputBuffer),
-            filename: 'input.mov'
+            filename: 'input.mp4'
           },
           'convert-1': {
             operation: 'convert',
             input: ['import-1'],
             output_format: 'mp4',
             engine: 'ffmpeg',
-            preset: 'medium',
+            preset: 'ultrafast',
             video_codec: 'h264',
+            crf: 28,
             audio_codec: 'aac',
-            video_bitrate: '1000k',
-            audio_bitrate: '128k',
-            crf: 23
+            audio_bitrate: '128k'
           },
           'export-1': {
             operation: 'export/url',
@@ -76,17 +85,20 @@ async function convertWithCloudConvert(inputBuffer: ArrayBuffer): Promise<Uint8A
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`CloudConvert API error: ${response.statusText}`);
+    if (!createJobResponse.ok) {
+      throw new Error(`CloudConvert API error: ${createJobResponse.statusText}`);
     }
 
-    const result = await response.json();
-    const exportTask = result.tasks.find((task: any) => task.operation === 'export/url');
-    
+    const jobResult = await createJobResponse.json();
+    console.log('CloudConvert job created:', jobResult);
+
+    // Wait for the export task to complete
+    const exportTask = jobResult.tasks.find((task: any) => task.operation === 'export/url');
     if (!exportTask?.result?.files?.[0]?.url) {
       throw new Error('No converted video URL in response');
     }
 
+    // Download the converted file
     const videoResponse = await fetch(exportTask.result.files[0].url);
     if (!videoResponse.ok) {
       throw new Error('Failed to download converted video');
