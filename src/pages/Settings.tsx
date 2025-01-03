@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Trash2, MessageSquare, FileType } from "lucide-react";
+import { Settings as SettingsIcon, Trash2, MessageSquare, FileType, Link } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -14,6 +14,7 @@ const Settings = () => {
   const [isSyncingCaptions, setSyncingCaptions] = useState(false);
   const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
   const [isUpdatingContentTypes, setUpdatingContentTypes] = useState(false);
+  const [isUpdatingPublicUrls, setUpdatingPublicUrls] = useState(false);
 
   const handleDeleteDuplicates = async () => {
     try {
@@ -62,6 +63,22 @@ const Settings = () => {
       toast.error("Failed to update content types");
     } finally {
       setUpdatingContentTypes(false);
+    }
+  };
+
+  const handleUpdatePublicUrls = async () => {
+    try {
+      setUpdatingPublicUrls(true);
+      const { data, error } = await supabase.functions.invoke('update-media-public-urls');
+
+      if (error) throw error;
+
+      toast.success(data.message || "Public URLs have been updated for all media files");
+    } catch (error) {
+      console.error('Error updating public URLs:', error);
+      toast.error("Failed to update public URLs");
+    } finally {
+      setUpdatingPublicUrls(false);
     }
   };
 
@@ -150,6 +167,23 @@ const Settings = () => {
                 >
                   <FileType className="w-4 h-4" />
                   Update Content Types
+                </Button>
+              </div>
+
+              <div className="flex flex-col space-y-2">
+                <Label className="text-base">Public URL Management</Label>
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  Update public URLs for all media files
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUpdatePublicUrls}
+                  disabled={isUpdatingPublicUrls}
+                  className="w-full sm:w-auto justify-start gap-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-transparent border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5"
+                >
+                  <Link className="w-4 h-4" />
+                  Update Public URLs
                 </Button>
               </div>
             </div>
