@@ -153,8 +153,24 @@ const GoogleSheetsConfigContent = ({
 };
 
 export const GoogleSheetsConfig = (props: GoogleSheetsConfigProps) => {
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  
+  useEffect(() => {
+    if (!clientId) {
+      console.error('Google Client ID is not set. Please check your environment variables.');
+    }
+  }, [clientId]);
+
+  if (!clientId) {
+    return (
+      <div className="p-4 text-red-500">
+        Error: Google Client ID is not configured. Please check your environment variables.
+      </div>
+    );
+  }
+
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}>
+    <GoogleOAuthProvider clientId={clientId}>
       <GoogleSheetsConfigContent {...props} />
     </GoogleOAuthProvider>
   );
