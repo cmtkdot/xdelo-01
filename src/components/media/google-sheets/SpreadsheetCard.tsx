@@ -18,7 +18,7 @@ interface SpreadsheetCardProps {
   sheet: SpreadsheetConfig;
   onToggleAutoSync: (id: string) => void;
   onRemove: (id: string) => void;
-  onHeaderMappingComplete: (spreadsheetId: string, mapping: Record<string, string>) => void;
+  onHeaderMappingComplete: (mapping: Record<string, string>) => void;
 }
 
 export const SpreadsheetCard = ({ 
@@ -61,7 +61,7 @@ export const SpreadsheetCard = ({
         <GoogleSheetsHeaderMapping
           spreadsheetId={sheet.id}
           sheetGid={sheet.gid}
-          onMappingComplete={(mapping) => onHeaderMappingComplete(sheet.id, mapping)}
+          onMappingComplete={onHeaderMappingComplete}
         />
       </CardContent>
     </Card>
