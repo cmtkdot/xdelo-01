@@ -6,7 +6,6 @@ export const generateSafeFileName = (caption: string | null, extension: string):
         .substring(0, 50)
     : 'untitled';
   
-  // Format: {id}__{filename}__{timestamp}.{extension}
   return `${safeName}__${timestamp}.${extension}`;
 };
 
@@ -32,6 +31,36 @@ export const getMediaItem = (message: any): any => {
   return null;
 };
 
+export const getContentType = (fileName: string, mediaType: string): string => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'gif':
+      return 'image/gif';
+    case 'mp4':
+      return 'video/mp4';
+    case 'webm':
+      return 'video/webm';
+    case 'mov':
+      return 'video/quicktime';
+    default:
+      // If we can't determine from extension, use mediaType
+      switch (mediaType) {
+        case 'photo':
+          return 'image/jpeg';
+        case 'video':
+          return 'video/mp4';
+        default:
+          return 'application/octet-stream';
+      }
+  }
+};
+
 export const formatMediaMetadata = (mediaItem: any, message: any): Record<string, any> => {
   if (!mediaItem || typeof mediaItem !== 'object') {
     console.error('Invalid mediaItem:', mediaItem);
@@ -44,29 +73,25 @@ export const formatMediaMetadata = (mediaItem: any, message: any): Record<string
       width: mediaItem.width || null,
       height: mediaItem.height || null,
       file_size: mediaItem.file_size || null,
+      message_id: message.message_id || null
     };
 
-    // Clean up null values
     Object.keys(metadata).forEach(key => {
       if (metadata[key] === null) {
         delete metadata[key];
       }
     });
 
-    // Add mime_type if available (usually for documents)
     if (message.document?.mime_type) {
       metadata.mime_type = message.document.mime_type;
     }
 
-    // Add original filename if available
     if (message.document?.file_name) {
       metadata.original_filename = message.document.file_name;
     }
 
-    // Validate the metadata can be stringified
     JSON.stringify(metadata);
     
-    console.log('Formatted metadata:', metadata);
     return metadata;
   } catch (error) {
     console.error('Error formatting metadata:', error);

@@ -4,7 +4,8 @@ import {
   determineMediaType, 
   getMediaItem,
   formatMediaMetadata,
-  generatePublicUrl 
+  generatePublicUrl,
+  getContentType 
 } from "../utils/fileHandling.ts";
 import { uploadToGoogleDrive } from "../utils/googleDrive.ts";
 import { saveMedia } from "../utils/database.ts";
@@ -31,12 +32,15 @@ export const handleMediaUpload = async (
 
   const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
   const fileName = generateSafeFileName(messageCaption || mediaItem.file_id, fileData.result.file_path.split('.').pop());
+  const contentType = getContentType(fileName, mediaType);
 
-  // Upload to Supabase Storage
+  console.log(`Uploading file ${fileName} with content type ${contentType}`);
+
+  // Upload to Supabase Storage with proper content type
   const { data: storageData, error: storageError } = await supabase.storage
     .from("telegram-media")
     .upload(fileName, await (await fetch(fileUrl)).arrayBuffer(), {
-      contentType: mediaItem.mime_type || 'application/octet-stream',
+      contentType: contentType,
       upsert: true,
     });
 
