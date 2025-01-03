@@ -1,60 +1,65 @@
-import { create, getNumericDate } from "https://deno.land/x/djwt@v2.8/mod.ts";
+import { parseGoogleCredentials } from './credentials.ts';
 
 export const generateServiceAccountToken = async (credentials: any) => {
   try {
-    console.log('Starting service account token generation...');
-
-    // Validate required credential fields
-    if (!credentials) {
-      throw new Error('Credentials object is undefined');
-    }
-
-    if (!credentials.client_email || !credentials.private_key) {
-      console.error('Invalid credentials:', JSON.stringify(credentials, null, 2));
-      throw new Error('Invalid credentials: missing client_email or private_key');
-    }
-
-    // Ensure private key is properly formatted
-    const privateKey = credentials.private_key.replace(/\\n/g, '\n');
-    console.log('Client email:', credentials.client_email);
+    const jwtHeader = {
+      alg: 'RS256',
+      typ: 'JWT',
+      kid: credentials.private_key_id
+    };
 
     const now = Math.floor(Date.now() / 1000);
-    const claims = {
+    const jwtClaimSet = {
       iss: credentials.client_email,
       scope: 'https://www.googleapis.com/auth/drive.file',
       aud: 'https://oauth2.googleapis.com/token',
-      exp: getNumericDate(3600),
+      exp: now + 3600,
       iat: now
     };
 
-    // Create JWT with explicit algorithm configuration
-    const jwt = await create(
-      { alg: "RS256", typ: "JWT" },
-      claims,
-      privateKey
+    const encoder = new TextEncoder();
+    const headerB64 = btoa(JSON.stringify(jwtHeader));
+    const claimB64 = btoa(JSON.stringify(jwtClaimSet));
+    const signatureInput = `${headerB64}.${claimB64}`;
+
+    const key = await crypto.subtle.importKey(
+      'pkcs8',
+      new Uint8Array(atob(credentials.private_key.replace(/-----[^-]*-----/g, '').replace(/\n/g, '')).split('').map(c => c.charCodeAt(0))),
+      {
+        name: 'RSASSA-PKCS1-v1_5',
+        hash: 'SHA-256'
+      },
+      false,
+      ['sign']
     );
 
-    // Exchange JWT for access token
-    const response = await fetch('https://oauth2.googleapis.com/token', {
+    const signature = await crypto.subtle.sign(
+      { name: 'RSASSA-PKCS1-v1_5' },
+      key,
+      encoder.encode(signatureInput)
+    );
+
+    const jwt = `${headerB64}.${claimB64}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`;
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: new URLSearchParams({
         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: jwt,
-      }),
+        assertion: jwt
+      })
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('Token exchange failed:', error);
-      throw new Error(`Failed to get access token: ${error}`);
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.text();
+      console.error('Token response error:', errorData);
+      throw new Error('Failed to get access token');
     }
 
-    const data = await response.json();
-    console.log('Successfully generated access token');
-    return data.access_token;
+    const { access_token } = await tokenResponse.json();
+    return access_token;
   } catch (error) {
     console.error('Error generating service account token:', error);
     throw error;

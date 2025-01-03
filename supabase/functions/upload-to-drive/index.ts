@@ -40,20 +40,6 @@ serve(async (req) => {
 
     // Get and validate credentials
     const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
-    if (!credentialsStr) {
-      console.error('Google credentials not found in environment');
-      return new Response(
-        JSON.stringify({ 
-          error: 'Google service account credentials not found. Please add them in the Supabase Edge Function secrets.',
-          details: 'Missing GOOGLE_SERVICE_ACCOUNT_CREDENTIALS environment variable'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500 
-        }
-      );
-    }
-
     console.log('Parsing Google credentials...');
     const credentials = parseGoogleCredentials(credentialsStr);
     console.log('Generating access token...');
