@@ -154,20 +154,27 @@ const GoogleSheetsConfigContent = ({
 };
 
 export const GoogleSheetsConfig = (props: GoogleSheetsConfigProps) => {
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const { data: clientId } = useQuery({
+    queryKey: ['google-client-id'],
+    queryFn: async () => {
+      const { data: { api_key }, error } = await supabase.functions.invoke('get-google-api-key');
+      if (error) throw error;
+      return api_key;
+    },
+  });
   
   useEffect(() => {
     if (!clientId) {
-      console.error('Google Client ID is not set. Please check your environment variables.');
+      console.error('Google Client ID is not set. Please check your Supabase secrets.');
     } else {
-      console.log('Google Client ID is configured successfully:', clientId);
+      console.log('Google Client ID is configured successfully');
     }
   }, [clientId]);
 
   if (!clientId) {
     return (
       <div className="p-4 text-red-500">
-        Error: Google Client ID is not configured. Please check your environment variables.
+        Error: Google Client ID is not configured. Please check your Supabase secrets.
       </div>
     );
   }
