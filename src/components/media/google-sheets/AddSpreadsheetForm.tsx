@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { GoogleSheetsHeaderMapping } from "../GoogleSheetsHeaderMapping";
 
 interface AddSpreadsheetFormProps {
   onSubmit: (name: string, id: string, gid?: string) => Promise<void>;
@@ -15,6 +16,7 @@ export const AddSpreadsheetForm = ({ onSubmit }: AddSpreadsheetFormProps) => {
   const [sheetGid, setSheetGid] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sheetUrl, setSheetUrl] = useState("");
+  const [isSheetAdded, setIsSheetAdded] = useState(false);
 
   const parseGoogleSheetUrl = (url: string) => {
     try {
@@ -60,14 +62,39 @@ export const AddSpreadsheetForm = ({ onSubmit }: AddSpreadsheetFormProps) => {
     setIsLoading(true);
     try {
       await onSubmit(newSpreadsheetName, newSpreadsheetId, sheetGid || undefined);
-      setNewSpreadsheetId("");
-      setNewSpreadsheetName("");
-      setSheetGid("");
-      setSheetUrl("");
+      setIsSheetAdded(true);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleMappingComplete = () => {
+    // Reset form after mapping is complete
+    setNewSpreadsheetId("");
+    setNewSpreadsheetName("");
+    setSheetGid("");
+    setSheetUrl("");
+    setIsSheetAdded(false);
+  };
+
+  if (isSheetAdded && newSpreadsheetId) {
+    return (
+      <div className="space-y-4">
+        <Alert>
+          <AlertDescription>
+            Sheet added successfully! Please configure the header mapping below.
+          </AlertDescription>
+        </Alert>
+        <GoogleSheetsHeaderMapping
+          spreadsheetId={newSpreadsheetId}
+          sheetGid={sheetGid}
+          onMappingComplete={(mapping) => {
+            handleMappingComplete();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
