@@ -36,33 +36,80 @@ export const useGoogleSheetsConfig = (selectedMedia = []) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
-      const { data, error } = await supabase
+      // First, check if configuration already exists
+      const { data: existingConfig, error: fetchError } = await supabase
         .from('google_sheets_config')
-        .insert({
-          user_id: user.id,
-          spreadsheet_id: id,
-          sheet_name: name,
-          sheet_gid: gid,
-          auto_sync: true,
-          is_headers_mapped: false
-        })
-        .select()
-        .single();
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('spreadsheet_id', id)
+        .eq('sheet_gid', gid || '')
+        .maybeSingle();
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
+
+      let configData;
       
-      setSpreadsheets(prev => [...prev, {
-        id,
-        name: name || `Sheet ${prev.length + 1}`,
-        autoSync: true,
-        gid,
-        isHeadersMapped: false
-      }]);
+      if (existingConfig) {
+        // Update existing configuration
+        const { data, error } = await supabase
+          .from('google_sheets_config')
+          .update({
+            sheet_name: name,
+            auto_sync: true,
+            is_headers_mapped: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingConfig.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        configData = data;
+        
+        toast({
+          title: "Configuration Updated",
+          description: "Existing Google Sheets configuration has been updated.",
+        });
+      } else {
+        // Insert new configuration
+        const { data, error } = await supabase
+          .from('google_sheets_config')
+          .insert({
+            user_id: user.id,
+            spreadsheet_id: id,
+            sheet_name: name,
+            sheet_gid: gid,
+            auto_sync: true,
+            is_headers_mapped: false
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        configData = data;
+        
+        toast({
+          title: "Success",
+          description: "Connected to Google Sheets. Please map the headers before syncing.",
+        });
+      }
       
-      toast({
-        title: "Success",
-        description: "Connected to Google Sheets. Please map the headers before syncing.",
+      setSpreadsheets(prev => {
+        const newSheet = {
+          id,
+          name: name || `Sheet ${prev.length + 1}`,
+          autoSync: true,
+          gid,
+          isHeadersMapped: false
+        };
+        
+        // Replace if exists, otherwise add
+        const exists = prev.findIndex(s => s.id === id && s.gid === gid) !== -1;
+        return exists 
+          ? prev.map(s => (s.id === id && s.gid === gid) ? newSheet : s)
+          : [...prev, newSheet];
       });
+      
     } catch (error) {
       console.error('Google Sheets sync error:', error);
       toast({
