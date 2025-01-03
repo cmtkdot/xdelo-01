@@ -1,16 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateWebhookAuth, validateBotToken } from "./utils/auth.ts";
-import { 
-  generateSafeFileName, 
-  determineMediaType, 
-  getMediaItem,
-  formatMediaMetadata,
-  generatePublicUrl 
-} from "./utils/fileHandling.ts";
-import { saveChannel, saveMessage, saveMedia, saveBotUser } from "./utils/database.ts";
-import { uploadToGoogleDrive } from "./utils/googleDrive.ts";
+import { saveChannel, saveMessage, saveBotUser } from "./utils/database.ts";
 import { determineMessageType } from "./utils/messageTypes.ts";
+import { handleMediaUpload } from "./handlers/mediaHandler.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,11 +57,12 @@ serve(async (req) => {
     }
 
     const chat = message.chat;
-    
-    // Generate a UUID for the user if they don't exist
     const userId = crypto.randomUUID();
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
     
-    // Create or update bot user with proper error handling
     try {
       await saveBotUser(
         supabase,
@@ -102,64 +96,12 @@ serve(async (req) => {
 
     if (message.photo || message.document || message.video || message.audio || 
         message.voice || message.animation || message.sticker) {
-      const mediaType = determineMediaType(message);
-      const mediaItem = getMediaItem(message);
       
-      const metadata = formatMediaMetadata(mediaItem, message);
-      console.log("Formatted metadata:", metadata);
-      
-      const messageCaption = message.caption || message.text || null;
-      
-      const fileResponse = await fetch(
-        `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`
-      );
-      const fileData = await fileResponse.json();
-      
-      if (!fileData.ok) {
-        throw new Error("Failed to get file path from Telegram");
-      }
-
-      const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
-      const fileName = generateSafeFileName(messageCaption || mediaItem.file_id, fileData.result.file_path.split('.').pop());
-
-      // Upload to Supabase Storage
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from("telegram-media")
-        .upload(fileName, await (await fetch(fileUrl)).arrayBuffer(), {
-          contentType: mediaItem.mime_type || 'application/octet-stream',
-          upsert: true,
-        });
-
-      if (storageError) {
-        throw storageError;
-      }
-
-      // Generate public URL
-      const publicUrl = generatePublicUrl("telegram-media", fileName);
-
-      // Upload to Google Drive with video conversion if needed
-      let driveData;
-      try {
-        driveData = await uploadToGoogleDrive(publicUrl, fileName);
-        console.log('Successfully uploaded to Google Drive:', driveData);
-      } catch (error) {
-        console.error('Failed to upload to Google Drive:', error);
-      }
-
-      // Save media with public URL
-      const mediaData = await saveMedia(
+      const { mediaData, publicUrl } = await handleMediaUpload(
         supabase,
+        message,
         userId,
-        chat.id,
-        fileName,
-        fileUrl,
-        mediaType,
-        messageCaption,
-        metadata,
-        message.media_group_id,
-        driveData?.fileId,
-        driveData?.webViewLink,
-        publicUrl
+        botToken
       );
 
       console.log(`Successfully processed media with public URL: ${publicUrl}`);
@@ -169,11 +111,11 @@ serve(async (req) => {
         chat_id: chat.id,
         user_id: userId,
         details: {
-          media_type: mediaType,
-          file_name: fileName,
+          media_type: mediaData.media_type,
+          file_name: mediaData.file_name,
           media_group_id: message.media_group_id,
-          caption: messageCaption,
-          google_drive_id: driveData?.fileId
+          caption: mediaData.caption,
+          google_drive_id: mediaData.google_drive_id
         },
       });
     }

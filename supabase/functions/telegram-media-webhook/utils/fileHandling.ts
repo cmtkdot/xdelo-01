@@ -5,7 +5,9 @@ export const generateSafeFileName = (caption: string | null, extension: string):
         .replace(/[^a-z0-9]/g, '_')
         .substring(0, 50)
     : 'untitled';
-  return `${safeName}_${timestamp}.${extension}`;
+  
+  // Format: {id}__{filename}__{timestamp}.{extension}
+  return `${safeName}__${timestamp}.${extension}`;
 };
 
 export const determineMediaType = (message: any): string => {
