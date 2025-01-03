@@ -1,1 +1,2 @@
-export const TELEGRAM_MEDIA_FOLDER_ID = "1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet";
+// We'll create a root folder for uploads instead of using a specific folder
+export const ROOT_FOLDER_NAME = "Telegram Media Uploads";

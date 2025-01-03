@@ -1,9 +1,67 @@
-import { TELEGRAM_MEDIA_FOLDER_ID } from '../config.ts';
+import { ROOT_FOLDER_NAME } from '../config.ts';
+
+async function findOrCreateRootFolder(accessToken: string): Promise<string> {
+  console.log('Looking for root folder:', ROOT_FOLDER_NAME);
+  
+  // First, try to find existing folder
+  const searchResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=name='${ROOT_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!searchResponse.ok) {
+    const errorData = await searchResponse.text();
+    console.error('Error searching for folder:', errorData);
+    throw new Error(`Failed to search for root folder: ${errorData}`);
+  }
+
+  const searchResult = await searchResponse.json();
+  
+  // If folder exists, return its ID
+  if (searchResult.files && searchResult.files.length > 0) {
+    console.log('Found existing root folder:', searchResult.files[0].id);
+    return searchResult.files[0].id;
+  }
+
+  // If folder doesn't exist, create it
+  console.log('Creating new root folder');
+  const createResponse = await fetch(
+    'https://www.googleapis.com/drive/v3/files',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: ROOT_FOLDER_NAME,
+        mimeType: 'application/vnd.google-apps.folder',
+      }),
+    }
+  );
+
+  if (!createResponse.ok) {
+    const errorData = await createResponse.text();
+    console.error('Error creating folder:', errorData);
+    throw new Error(`Failed to create root folder: ${errorData}`);
+  }
+
+  const folder = await createResponse.json();
+  console.log('Created new root folder:', folder.id);
+  return folder.id;
+}
 
 export const uploadToDrive = async (fileUrl: string, fileName: string, accessToken: string) => {
   console.log(`Starting upload to Google Drive for file: ${fileName}`);
   
   try {
+    // First get or create the root folder
+    const folderId = await findOrCreateRootFolder(accessToken);
+    
     console.log('Fetching file from URL:', fileUrl);
     const response = await fetch(fileUrl);
     if (!response.ok) {
@@ -17,7 +75,7 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
     
     const metadata = {
       name: fileName,
-      parents: [TELEGRAM_MEDIA_FOLDER_ID]
+      parents: [folderId]
     };
 
     console.log('Preparing upload to Google Drive with metadata:', metadata);
@@ -28,11 +86,11 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
 
     console.log('Sending request to Google Drive API...');
     const uploadResponse = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: form
       }
@@ -49,7 +107,6 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
     return result;
   } catch (error) {
     console.error('Error in uploadToDrive:', error);
-    // Include more context in the error message
     throw new Error(`Failed to upload to Google Drive: ${fileName}. Error: ${error.message}`);
   }
 };
