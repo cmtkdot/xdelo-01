@@ -17,13 +17,29 @@ serve(async (req) => {
   try {
     console.log('Starting upload-to-drive function...');
     
-    // Parse request body
+    // Parse request body with size limit
+    const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB limit for request body
+    const contentLength = parseInt(req.headers.get('content-length') || '0');
+    
+    if (contentLength > MAX_BODY_SIZE) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Request body too large',
+          details: 'Maximum allowed size is 10MB' 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 413 
+        }
+      );
+    }
+
     let requestBody;
     try {
       const text = await req.text();
-      console.log('Raw request body:', text);
+      console.log('Raw request body length:', text.length);
       requestBody = JSON.parse(text);
-      console.log('Parsed request body:', requestBody);
+      console.log('Processing request for:', requestBody.fileName || 'multiple files');
     } catch (parseError) {
       console.error('Error parsing request body:', parseError);
       return new Response(
@@ -53,19 +69,36 @@ serve(async (req) => {
     console.log('Generating access token...');
     const accessToken = await generateServiceAccountToken(credentials);
 
-    // Handle single or multiple file uploads
+    // Handle single or multiple file uploads with chunking
     let results;
     if (requestBody.files && Array.isArray(requestBody.files)) {
       console.log(`Processing ${requestBody.files.length} files for upload`);
-      results = await Promise.all(
-        requestBody.files.map(async (file) => {
-          if (!file.fileUrl || !file.fileName) {
-            throw new Error('Missing file information in files array');
-          }
-          console.log('Processing file:', file.fileName);
-          return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
-        })
-      );
+      
+      // Process files in chunks of 3 to avoid memory issues
+      const CHUNK_SIZE = 3;
+      const chunks = [];
+      for (let i = 0; i < requestBody.files.length; i += CHUNK_SIZE) {
+        chunks.push(requestBody.files.slice(i, i + CHUNK_SIZE));
+      }
+      
+      results = [];
+      for (const chunk of chunks) {
+        const chunkResults = await Promise.all(
+          chunk.map(async (file) => {
+            if (!file.fileUrl || !file.fileName) {
+              throw new Error('Missing file information in files array');
+            }
+            console.log('Processing file:', file.fileName);
+            return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
+          })
+        );
+        results.push(...chunkResults);
+        
+        // Add a small delay between chunks to prevent resource exhaustion
+        if (chunks.length > 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
     } else if (requestBody.fileUrl && requestBody.fileName) {
       console.log('Processing single file:', requestBody.fileName);
       results = await uploadToDrive(requestBody.fileUrl, requestBody.fileName, accessToken);
