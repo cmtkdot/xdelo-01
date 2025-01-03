@@ -12,7 +12,7 @@ import { useMediaTableSelection } from "@/components/media/table/hooks/useMediaT
 import MediaTableFilters from "@/components/media/table/MediaTableFilters";
 import { MediaTableToolbar } from "@/components/media/table/MediaTableToolbar";
 
-const GOOGLE_CLIENT_ID = "977351558653-ohvqd6j78cbei8aufarbdsoskqql05s1.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com";
 
 const MediaTable = () => {
   const { toast } = useToast();
