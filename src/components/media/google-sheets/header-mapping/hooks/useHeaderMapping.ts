@@ -29,19 +29,6 @@ export const useHeaderMapping = ({
         // Initialize Google Sheets API with proper auth
         await initGoogleSheetsAPI();
 
-        // Get the access token from localStorage
-        const accessToken = localStorage.getItem('google_access_token');
-        if (!accessToken) {
-          throw new Error('No access token found. Please authenticate with Google.');
-        }
-
-        // Set the access token for the client
-        if (window.gapi?.client) {
-          window.gapi.client.setToken({ access_token: accessToken });
-        } else {
-          throw new Error('Google API client not initialized');
-        }
-
         let range;
         if (sheetGid) {
           const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
@@ -86,8 +73,7 @@ export const useHeaderMapping = ({
         if (dbError) throw dbError;
         
         if (configData?.header_mapping) {
-          const headerMapping = configData.header_mapping as Record<string, string>;
-          setMapping(headerMapping);
+          setMapping(configData.header_mapping as Record<string, string>);
         }
       } catch (err) {
         const error = err as Error;
