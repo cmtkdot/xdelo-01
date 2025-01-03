@@ -16,6 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Image, RefreshCw, Trash2 } from "lucide-react";
 import MediaGalleryHeader from "./MediaGalleryHeader";
 import MediaFilters from "./MediaFilters";
 import MediaGalleryContent from "./MediaGalleryContent";
