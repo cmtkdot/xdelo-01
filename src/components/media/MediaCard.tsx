@@ -15,8 +15,8 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const isVideo = item.media_type === "video";
 
-  // Prioritize Google Drive URL if available, fallback to file_url
-  const displayUrl = item.google_drive_url || item.file_url;
+  // Prioritize file_url from Supabase over Google Drive URL
+  const displayUrl = item.file_url || item.google_drive_url;
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Prevent opening dialog when clicking checkbox
@@ -47,6 +47,8 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
                 src={displayUrl}
                 className="absolute inset-0 w-full h-full object-cover"
                 preload="metadata"
+                playsInline
+                muted
               />
             ) : (
               <img
@@ -80,7 +82,7 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
       <MediaViewerDialog
         item={{
           ...item,
-          file_url: displayUrl // Use the Google Drive URL in the viewer dialog
+          file_url: displayUrl // Use the Supabase URL in the viewer dialog
         }}
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}

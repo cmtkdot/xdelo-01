@@ -12,8 +12,8 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
   if (!item) return null;
 
   const isVideo = item.media_type === "video";
-  // Use Google Drive URL if available
-  const displayUrl = item.google_drive_url || item.file_url;
+  // Use file_url from Supabase
+  const displayUrl = item.file_url;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -33,6 +33,7 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
               className="max-w-full max-h-[70vh] rounded-lg shadow-md"
               controls
               autoPlay
+              playsInline
             />
           ) : (
             <img
