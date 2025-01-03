@@ -33,7 +33,6 @@ export const MediaTableRow = ({
   const fileUrl = item.google_drive_url || item.public_url || item.file_url;
 
   const handleRowClick = (e: React.MouseEvent) => {
-    // Prevent row click when clicking on buttons, links or input
     if (
       e.target instanceof HTMLElement && 
       (e.target.closest('button') || e.target.closest('a') || e.target.closest('input'))
@@ -41,11 +40,10 @@ export const MediaTableRow = ({
       return;
     }
     
-    // Create a synthetic event with ctrl key pressed to maintain selection
     const syntheticEvent = new MouseEvent('click', {
       bubbles: true,
       cancelable: true,
-      ctrlKey: true, // Always use ctrl key behavior for single clicks
+      ctrlKey: true,
       metaKey: e.metaKey,
       shiftKey: e.shiftKey,
     });
@@ -54,11 +52,10 @@ export const MediaTableRow = ({
   };
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
-    // Create a synthetic mouse event with the same modifiers
     const syntheticEvent = new MouseEvent('click', {
       bubbles: true,
       cancelable: true,
-      ctrlKey: true, // Always use ctrl key behavior for checkboxes
+      ctrlKey: true,
       metaKey: e.metaKey,
       shiftKey: e.shiftKey,
     });
@@ -107,7 +104,6 @@ export const MediaTableRow = ({
     }
   };
 
-  // Extract message ID from metadata if available and ensure it's a Record
   const messageId = typeof item.metadata === 'object' && item.metadata !== null 
     ? (item.metadata as Record<string, any>).message_id 
     : undefined;
@@ -130,6 +126,9 @@ export const MediaTableRow = ({
       <TableCell className="text-white/70 whitespace-nowrap">{item.chat?.title || 'N/A'}</TableCell>
       <TableCell className="text-white/70 whitespace-nowrap">
         {item.created_at ? format(new Date(item.created_at), 'PPpp') : 'N/A'}
+      </TableCell>
+      <TableCell className="text-white/70 whitespace-nowrap">
+        {item.updated_at ? format(new Date(item.updated_at), 'PPpp') : 'N/A'}
       </TableCell>
       <TableCell className="text-white/70">
         {isEditing ? (

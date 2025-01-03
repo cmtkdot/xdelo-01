@@ -60,6 +60,9 @@ export const MediaTableHeader = ({
         <TableHead className="text-sky-400 w-[200px]">
           {renderSortButton('created_at', 'Created At')}
         </TableHead>
+        <TableHead className="text-sky-400 w-[200px]">
+          {renderSortButton('updated_at', 'Updated At')}
+        </TableHead>
         <TableHead className="text-sky-400 w-[300px]">
           {renderSortButton('caption', 'Caption')}
         </TableHead>
