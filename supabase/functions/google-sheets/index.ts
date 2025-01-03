@@ -6,68 +6,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-async function generateJWT() {
-  const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
-  
-  const now = Math.floor(Date.now() / 1000);
-  const claim = {
-    iss: credentials.client_email,
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
-    aud: 'https://oauth2.googleapis.com/token',
-    exp: now + 3600,
-    iat: now
-  };
-
-  const key = credentials.private_key;
-  const header = { alg: "RS256", typ: "JWT" };
-  
-  const encoder = new TextEncoder();
-  const input = encoder.encode(`${btoa(JSON.stringify(header))}.${btoa(JSON.stringify(claim))}`);
-  
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8',
-    encoder.encode(key),
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  
-  const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    cryptoKey,
-    input
-  );
-
-  const jwt = `${btoa(JSON.stringify(header))}.${btoa(JSON.stringify(claim))}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`;
-  return jwt;
-}
-
-async function getAccessToken() {
-  const jwt = await generateJWT();
-  const response = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
-    }),
-  });
-
-  const data = await response.json();
-  return data.access_token;
-}
+const GOOGLE_CLIENT_ID = "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     const { spreadsheetId, range, values, operation } = await req.json();
-    const accessToken = await getAccessToken();
+    
+    // Get the client secret from environment variables
+    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+    if (!clientSecret) {
+      throw new Error('Google client secret not configured');
+    }
+
+    const accessToken = await getAccessToken(GOOGLE_CLIENT_ID, clientSecret);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -143,3 +98,24 @@ serve(async (req) => {
     );
   }
 })
+
+async function getAccessToken(clientId: string, clientSecret: string) {
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+
+  const tokenData = await tokenResponse.json();
+  if (!tokenResponse.ok) {
+    throw new Error(tokenData.error || 'Failed to obtain access token');
+  }
+
+  return tokenData.access_token;
+}

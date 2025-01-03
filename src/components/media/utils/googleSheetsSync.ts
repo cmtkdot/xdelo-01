@@ -17,14 +17,24 @@ export const initGoogleSheetsAPI = async () => {
 
       await new Promise((resolve) => window.gapi.load('client', resolve));
       
-      const response = await fetch('/api/get-google-api-key');
-      const { api_key } = await response.json();
+      const { data: { api_key } } = await supabase.functions.invoke('get-google-api-key');
       
       await window.gapi.client.init({
         apiKey: api_key,
+        clientId: "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com",
         discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+        scope: 'https://www.googleapis.com/auth/spreadsheets'
       });
     }
+
+    // Get the access token from localStorage
+    const accessToken = localStorage.getItem('google_access_token');
+    if (!accessToken) {
+      throw new Error('No access token found. Please authenticate with Google.');
+    }
+
+    // Set the access token for the client
+    window.gapi.client.setToken({ access_token: accessToken });
 
     return true;
   } catch (error) {
