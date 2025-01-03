@@ -1,170 +1,172 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    )
 
     // Get the user from the request
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      throw new Error('No authorization header');
+      throw new Error('No authorization header')
     }
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
       authHeader.replace('Bearer ', '')
-    );
+    )
 
     if (userError || !user) {
-      throw new Error('Unauthorized');
+      throw new Error('Unauthorized')
     }
 
-    // Get all media files from the database
-    const { data: mediaFiles, error: mediaError } = await supabase
+    // Get request parameters
+    const { updatePublicUrls = true } = await req.json()
+
+    // Fetch all media items for this user
+    const { data: mediaItems, error: fetchError } = await supabaseClient
       .from('media')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
 
-    if (mediaError) {
-      console.error('Error fetching media:', mediaError);
-      throw mediaError;
+    if (fetchError) {
+      console.error('Error fetching media items:', fetchError)
+      throw fetchError
     }
 
-    if (!mediaFiles || mediaFiles.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          message: 'No media files found to update',
-          updates: [] 
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200 
-        }
-      );
-    }
+    console.log(`Found ${mediaItems?.length || 0} media items to update`)
 
-    const updates = [];
+    const updates = mediaItems?.map(item => {
+      const fileExt = item.file_name.split('.').pop()?.toLowerCase()
+      let contentType = 'application/octet-stream'
 
-    for (const file of mediaFiles) {
-      const fileName = file.file_name;
-      const extension = fileName.split('.').pop()?.toLowerCase();
-      
-      let contentType;
-      switch (extension) {
+      // Determine content type based on file extension
+      switch (fileExt) {
         case 'jpg':
         case 'jpeg':
-          contentType = 'image/jpeg';
-          break;
+          contentType = 'image/jpeg'
+          break
         case 'png':
-          contentType = 'image/png';
-          break;
+          contentType = 'image/png'
+          break
         case 'gif':
-          contentType = 'image/gif';
-          break;
+          contentType = 'image/gif'
+          break
         case 'mp4':
-          contentType = 'video/mp4';
-          break;
-        case 'webm':
-          contentType = 'video/webm';
-          break;
+          contentType = 'video/mp4'
+          break
         case 'mov':
-          contentType = 'video/quicktime';
-          break;
-        default:
-          contentType = 'application/octet-stream';
+          contentType = 'video/quicktime'
+          break
+        case 'mp3':
+          contentType = 'audio/mpeg'
+          break
+        case 'wav':
+          contentType = 'audio/wav'
+          break
+        case 'pdf':
+          contentType = 'application/pdf'
+          break
       }
 
-      try {
-        // Update content type
-        const { error: updateError } = await supabase
-          .storage
-          .from('telegram-media')
-          .update(fileName, await (await fetch(file.file_url)).arrayBuffer(), {
-            contentType,
-            upsert: true
-          });
+      // Generate public URL if requested
+      const publicUrl = updatePublicUrls 
+        ? `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${item.file_name}`
+        : item.public_url
 
-        if (updateError) {
-          console.error(`Error updating ${fileName}:`, updateError);
-          updates.push({
-            fileName,
-            error: updateError.message,
-            success: false
-          });
-          continue;
+      return {
+        id: item.id,
+        user_id: user.id,
+        content_type: contentType,
+        public_url: publicUrl
+      }
+    })
+
+    if (!updates?.length) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'No media items need updating',
+          updatedCount: 0
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
         }
+      )
+    }
 
-        // Update public URL
-        const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${fileName}`;
-        const { error: dbError } = await supabase
-          .from('media')
-          .update({ 
-            public_url: publicUrl,
-            user_id: user.id 
-          })
-          .eq('id', file.id);
+    // Update records in batches
+    const batchSize = 100
+    const results = []
+    
+    for (let i = 0; i < updates.length; i += batchSize) {
+      const batch = updates.slice(i, i + batchSize)
+      console.log(`Processing batch ${i/batchSize + 1} of ${Math.ceil(updates.length/batchSize)}`)
+      
+      const { data, error } = await supabaseClient
+        .from('media')
+        .upsert(batch, { onConflict: 'id' })
+        .select()
 
-        if (dbError) {
-          console.error(`Error updating public URL for ${fileName}:`, dbError);
-          updates.push({
-            fileName,
-            error: dbError.message,
-            success: false
-          });
-          continue;
+      if (error) {
+        console.error('Error updating batch:', error)
+        throw error
+      }
+      
+      results.push(...(data || []))
+
+      // Update storage file content type
+      for (const item of batch) {
+        try {
+          await supabaseClient.storage
+            .from('telegram-media')
+            .update(item.file_name, await (await fetch(item.file_url)).blob(), {
+              contentType: item.content_type,
+              upsert: true
+            })
+        } catch (error) {
+          console.error(`Error updating storage content type for ${item.file_name}:`, error)
         }
-
-        updates.push({
-          fileName,
-          contentType,
-          publicUrl,
-          success: true
-        });
-
-      } catch (error) {
-        console.error(`Error processing ${fileName}:`, error);
-        updates.push({
-          fileName,
-          error: error.message,
-          success: false
-        });
       }
     }
 
+    console.log(`Successfully updated ${results.length} media records`)
+
     return new Response(
-      JSON.stringify({ 
-        message: 'Media files update completed',
-        updates 
+      JSON.stringify({
+        success: true,
+        message: `Updated ${results.length} media records with content types${updatePublicUrls ? ' and public URLs' : ''}`,
+        updatedCount: results.length
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+        status: 200,
       }
-    );
+    )
 
   } catch (error) {
-    console.error('Error in update-media-content-types:', error);
+    console.error('Error in update-media-content-types function:', error)
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: false,
         error: error.message
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400 
+        status: 400,
       }
-    );
+    )
   }
-});
+})
