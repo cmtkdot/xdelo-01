@@ -41,6 +41,32 @@ export const saveMessage = async (supabase: any, chat: any, message: any, userId
   }
 };
 
+export const saveBotUser = async (
+  supabase: any, 
+  userId: string, 
+  telegramUserId: string | null, 
+  username: string | null, 
+  firstName: string | null, 
+  lastName: string | null
+) => {
+  const { error: botUserError } = await supabase
+    .from('bot_users')
+    .upsert({
+      telegram_user_id: telegramUserId,
+      username: username,
+      first_name: firstName,
+      last_name: lastName,
+    }, {
+      onConflict: 'telegram_user_id',
+      ignoreDuplicates: false,
+    });
+
+  if (botUserError) {
+    console.error('Error creating bot user:', botUserError);
+    throw botUserError;
+  }
+};
+
 export const saveMedia = async (
   supabase: any,
   userId: string,
@@ -81,28 +107,4 @@ export const saveMedia = async (
   }
 
   return mediaData;
-};
-
-export const saveBotUser = async (supabase: any, userId: string, telegramUserId: string | null, username: string | null, firstName: string | null, lastName: string | null) => {
-  if (!userId) {
-    throw new Error('User ID is required to create a bot user');
-  }
-
-  const { error: botUserError } = await supabase
-    .from('bot_users')
-    .upsert({
-      id: userId,
-      telegram_user_id: telegramUserId,
-      username: username,
-      first_name: firstName,
-      last_name: lastName,
-    }, {
-      onConflict: 'id',
-      ignoreDuplicates: false,
-    });
-
-  if (botUserError) {
-    console.error('Error creating bot user:', botUserError);
-    throw botUserError;
-  }
 };
