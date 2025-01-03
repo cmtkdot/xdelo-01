@@ -8,14 +8,26 @@ export const SYNC_INTERVAL = 30000; // 30 seconds
 
 export const initGoogleSheetsAPI = async () => {
   try {
-    if (!window.gapi?.client?.sheets) {
+    // Check if gapi is already loaded
+    if (typeof window.gapi === 'undefined') {
+      console.log('Loading Google API client...');
       await new Promise((resolve) => {
         const script = document.createElement('script');
         script.src = 'https://apis.google.com/js/api.js';
+        script.async = true;
+        script.defer = true;
         script.onload = resolve;
+        script.onerror = (error) => {
+          console.error('Error loading Google API script:', error);
+          throw new Error('Failed to load Google API client');
+        };
         document.body.appendChild(script);
       });
+    }
 
+    // Initialize the client if not already initialized
+    if (!window.gapi?.client?.sheets) {
+      console.log('Initializing Google API client...');
       await new Promise((resolve) => window.gapi.load('client', resolve));
       
       const { data: { api_key } } = await supabase.functions.invoke('get-google-api-key');
@@ -31,11 +43,13 @@ export const initGoogleSheetsAPI = async () => {
     // Get the access token from localStorage
     const accessToken = localStorage.getItem('google_access_token');
     if (!accessToken) {
+      console.error('No access token found');
       throw new Error('No access token found. Please authenticate with Google.');
     }
 
     // Set the access token for the client
     window.gapi.client.setToken({ access_token: accessToken });
+    console.log('Google API client initialized successfully');
 
     return true;
   } catch (error) {
@@ -48,7 +62,7 @@ export const initializeSpreadsheet = async (spreadsheetId: string, gid?: string)
   try {
     await initGoogleSheetsAPI();
     
-    // Verify spreadsheet access
+    console.log('Verifying spreadsheet access...');
     const response = await window.gapi.client.sheets.spreadsheets.get({
       spreadsheetId
     });
@@ -57,6 +71,7 @@ export const initializeSpreadsheet = async (spreadsheetId: string, gid?: string)
       throw new Error('Unable to access spreadsheet');
     }
 
+    console.log('Spreadsheet access verified successfully');
     return true;
   } catch (error) {
     console.error('Error initializing spreadsheet:', error);
@@ -70,6 +85,7 @@ export const syncWithGoogleSheets = async (
   gid?: string
 ) => {
   try {
+    console.log('Starting Google Sheets sync...');
     await initGoogleSheetsAPI();
 
     // Format data for sheets
@@ -86,6 +102,8 @@ export const syncWithGoogleSheets = async (
 
     // Update spreadsheet
     const range = `A2:H${formattedData.length + 1}`;
+    console.log(`Updating spreadsheet range: ${range}`);
+    
     await window.gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
       range,
@@ -95,6 +113,7 @@ export const syncWithGoogleSheets = async (
       }
     });
 
+    console.log('Spreadsheet updated successfully');
     return true;
   } catch (error) {
     console.error('Error syncing with Google Sheets:', error);
