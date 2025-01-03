@@ -83,17 +83,14 @@ const GoogleSheetsConfigContent = ({
 
   const handleHeaderMappingComplete = async (mapping: Record<string, string>, spreadsheetId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
       const { error } = await supabase
         .from('google_sheets_config')
-        .update({ 
+        .insert({ 
+          spreadsheet_id: spreadsheetId,
+          header_mapping: mapping,
           is_headers_mapped: true,
-          header_mapping: mapping
-        })
-        .eq('spreadsheet_id', spreadsheetId)
-        .eq('user_id', user.id);
+          user_id: 'public' // Using a public user ID for non-authenticated access
+        });
 
       if (error) throw error;
 
@@ -162,14 +159,6 @@ export const GoogleSheetsConfig = (props: GoogleSheetsConfigProps) => {
       return api_key;
     },
   });
-  
-  useEffect(() => {
-    if (!clientId) {
-      console.error('Google Client ID is not set. Please check your Supabase secrets.');
-    } else {
-      console.log('Google Client ID is configured successfully');
-    }
-  }, [clientId]);
 
   if (!clientId) {
     return (
