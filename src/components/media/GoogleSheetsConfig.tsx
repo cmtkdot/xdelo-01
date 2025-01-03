@@ -11,6 +11,8 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { SyncManager } from "./google-sheets/SyncManager";
 import { SPECIFIC_SPREADSHEET_ID, SPECIFIC_GID } from "./google-sheets/constants";
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { Button } from "@/components/ui/button";
+import { LogIn } from "lucide-react";
 
 const GOOGLE_CLIENT_ID = "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com";
 
@@ -33,14 +35,14 @@ const GoogleSheetsConfigContent = ({
       localStorage.setItem('google_access_token', response.access_token);
       toast({
         title: "Success",
-        description: "Successfully authenticated with Google",
+        description: "Successfully authenticated with Google Sheets",
       });
     },
     onError: (error) => {
       console.error('Google Login Error:', error);
       toast({
         title: "Error",
-        description: "Failed to authenticate with Google",
+        description: "Failed to authenticate with Google. Please try again.",
         variant: "destructive",
       });
     },
@@ -72,83 +74,81 @@ const GoogleSheetsConfigContent = ({
     },
   });
 
-  // Set up specific spreadsheet on mount
-  useEffect(() => {
-    const isConfigured = spreadsheets.some(sheet => 
-      sheet.id === SPECIFIC_SPREADSHEET_ID && sheet.gid === SPECIFIC_GID
-    );
-
-    if (!isConfigured) {
-      handleAddSpreadsheet(
-        "Synced Media Sheet",
-        SPECIFIC_SPREADSHEET_ID,
-        SPECIFIC_GID
-      );
-    }
-  }, []);
-
-  const handleHeaderMappingComplete = async (spreadsheetId: string, mapping: Record<string, string>) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { error } = await supabase
-        .from('google_sheets_config')
-        .update({ 
-          is_headers_mapped: true,
-          header_mapping: mapping
-        })
-        .eq('spreadsheet_id', spreadsheetId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Header mapping completed and initial sync performed",
-      });
-
-      onSpreadsheetIdSet(spreadsheetId);
-    } catch (error) {
-      console.error('Error completing header mapping:', error);
-      toast({
-        title: "Error",
-        description: "Failed to complete header mapping",
-        variant: "destructive",
-      });
-    }
-  };
+  // Check if user is authenticated with Google
+  const isGoogleAuthenticated = !!localStorage.getItem('google_access_token');
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <AddSpreadsheetForm onSubmit={handleAddSpreadsheet} />
-        <button
-          onClick={() => login()}
-          className="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90 transition-colors"
-        >
-          Connect Google Account
-        </button>
+        {!isGoogleAuthenticated ? (
+          <Button
+            onClick={() => login()}
+            className="w-full bg-primary text-white hover:bg-primary/90 transition-colors"
+          >
+            <LogIn className="w-4 h-4 mr-2" />
+            Connect Google Account
+          </Button>
+        ) : (
+          <AddSpreadsheetForm onSubmit={handleAddSpreadsheet} />
+        )}
       </div>
 
-      <div className="grid gap-4">
-        {spreadsheets.map((sheet) => (
-          <SpreadsheetCard
-            key={sheet.id}
-            sheet={sheet}
-            onToggleAutoSync={toggleAutoSync}
-            onRemove={removeSpreadsheet}
-            onHeaderMappingComplete={handleHeaderMappingComplete}
+      {isGoogleAuthenticated && (
+        <>
+          <div className="grid gap-4">
+            {spreadsheets.map((sheet) => (
+              <SpreadsheetCard
+                key={sheet.id}
+                sheet={sheet}
+                onToggleAutoSync={toggleAutoSync}
+                onRemove={removeSpreadsheet}
+                onHeaderMappingComplete={(mapping) => {
+                  handleHeaderMappingComplete(sheet.id, mapping);
+                }}
+              />
+            ))}
+          </div>
+
+          <SyncManager 
+            spreadsheets={spreadsheets}
+            allMedia={allMedia}
           />
-        ))}
-      </div>
-
-      <SyncManager 
-        spreadsheets={spreadsheets}
-        allMedia={allMedia}
-      />
+        </>
+      )}
     </div>
   );
+};
+
+const handleHeaderMappingComplete = async (spreadsheetId: string, mapping: Record<string, string>) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('google_sheets_config')
+      .update({ 
+        is_headers_mapped: true,
+        header_mapping: mapping
+      })
+      .eq('spreadsheet_id', spreadsheetId)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    toast({
+      title: "Success",
+      description: "Header mapping completed and initial sync performed",
+    });
+
+    onSpreadsheetIdSet(spreadsheetId);
+  } catch (error) {
+    console.error('Error completing header mapping:', error);
+    toast({
+      title: "Error",
+      description: "Failed to complete header mapping",
+      variant: "destructive",
+    });
+  }
 };
 
 export const GoogleSheetsConfig = (props: GoogleSheetsConfigProps) => {
