@@ -16,11 +16,19 @@ export const useHeaderMapping = ({
   const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchHeaders = async () => {
       try {
+        setError(null);
+        setIsLoading(true);
+
+        if (!window.gapi?.client?.sheets) {
+          throw new Error('Google Sheets API not initialized');
+        }
+
         let range;
         if (sheetGid) {
           const spreadsheet = await window.gapi.client.sheets.spreadsheets.get({
@@ -45,31 +53,35 @@ export const useHeaderMapping = ({
           range,
         });
 
-        if (response.result.values?.[0]) {
-          setSheetHeaders(response.result.values[0]);
-          
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) throw new Error('User not authenticated');
-          
-          const { data: configData, error } = await supabase
-            .from('google_sheets_config')
-            .select('header_mapping')
-            .eq('spreadsheet_id', spreadsheetId)
-            .eq('user_id', user.id)
-            .maybeSingle();
-          
-          if (error) throw error;
-          
-          if (configData?.header_mapping) {
-            const headerMapping = configData.header_mapping as Record<string, string>;
-            setMapping(headerMapping);
-          }
+        if (!response.result.values?.[0]) {
+          throw new Error('No headers found in the sheet');
         }
-      } catch (error) {
+
+        setSheetHeaders(response.result.values[0]);
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+        
+        const { data: configData, error: dbError } = await supabase
+          .from('google_sheets_config')
+          .select('header_mapping')
+          .eq('spreadsheet_id', spreadsheetId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (dbError) throw dbError;
+        
+        if (configData?.header_mapping) {
+          const headerMapping = configData.header_mapping as Record<string, string>;
+          setMapping(headerMapping);
+        }
+      } catch (err) {
+        const error = err as Error;
         console.error('Error fetching headers:', error);
+        setError(error);
         toast({
           title: "Error",
-          description: "Failed to fetch sheet headers",
+          description: error.message || "Failed to fetch sheet headers",
           variant: "destructive",
         });
       } finally {
@@ -77,9 +89,7 @@ export const useHeaderMapping = ({
       }
     };
 
-    if (window.gapi?.client?.sheets) {
-      fetchHeaders();
-    }
+    fetchHeaders();
   }, [spreadsheetId, sheetGid, toast]);
 
   const handleMappingChange = (sheetHeader: string, dbColumn: string) => {
@@ -88,6 +98,7 @@ export const useHeaderMapping = ({
     if (!dbColumn) {
       delete newMapping[sheetHeader];
     } else {
+      // Remove the dbColumn if it's already mapped to another header
       Object.keys(newMapping).forEach(key => {
         if (newMapping[key] === dbColumn) {
           delete newMapping[key];
@@ -155,14 +166,16 @@ export const useHeaderMapping = ({
   };
 
   const isAllColumnsMapped = (dbColumns: string[]) => {
+    if (!mapping || !Object.keys(mapping).length) return false;
     const mappedColumns = new Set(Object.values(mapping));
-    return mappedColumns.size >= dbColumns.length;
+    return mappedColumns.size >= Math.min(dbColumns.length, sheetHeaders.length);
   };
 
   return {
     sheetHeaders,
     mapping,
     isLoading,
+    error,
     handleMappingChange,
     handleSelectAll,
     handleSaveMapping,

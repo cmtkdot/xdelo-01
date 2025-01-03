@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { useHeaderMapping } from './google-sheets/header-mapping/hooks/useHeaderMapping';
 import { HeaderMappingContent } from './google-sheets/header-mapping/HeaderMappingContent';
 import { HeaderMappingActions } from './google-sheets/header-mapping/HeaderMappingActions';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface HeaderMappingProps {
   spreadsheetId: string;
@@ -38,6 +39,7 @@ export const GoogleSheetsHeaderMapping = ({
     sheetHeaders,
     mapping,
     isLoading,
+    error,
     handleMappingChange,
     handleSelectAll,
     handleSaveMapping,
@@ -53,6 +55,26 @@ export const GoogleSheetsHeaderMapping = ({
       <div className="flex items-center justify-center p-4">
         <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Failed to load sheet headers: {error.message}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!sheetHeaders || sheetHeaders.length === 0) {
+    return (
+      <Alert>
+        <AlertDescription>
+          No headers found in the sheet. Please ensure the sheet has headers in the first row.
+        </AlertDescription>
+      </Alert>
     );
   }
 
