@@ -8,46 +8,7 @@ export const SYNC_INTERVAL = 30000; // 30 seconds
 
 export const initGoogleSheetsAPI = async () => {
   try {
-    if (typeof window.gapi === 'undefined') {
-      console.log('Loading Google API client...');
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
-        script.async = true;
-        script.defer = true;
-        script.crossOrigin = "anonymous";
-        script.onload = resolve;
-        script.onerror = reject;
-        document.body.appendChild(script);
-      });
-    }
-
-    if (!window.gapi?.client?.sheets) {
-      console.log('Initializing Google API client...');
-      
-      await new Promise((resolve, reject) => {
-        window.gapi.load('client', { callback: resolve, onerror: reject });
-      });
-
-      const { data: { api_key } } = await supabase.functions.invoke('get-google-api-key');
-      
-      await window.gapi.client.init({
-        apiKey: api_key,
-        discoveryDocs: [
-          'https://sheets.googleapis.com/$discovery/rest?version=v4',
-          'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
-        ],
-      });
-    }
-
-    const accessToken = localStorage.getItem('google_access_token');
-    if (!accessToken) {
-      throw new Error('No access token found. Please authenticate with Google.');
-    }
-
-    window.gapi.client.setToken({ access_token: accessToken });
-    console.log('Google API client initialized successfully');
-
+    console.log('Initializing Google Sheets sync with service account...');
     return true;
   } catch (error) {
     console.error('Error initializing Google Sheets API:', error);
@@ -57,18 +18,21 @@ export const initGoogleSheetsAPI = async () => {
 
 export const initializeSpreadsheet = async (spreadsheetId: string, gid?: string) => {
   try {
-    await initGoogleSheetsAPI();
-    
     console.log('Verifying spreadsheet access...');
-    const response = await window.gapi.client.sheets.spreadsheets.get({
-      spreadsheetId
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/init-google-sheet`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ spreadsheetId, gid }),
     });
 
-    if (!response.result) {
-      throw new Error('Unable to access spreadsheet');
+    if (!response.ok) {
+      throw new Error('Failed to initialize spreadsheet');
     }
 
-    console.log('Spreadsheet access verified successfully');
+    console.log('Spreadsheet initialized successfully');
     return true;
   } catch (error) {
     console.error('Error initializing spreadsheet:', error);
@@ -83,34 +47,34 @@ export const syncWithGoogleSheets = async (
 ) => {
   try {
     console.log('Starting Google Sheets sync...');
-    await initGoogleSheetsAPI();
-
-    // Format data for sheets
-    const formattedData = mediaItems.map(item => [
-      item.file_name,
-      item.media_type,
-      item.chat?.title || '',
-      new Date(item.created_at || '').toLocaleString(),
-      item.caption || '',
-      item.file_url,
-      item.google_drive_url || '',
-      item.google_drive_id || ''
-    ]);
-
-    // Update spreadsheet
-    const range = `A2:H${formattedData.length + 1}`;
-    console.log(`Updating spreadsheet range: ${range}`);
     
-    await window.gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range,
-      valueInputOption: 'RAW',
-      resource: {
-        values: formattedData
-      }
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-google-sheet`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        spreadsheetId,
+        gid,
+        data: mediaItems.map(item => [
+          item.file_name,
+          item.media_type,
+          item.chat?.title || '',
+          new Date(item.created_at || '').toLocaleString(),
+          item.caption || '',
+          item.file_url,
+          item.google_drive_url || '',
+          item.google_drive_id || ''
+        ])
+      }),
     });
 
-    console.log('Spreadsheet updated successfully');
+    if (!response.ok) {
+      throw new Error('Failed to sync with Google Sheets');
+    }
+
+    console.log('Sync completed successfully');
     return true;
   } catch (error) {
     console.error('Error syncing with Google Sheets:', error);

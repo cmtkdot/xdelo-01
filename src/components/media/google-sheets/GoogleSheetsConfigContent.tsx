@@ -6,8 +6,8 @@ import { SpreadsheetCard } from "./SpreadsheetCard";
 import { GoogleSheetsConfigProps } from "./types";
 import { SyncManager } from "./SyncManager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GoogleAuthButton } from "./GoogleAuthButton";
 import { useToast } from "@/components/ui/use-toast";
+import { MediaItem } from "../types";
 
 export const GoogleSheetsConfigContent = ({ 
   onSpreadsheetIdSet, 
@@ -40,24 +40,13 @@ export const GoogleSheetsConfigContent = ({
         ? data?.filter(item => selectedMedia.includes(item.id))
         : data;
       
-      return (mediaToSync || []).map(item => ({
+      return mediaToSync?.map(item => ({
         ...item,
-        metadata: typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata
-      }));
+        metadata: typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata,
+        additional_data: typeof item.additional_data === 'string' ? JSON.parse(item.additional_data) : item.additional_data
+      })) as MediaItem[];
     },
   });
-
-  const isGoogleAuthenticated = () => {
-    const token = localStorage.getItem('google_access_token');
-    const expiry = localStorage.getItem('google_token_expiry');
-    
-    if (!token || !expiry) return false;
-    
-    const expiryTime = parseInt(expiry);
-    const currentTime = new Date().getTime();
-    
-    return currentTime < expiryTime;
-  };
 
   const handleHeaderMappingComplete = async (mapping: Record<string, string>, spreadsheetId: string) => {
     try {
@@ -94,34 +83,24 @@ export const GoogleSheetsConfigContent = ({
         <CardTitle>Google Sheets Configuration</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex items-center justify-between">
-          {!isGoogleAuthenticated() ? (
-            <GoogleAuthButton />
-          ) : (
-            <AddSpreadsheetForm onSubmit={handleAddSpreadsheet} />
-          )}
+        <AddSpreadsheetForm onSubmit={handleAddSpreadsheet} />
+        
+        <div className="grid gap-4">
+          {spreadsheets.map((sheet) => (
+            <SpreadsheetCard
+              key={sheet.id}
+              sheet={sheet}
+              onToggleAutoSync={toggleAutoSync}
+              onRemove={removeSpreadsheet}
+              onHeaderMappingComplete={(mapping) => handleHeaderMappingComplete(mapping, sheet.id)}
+            />
+          ))}
         </div>
 
-        {isGoogleAuthenticated() && (
-          <>
-            <div className="grid gap-4">
-              {spreadsheets.map((sheet) => (
-                <SpreadsheetCard
-                  key={sheet.id}
-                  sheet={sheet}
-                  onToggleAutoSync={toggleAutoSync}
-                  onRemove={removeSpreadsheet}
-                  onHeaderMappingComplete={(mapping) => handleHeaderMappingComplete(mapping, sheet.id)}
-                />
-              ))}
-            </div>
-
-            <SyncManager 
-              spreadsheets={spreadsheets}
-              allMedia={allMedia}
-            />
-          </>
-        )}
+        <SyncManager 
+          spreadsheets={spreadsheets}
+          allMedia={allMedia}
+        />
       </CardContent>
     </Card>
   );

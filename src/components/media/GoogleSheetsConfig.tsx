@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GoogleSheetsConfigContent } from "./google-sheets/GoogleSheetsConfigContent";
 import { GoogleSheetsConfigProps } from "./google-sheets/types";
 
@@ -14,17 +13,5 @@ export const GoogleSheetsConfig = (props: GoogleSheetsConfigProps) => {
     },
   });
 
-  if (!clientId) {
-    return (
-      <div className="p-4 text-red-500">
-        Error: Google Client ID is not configured. Please check your Supabase secrets.
-      </div>
-    );
-  }
-
-  return (
-    <GoogleOAuthProvider clientId={clientId}>
-      <GoogleSheetsConfigContent {...props} />
-    </GoogleOAuthProvider>
-  );
+  return <GoogleSheetsConfigContent {...props} />;
 };
