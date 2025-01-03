@@ -69,6 +69,7 @@ serve(async (req) => {
           contentType = 'video/quicktime';
           break;
         default:
+          // If we can't determine from extension, use a generic binary type
           contentType = 'application/octet-stream';
       }
 
