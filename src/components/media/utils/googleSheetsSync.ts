@@ -1,4 +1,5 @@
 import { MediaItem } from "../types";
+import { supabase } from "@/integrations/supabase/client";
 
 // Constants
 export const SPECIFIC_SPREADSHEET_ID = "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w";
