@@ -18,14 +18,20 @@ export async function convertToMp4(inputBuffer: Uint8Array): Promise<Uint8Array>
         'import-1': {
           operation: 'import/base64',
           file: base64Input,
-          filename: 'input.mp4'
+          filename: 'input.mov'
         },
         'task-1': {
           operation: 'convert',
           input: 'import-1',
           output_format: 'mp4',
           engine: 'ffmpeg',
-          preset: 'medium'
+          preset: 'medium',
+          video_codec: 'h264',
+          audio_codec: 'aac',
+          video_bitrate: '1000k',
+          audio_bitrate: '128k',
+          crf: 23,
+          fps: 30
         },
         'export-1': {
           operation: 'export/url',
@@ -53,8 +59,8 @@ export async function convertToMp4(inputBuffer: Uint8Array): Promise<Uint8Array>
     const result = await response.json();
     console.log('Conversion job created:', result);
     
-    // Get the converted video URL
-    const exportTask = result.tasks.find((task: any) => task.name === 'export-1');
+    // Wait for the job to complete and get the exported file URL
+    const exportTask = result.data.tasks.find((task: any) => task.operation === 'export/url');
     if (!exportTask?.result?.files?.[0]?.url) {
       console.error('No converted video URL in response:', result);
       throw new Error('No converted video URL found');
