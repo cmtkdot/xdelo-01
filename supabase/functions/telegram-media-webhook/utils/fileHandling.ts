@@ -1,5 +1,3 @@
-import { Json } from '../base';
-
 export const generateSafeFileName = (name: string, extension: string): string => {
   const safeName = name.replace(/[^a-zA-Z0-9-_]/g, '_');
   return `${safeName}.${extension}`;
@@ -25,12 +23,12 @@ export const formatMediaMetadata = (mediaItem: any, message: any): any => {
   };
 };
 
-export const generatePublicUrl = (bucket: string, fileName: string): string => {
+export const generatePublicUrl = (fileName: string): string => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   if (!supabaseUrl) {
     throw new Error('SUPABASE_URL environment variable is not set');
   }
-  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${fileName}`;
+  return `${supabaseUrl}/storage/v1/object/public/telegram-media/${fileName}`;
 };
 
 export const getContentType = (fileName: string, mediaType: string): string => {

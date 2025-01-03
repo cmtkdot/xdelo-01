@@ -50,7 +50,7 @@ export const handleMediaUpload = async (
   }
 
   // Generate public URL
-  const publicUrl = generatePublicUrl("telegram-media", fileName);
+  const publicUrl = generatePublicUrl(fileName);
   console.log('Generated public URL:', publicUrl);
 
   // Upload to Google Drive if needed

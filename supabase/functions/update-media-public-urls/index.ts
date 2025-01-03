@@ -22,8 +22,7 @@ serve(async (req) => {
     // Fetch all media items that need public URL updates
     const { data: mediaItems, error: fetchError } = await supabaseClient
       .from('media')
-      .select('*')
-      .is('public_url', null);
+      .select('*');
 
     if (fetchError) {
       console.error('Error fetching media items:', fetchError);
@@ -33,15 +32,8 @@ serve(async (req) => {
     console.log(`Found ${mediaItems?.length || 0} media items to update`);
 
     const updates = mediaItems?.map(item => {
-      // Extract bucket and path from file_url
-      const fileUrl = new URL(item.file_url);
-      const pathParts = fileUrl.pathname.split('/');
-      const bucket = pathParts[4]; // Usually 'telegram-media'
-      const objectPath = pathParts.slice(5).join('/');
+      const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${item.file_name}`;
       
-      // Construct public URL
-      const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucket}/${objectPath}`;
-
       return {
         id: item.id,
         public_url: publicUrl
