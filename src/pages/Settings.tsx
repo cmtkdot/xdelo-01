@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Trash2, MessageSquare, FileType, Link } from "lucide-react";
+import { Settings as SettingsIcon, Trash2, MessageSquare, FileType, Link, RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -15,6 +15,7 @@ const Settings = () => {
   const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
   const [isUpdatingContentTypes, setUpdatingContentTypes] = useState(false);
   const [isUpdatingPublicUrls, setUpdatingPublicUrls] = useState(false);
+  const [isMigrating, setMigrating] = useState(false);
 
   const handleDeleteDuplicates = async () => {
     try {
@@ -82,6 +83,22 @@ const Settings = () => {
     }
   };
 
+  const handleMigration = async () => {
+    try {
+      setMigrating(true);
+      const { error } = await supabase.functions.invoke('update-media-public-urls');
+
+      if (error) throw error;
+
+      toast.success("Migration completed successfully");
+    } catch (error) {
+      console.error('Error during migration:', error);
+      toast.error("Failed to complete migration");
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-6">
       <Card className="backdrop-blur-xl bg-white/90 dark:bg-black/40 border-gray-200/50 dark:border-white/10">
@@ -119,6 +136,23 @@ const Settings = () => {
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-800 dark:text-white">Media Management</h3>
             <div className="grid gap-4">
+              <div className="flex flex-col space-y-2">
+                <Label className="text-base">Database Migration</Label>
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  Run database migrations and update media records
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMigration}
+                  disabled={isMigrating}
+                  className="w-full sm:w-auto justify-start gap-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-transparent border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  {isMigrating ? "Migrating..." : "Run Migration"}
+                </Button>
+              </div>
+
               <div className="flex flex-col space-y-2">
                 <Label className="text-base">Duplicate Management</Label>
                 <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
