@@ -108,9 +108,13 @@ serve(async (req) => {
 
     console.log(`Attempting to sync ${mappedProducts.length} valid products to Supabase...`);
 
+    // Update the upsert operation to handle conflicts
     const { error: productsError } = await supabase
       .from('glide_products')
-      .upsert(mappedProducts);
+      .upsert(mappedProducts, {
+        onConflict: 'glide_product_row_id',
+        ignoreDuplicates: false
+      });
 
     if (productsError) {
       console.error('Supabase error:', productsError);
