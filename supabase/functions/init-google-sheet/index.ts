@@ -43,19 +43,28 @@ serve(async (req) => {
     console.log('Successfully obtained access token');
 
     // Get spreadsheet info to verify access
-    const getResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}${gid ? `/sheets/${gid}` : ''}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      }
-    );
+    let apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
+    if (gid) {
+      // If GID is provided, get specific sheet info
+      apiUrl = `${apiUrl}/sheets/${gid}`;
+    }
+
+    console.log('Fetching spreadsheet from:', apiUrl);
+    
+    const getResponse = await fetch(apiUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
 
     if (!getResponse.ok) {
       const errorText = await getResponse.text();
-      console.error('Failed to get spreadsheet:', errorText);
-      throw new Error(`Failed to get spreadsheet: ${errorText}`);
+      console.error('Failed to get spreadsheet:', {
+        status: getResponse.status,
+        statusText: getResponse.statusText,
+        error: errorText
+      });
+      throw new Error(`Failed to get spreadsheet: Status ${getResponse.status} - ${errorText}`);
     }
 
     const spreadsheetData = await getResponse.json();
