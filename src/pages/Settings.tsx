@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Trash2, MessageSquare } from "lucide-react";
+import { Settings as SettingsIcon, Trash2, MessageSquare, FileType } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -13,6 +13,7 @@ const Settings = () => {
   const { theme, setTheme } = useTheme();
   const [isSyncingCaptions, setSyncingCaptions] = useState(false);
   const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
+  const [isUpdatingContentTypes, setUpdatingContentTypes] = useState(false);
 
   const handleDeleteDuplicates = async () => {
     try {
@@ -45,6 +46,22 @@ const Settings = () => {
       toast.error("Failed to sync media captions");
     } finally {
       setSyncingCaptions(false);
+    }
+  };
+
+  const handleUpdateContentTypes = async () => {
+    try {
+      setUpdatingContentTypes(true);
+      const { error } = await supabase.functions.invoke('update-media-content-types');
+
+      if (error) throw error;
+
+      toast.success("Content types have been updated for all media files");
+    } catch (error) {
+      console.error('Error updating content types:', error);
+      toast.error("Failed to update content types");
+    } finally {
+      setUpdatingContentTypes(false);
     }
   };
 
@@ -114,8 +131,25 @@ const Settings = () => {
                   disabled={isSyncingCaptions}
                   className="w-full sm:w-auto justify-start gap-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-transparent border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5"
                 >
-                  <MessageSquare className={`w-4 h-4 ${isSyncingCaptions ? 'animate-spin' : ''}`} />
+                  <MessageSquare className="w-4 h-4" />
                   Sync Captions
+                </Button>
+              </div>
+
+              <div className="flex flex-col space-y-2">
+                <Label className="text-base">Content Type Management</Label>
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  Update content types for proper media display in browsers
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUpdateContentTypes}
+                  disabled={isUpdatingContentTypes}
+                  className="w-full sm:w-auto justify-start gap-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-transparent border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5"
+                >
+                  <FileType className="w-4 h-4" />
+                  Update Content Types
                 </Button>
               </div>
             </div>
