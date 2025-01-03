@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { spreadsheetId, gid, sheetName, headers, data } = await req.json();
-    console.log('Received request:', { spreadsheetId, gid, sheetName, headers });
+    const { spreadsheetId, gid, data } = await req.json();
+    console.log('Received request:', { spreadsheetId, gid });
 
     // Get service account credentials
     const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
@@ -70,8 +70,23 @@ serve(async (req) => {
     console.log('Obtained access token');
 
     // Update headers and data in Google Sheet
+    const headers = [
+      'File Name',
+      'Type',
+      'Channel',
+      'Created At',
+      'Caption',
+      'Original File URL',
+      'Google Drive URL',
+      'Google Drive ID',
+      'Last Updated',
+      'Media Group ID',
+      'Row ID',
+      'Public URL'  // Added new column
+    ];
+
     if (headers.length > 0) {
-      const sheetsEndpoint = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:${String.fromCharCode(65 + headers.length)}1`;
+      const sheetsEndpoint = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${gid}!A1:${String.fromCharCode(65 + headers.length)}1`;
       
       // Update headers
       const headerResponse = await fetch(sheetsEndpoint, {
@@ -93,7 +108,7 @@ serve(async (req) => {
 
       // Update data if provided
       if (data && data.length > 0) {
-        const dataEndpoint = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A2:${String.fromCharCode(65 + headers.length)}${data.length + 1}`;
+        const dataEndpoint = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${gid}!A2:${String.fromCharCode(65 + headers.length)}${data.length + 1}`;
         
         const dataResponse = await fetch(dataEndpoint, {
           method: 'PUT',

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { MediaItem } from "../types";
 
 // Constants
 export const SPECIFIC_SPREADSHEET_ID = "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep_k2w";
@@ -37,7 +38,7 @@ export const initializeSpreadsheet = async (spreadsheetId: string, gid?: string)
 
 export const syncWithGoogleSheets = async (
   spreadsheetId: string,
-  mediaItems: any[],
+  mediaItems: MediaItem[],
   gid?: string
 ) => {
   try {
@@ -55,7 +56,11 @@ export const syncWithGoogleSheets = async (
           item.caption || '',
           item.file_url,
           item.google_drive_url || '',
-          item.google_drive_id || ''
+          item.google_drive_id || '',
+          new Date(item.updated_at || '').toLocaleString(),
+          item.media_group_id || '',
+          item.id,
+          item.public_url || ''  // Added public URL
         ])
       },
     });

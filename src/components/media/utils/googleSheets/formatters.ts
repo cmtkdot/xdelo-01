@@ -1,5 +1,3 @@
-import { MediaItem } from "../../types";
-
 export const SHEET_NAME = 'MediaData';
 
 export const BASE_HEADERS = [
@@ -13,7 +11,8 @@ export const BASE_HEADERS = [
   'Google Drive ID',
   'Last Updated',
   'Media Group ID',
-  'Row ID'
+  'Row ID',
+  'Public URL'  // Added new column
 ];
 
 // Format media data for Google Sheets
@@ -29,7 +28,8 @@ export const formatMediaForSheets = (items: MediaItem[]) => {
     item.google_drive_id || 'N/A',
     new Date(item.updated_at || '').toLocaleString(),
     item.media_group_id || 'N/A',
-    item.id
+    item.id,
+    item.public_url || 'No public URL'  // Added new field
   ]);
 
   return { headers: BASE_HEADERS, data: formattedData };
