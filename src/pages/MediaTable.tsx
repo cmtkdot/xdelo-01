@@ -5,12 +5,12 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { MediaItem, Channel } from "@/components/media/types";
 import { useToast } from "@/hooks/use-toast";
 import { GoogleSheetsConfig } from "@/components/media/GoogleSheetsConfig";
-import useMediaSubscription from "@/components/media/hooks/useMediaSubscription";
 import { MediaTableContent } from "@/components/media/table/MediaTableContent";
 import { useMediaTableSort } from "@/components/media/table/hooks/useMediaTableSort";
 import { useMediaTableSelection } from "@/components/media/table/hooks/useMediaTableSelection";
 import MediaTableFilters from "@/components/media/table/MediaTableFilters";
 import { MediaTableToolbar } from "@/components/media/table/MediaTableToolbar";
+import useMediaSubscription from "@/components/media/hooks/useMediaSubscription";
 
 const GOOGLE_CLIENT_ID = "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com";
 
@@ -20,8 +20,6 @@ const MediaTable = () => {
   const [uploadStatus, setUploadStatus] = useState<string>("all");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
-  
-  useMediaSubscription(() => refetch());
   
   // Fetch channels for the filter
   const { data: channels } = useQuery({
@@ -80,6 +78,12 @@ const MediaTable = () => {
       
       return data as MediaItem[];
     },
+  });
+
+  // Subscribe to real-time updates
+  useMediaSubscription(() => {
+    console.log('Media table changed, refetching...');
+    refetch();
   });
 
   const { sortedMediaItems, handleSort, sortConfig } = useMediaTableSort(mediaItems);
