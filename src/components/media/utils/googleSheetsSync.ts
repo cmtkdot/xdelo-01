@@ -18,10 +18,7 @@ export const initGoogleSheetsAPI = async () => {
         script.defer = true;
         script.crossOrigin = "anonymous";
         script.onload = resolve;
-        script.onerror = (error) => {
-          console.error('Error loading Google API script:', error);
-          reject(new Error('Failed to load Google API client'));
-        };
+        script.onerror = reject;
         document.body.appendChild(script);
       });
     }
@@ -32,25 +29,15 @@ export const initGoogleSheetsAPI = async () => {
       
       // Load the client library
       await new Promise((resolve, reject) => {
-        try {
-          window.gapi.load('client', { callback: resolve, onerror: reject });
-        } catch (error) {
-          console.error('Error during gapi.load:', error);
-          reject(error);
-        }
+        window.gapi.load('client', { callback: resolve, onerror: reject });
       });
+
+      const { data: { api_key } } = await supabase.functions.invoke('get-google-api-key');
       
-      try {
-        const { data: { api_key } } = await supabase.functions.invoke('get-google-api-key');
-        
-        await window.gapi.client.init({
-          apiKey: api_key,
-          discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-        });
-      } catch (error) {
-        console.error('Error initializing gapi client:', error);
-        throw error;
-      }
+      await window.gapi.client.init({
+        apiKey: api_key,
+        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+      });
     }
 
     // Get and verify the access token

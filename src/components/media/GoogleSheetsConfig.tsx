@@ -9,12 +9,8 @@ import { MediaItem } from "./types";
 import { useToast } from "@/components/ui/use-toast";
 import { useGoogleLogin } from '@react-oauth/google';
 import { SyncManager } from "./google-sheets/SyncManager";
-import { SPECIFIC_SPREADSHEET_ID, SPECIFIC_GID } from "./google-sheets/constants";
-import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
-
-const GOOGLE_CLIENT_ID = "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com";
 
 const GoogleSheetsConfigContent = ({ 
   onSpreadsheetIdSet, 
@@ -46,7 +42,7 @@ const GoogleSheetsConfigContent = ({
         variant: "destructive",
       });
     },
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
   });
 
   // Query to fetch all media or selected media
@@ -151,7 +147,7 @@ const GoogleSheetsConfigContent = ({
 
 export const GoogleSheetsConfig = (props: GoogleSheetsConfigProps) => {
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+    <GoogleOAuthProvider clientId={process.env.GOOGLE_CLIENT_ID || ""}>
       <GoogleSheetsConfigContent {...props} />
     </GoogleOAuthProvider>
   );

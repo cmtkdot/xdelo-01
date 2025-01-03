@@ -26,7 +26,7 @@ export const checkAuth = async () => {
     return { 
       isAuthenticated: true, 
       user,
-      googleClientId: GOOGLE_CLIENT_ID // Add this to make it available where needed
+      googleClientId: GOOGLE_CLIENT_ID
     };
   } catch (error) {
     console.error("Auth check failed:", error);
