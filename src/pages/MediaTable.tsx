@@ -11,6 +11,8 @@ import { useMediaTableSelection } from "@/components/media/table/hooks/useMediaT
 import MediaTableFilters from "@/components/media/table/MediaTableFilters";
 import { MediaTableToolbar } from "@/components/media/table/MediaTableToolbar";
 import useMediaSubscription from "@/components/media/hooks/useMediaSubscription";
+import { Button } from "@/components/ui/button";
+import { Settings } from "lucide-react";
 
 const GOOGLE_CLIENT_ID = "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com";
 
@@ -20,6 +22,7 @@ const MediaTable = () => {
   const [uploadStatus, setUploadStatus] = useState<string>("all");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [showGoogleConfig, setShowGoogleConfig] = useState(false);
   
   // Fetch channels for the filter
   const { data: channels } = useQuery({
@@ -112,9 +115,23 @@ const MediaTable = () => {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <div className="space-y-6">
-        <div className="mb-6">
-          <GoogleSheetsConfig onSpreadsheetIdSet={setSpreadsheetId} />
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowGoogleConfig(!showGoogleConfig)}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            {showGoogleConfig ? 'Hide Google Sheets Config' : 'Show Google Sheets Config'}
+          </Button>
         </div>
+
+        {showGoogleConfig && (
+          <div className="mb-6">
+            <GoogleSheetsConfig onSpreadsheetIdSet={setSpreadsheetId} />
+          </div>
+        )}
         
         <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg overflow-hidden">
           <div className="p-4 border-b border-white/10">
