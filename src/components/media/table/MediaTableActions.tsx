@@ -29,6 +29,7 @@ interface MediaTableActionsProps {
   onView: () => void;
   hasGoogleDrive: boolean;
   onDelete: () => void;
+  onUpdate?: () => void;
 }
 
 export const MediaTableActions = ({ 
@@ -39,14 +40,15 @@ export const MediaTableActions = ({
   messageId,
   onView, 
   hasGoogleDrive,
-  onDelete
+  onDelete,
+  onUpdate
 }: MediaTableActionsProps) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const handleDelete = async () => {
     try {
-      // Delete associated message if chatId and messageId exist
       if (chatId && messageId) {
         const { error: messageError } = await supabase
           .from('messages')
@@ -56,11 +58,9 @@ export const MediaTableActions = ({
 
         if (messageError) {
           console.error('Error deleting message:', messageError);
-          // Continue with media deletion even if message deletion fails
         }
       }
 
-      // Delete media item
       const { error: mediaError } = await supabase
         .from('media')
         .delete()
@@ -88,7 +88,7 @@ export const MediaTableActions = ({
   return (
     <div className="text-right space-x-2 whitespace-nowrap">
       {!hasGoogleDrive ? (
-        <Dialog>
+        <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
           <DialogTrigger asChild>
             <button
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-green-500/20 text-green-400 hover:bg-green-500/30 hover:text-green-300 transition-all duration-200 font-medium"
@@ -103,6 +103,8 @@ export const MediaTableActions = ({
             <GoogleDriveUploader
               fileUrl={fileUrl}
               fileName={fileName}
+              onSuccess={onUpdate}
+              onClose={() => setIsUploadDialogOpen(false)}
             />
           </DialogContent>
         </Dialog>

@@ -14,9 +14,16 @@ interface GoogleDriveUploaderProps {
   fileName?: string;
   selectedFiles?: MediaItem[];
   onSuccess?: () => void;
+  onClose?: () => void;
 }
 
-const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: GoogleDriveUploaderProps) => {
+const GoogleDriveUploader = ({ 
+  fileUrl, 
+  fileName, 
+  selectedFiles, 
+  onSuccess,
+  onClose 
+}: GoogleDriveUploaderProps) => {
   const { toast } = useToast();
 
   const uploadToGoogleDrive = async () => {
@@ -24,7 +31,6 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
       if (selectedFiles && selectedFiles.length > 0) {
         console.log('Uploading multiple files:', selectedFiles);
         
-        // Format files data properly
         const payload = {
           files: selectedFiles.map(file => ({
             fileUrl: file.file_url,
@@ -43,7 +49,6 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
           throw error;
         }
 
-        // Update media records with Google Drive URLs
         if (data?.results) {
           const results = Array.isArray(data.results) ? data.results : [data.results];
           
@@ -72,7 +77,11 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
           description: `Successfully uploaded ${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''} to Google Drive`,
         });
 
+        // Call onSuccess to trigger data refresh
         onSuccess?.();
+        // Close the dialog
+        onClose?.();
+        
         return data;
       } else if (fileUrl && fileName) {
         console.log('Uploading single file:', { fileUrl, fileName });
@@ -93,6 +102,11 @@ const GoogleDriveUploader = ({ fileUrl, fileName, selectedFiles, onSuccess }: Go
           title: "Success!",
           description: "File successfully uploaded to Google Drive",
         });
+
+        // Call onSuccess to trigger data refresh
+        onSuccess?.();
+        // Close the dialog
+        onClose?.();
 
         return data;
       }
