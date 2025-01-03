@@ -12,12 +12,15 @@ import { SyncManager } from "./google-sheets/SyncManager";
 import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets',
   'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/drive.metadata.readonly'
 ].join(' ');
+
+const PUBLIC_USER_ID = 'public';
 
 const GoogleSheetsConfigContent = ({ 
   onSpreadsheetIdSet, 
@@ -35,12 +38,26 @@ const GoogleSheetsConfigContent = ({
 
   const login = useGoogleLogin({
     onSuccess: async (response) => {
-      localStorage.setItem('google_access_token', response.access_token);
-      console.log('Successfully obtained access token:', response.access_token);
-      toast({
-        title: "Success",
-        description: "Successfully authenticated with Google",
-      });
+      try {
+        localStorage.setItem('google_access_token', response.access_token);
+        console.log('Successfully obtained access token:', response.access_token);
+        
+        // Store the token expiration time (1 hour from now)
+        const expirationTime = new Date().getTime() + 3600 * 1000;
+        localStorage.setItem('google_token_expiry', expirationTime.toString());
+        
+        toast({
+          title: "Success",
+          description: "Successfully authenticated with Google",
+        });
+      } catch (error) {
+        console.error('Error storing access token:', error);
+        toast({
+          title: "Error",
+          description: "Failed to store access token",
+          variant: "destructive",
+        });
+      }
     },
     onError: (error) => {
       console.error('Google Login Error:', error);
@@ -53,7 +70,6 @@ const GoogleSheetsConfigContent = ({
     scope: GOOGLE_SCOPES,
   });
 
-  // Query to fetch all media or selected media
   const { data: allMedia } = useQuery({
     queryKey: ['all-media', selectedMedia.length],
     queryFn: async () => {
@@ -78,8 +94,17 @@ const GoogleSheetsConfigContent = ({
     },
   });
 
-  // Check if user is authenticated with Google
-  const isGoogleAuthenticated = !!localStorage.getItem('google_access_token');
+  const isGoogleAuthenticated = () => {
+    const token = localStorage.getItem('google_access_token');
+    const expiry = localStorage.getItem('google_token_expiry');
+    
+    if (!token || !expiry) return false;
+    
+    const expiryTime = parseInt(expiry);
+    const currentTime = new Date().getTime();
+    
+    return currentTime < expiryTime;
+  };
 
   const handleHeaderMappingComplete = async (mapping: Record<string, string>, spreadsheetId: string) => {
     try {
@@ -89,7 +114,7 @@ const GoogleSheetsConfigContent = ({
           spreadsheet_id: spreadsheetId,
           header_mapping: mapping,
           is_headers_mapped: true,
-          user_id: 'public' // Using a public user ID for non-authenticated access
+          user_id: PUBLIC_USER_ID
         });
 
       if (error) throw error;
@@ -111,42 +136,47 @@ const GoogleSheetsConfigContent = ({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        {!isGoogleAuthenticated ? (
-          <Button
-            onClick={() => login()}
-            className="w-full bg-primary text-white hover:bg-primary/90 transition-colors"
-          >
-            <LogIn className="w-4 h-4 mr-2" />
-            Connect Google Account
-          </Button>
-        ) : (
-          <AddSpreadsheetForm onSubmit={handleAddSpreadsheet} />
+    <Card className="w-full bg-background">
+      <CardHeader>
+        <CardTitle>Google Sheets Configuration</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between">
+          {!isGoogleAuthenticated() ? (
+            <Button
+              onClick={() => login()}
+              className="w-full bg-primary text-white hover:bg-primary/90 transition-colors"
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              Connect Google Account
+            </Button>
+          ) : (
+            <AddSpreadsheetForm onSubmit={handleAddSpreadsheet} />
+          )}
+        </div>
+
+        {isGoogleAuthenticated() && (
+          <>
+            <div className="grid gap-4">
+              {spreadsheets.map((sheet) => (
+                <SpreadsheetCard
+                  key={sheet.id}
+                  sheet={sheet}
+                  onToggleAutoSync={toggleAutoSync}
+                  onRemove={removeSpreadsheet}
+                  onHeaderMappingComplete={(mapping) => handleHeaderMappingComplete(mapping, sheet.id)}
+                />
+              ))}
+            </div>
+
+            <SyncManager 
+              spreadsheets={spreadsheets}
+              allMedia={allMedia}
+            />
+          </>
         )}
-      </div>
-
-      {isGoogleAuthenticated && (
-        <>
-          <div className="grid gap-4">
-            {spreadsheets.map((sheet) => (
-              <SpreadsheetCard
-                key={sheet.id}
-                sheet={sheet}
-                onToggleAutoSync={toggleAutoSync}
-                onRemove={removeSpreadsheet}
-                onHeaderMappingComplete={(mapping) => handleHeaderMappingComplete(mapping, sheet.id)}
-              />
-            ))}
-          </div>
-
-          <SyncManager 
-            spreadsheets={spreadsheets}
-            allMedia={allMedia}
-          />
-        </>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 
