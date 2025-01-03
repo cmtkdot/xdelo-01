@@ -365,6 +365,7 @@ export type Database = {
           public_url: string | null
           updated_at: string | null
           user_id: string
+          webhook_configuration_id: string | null
         }
         Insert: {
           additional_data?: Json | null
@@ -383,6 +384,7 @@ export type Database = {
           public_url?: string | null
           updated_at?: string | null
           user_id: string
+          webhook_configuration_id?: string | null
         }
         Update: {
           additional_data?: Json | null
@@ -401,6 +403,7 @@ export type Database = {
           public_url?: string | null
           updated_at?: string | null
           user_id?: string
+          webhook_configuration_id?: string | null
         }
         Relationships: [
           {

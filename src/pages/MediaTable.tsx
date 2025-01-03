@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -10,7 +10,6 @@ import { useMediaTableSort } from "@/components/media/table/hooks/useMediaTableS
 import { useMediaTableSelection } from "@/components/media/table/hooks/useMediaTableSelection";
 import MediaTableFilters from "@/components/media/table/MediaTableFilters";
 import { MediaTableToolbar } from "@/components/media/table/MediaTableToolbar";
-import useMediaSubscription from "@/components/media/hooks/useMediaSubscription";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 
@@ -84,10 +83,32 @@ const MediaTable = () => {
   });
 
   // Subscribe to real-time updates
-  useMediaSubscription(() => {
-    console.log('Media table changed, refetching...');
-    refetch();
-  });
+  useEffect(() => {
+    console.log('Setting up real-time subscription for media table');
+    
+    const channel = supabase
+      .channel('media_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'media'
+        },
+        (payload) => {
+          console.log('Received real-time update:', payload);
+          refetch(); // Refresh the data when changes occur
+        }
+      )
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
 
   const { sortedMediaItems, handleSort, sortConfig } = useMediaTableSort(mediaItems);
   const {
