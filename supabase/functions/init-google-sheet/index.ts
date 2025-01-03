@@ -22,9 +22,20 @@ serve(async (req) => {
     console.log('Request payload:', { spreadsheetId, gid });
 
     // Get credentials from environment
-    const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
-    if (!credentials.client_email || !credentials.private_key) {
-      throw new Error('Invalid service account credentials');
+    const credentialsString = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
+    if (!credentialsString) {
+      throw new Error('Google service account credentials not found');
+    }
+
+    let credentials;
+    try {
+      credentials = JSON.parse(credentialsString);
+      if (!credentials.client_email || !credentials.private_key) {
+        throw new Error('Invalid service account credentials format');
+      }
+    } catch (error) {
+      console.error('Error parsing credentials:', error);
+      throw new Error('Failed to parse service account credentials');
     }
 
     // Generate JWT token
@@ -84,7 +95,7 @@ async function generateServiceAccountToken(credentials: any) {
   const now = Math.floor(Date.now() / 1000);
   const claim = {
     iss: credentials.client_email,
-    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
     aud: 'https://oauth2.googleapis.com/token',
     exp: now + 3600,
     iat: now,
@@ -95,10 +106,13 @@ async function generateServiceAccountToken(credentials: any) {
   const claimB64 = btoa(JSON.stringify(claim));
   const payload = `${headerB64}.${claimB64}`;
 
+  // Convert private key to proper format
+  const privateKey = credentials.private_key.replace(/\\n/g, '\n');
+
   // Sign the payload
-  const key = await crypto.subtle.importKey(
+  const keyData = await crypto.subtle.importKey(
     'pkcs8',
-    str2ab(credentials.private_key),
+    str2ab(privateKey),
     {
       name: 'RSASSA-PKCS1-v1_5',
       hash: 'SHA-256',
@@ -109,7 +123,7 @@ async function generateServiceAccountToken(credentials: any) {
 
   const signature = await crypto.subtle.sign(
     'RSASSA-PKCS1-v1_5',
-    key,
+    keyData,
     encoder.encode(payload)
   );
 
@@ -136,12 +150,20 @@ async function generateServiceAccountToken(credentials: any) {
 }
 
 function str2ab(str: string): ArrayBuffer {
-  const lines = str.split('\n');
-  const encoded = window.atob(lines.slice(1, -1).join(''));
-  const buffer = new ArrayBuffer(encoded.length);
+  // Remove PEM headers and footers and any whitespace
+  const pemContents = str
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s/g, '');
+
+  // Decode base64
+  const binary = atob(pemContents);
+  const buffer = new ArrayBuffer(binary.length);
   const array = new Uint8Array(buffer);
-  for (let i = 0; i < encoded.length; i++) {
-    array[i] = encoded.charCodeAt(i);
+  
+  for (let i = 0; i < binary.length; i++) {
+    array[i] = binary.charCodeAt(i);
   }
+  
   return buffer;
 }
