@@ -49,21 +49,43 @@ export const saveBotUser = async (
   firstName: string | null, 
   lastName: string | null
 ) => {
-  const { error: botUserError } = await supabase
-    .from('bot_users')
-    .upsert({
-      telegram_user_id: telegramUserId,
-      username: username,
-      first_name: firstName,
-      last_name: lastName,
-    }, {
-      onConflict: 'telegram_user_id',
-      ignoreDuplicates: false,
-    });
+  // Only attempt to save if we have a telegram user ID
+  if (!telegramUserId) {
+    console.log('No telegram user ID provided, skipping bot user creation');
+    return;
+  }
 
-  if (botUserError) {
-    console.error('Error creating bot user:', botUserError);
-    throw botUserError;
+  try {
+    const { error: botUserError } = await supabase
+      .from('bot_users')
+      .upsert({
+        id: userId,
+        telegram_user_id: telegramUserId,
+        username: username,
+        first_name: firstName,
+        last_name: lastName,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'telegram_user_id',
+        ignoreDuplicates: false,
+      });
+
+    if (botUserError) {
+      console.error('Error creating/updating bot user:', botUserError);
+      // Log the attempted data for debugging
+      console.log('Attempted bot user data:', {
+        id: userId,
+        telegram_user_id: telegramUserId,
+        username,
+        firstName,
+        lastName
+      });
+      throw botUserError;
+    }
+  } catch (error) {
+    console.error('Error in saveBotUser:', error);
+    // Don't throw the error - we want the webhook to continue processing
+    // even if bot user creation fails
   }
 };
 
