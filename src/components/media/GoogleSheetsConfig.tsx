@@ -158,6 +158,8 @@ export const GoogleSheetsConfig = (props: GoogleSheetsConfigProps) => {
   useEffect(() => {
     if (!clientId) {
       console.error('Google Client ID is not set. Please check your environment variables.');
+    } else {
+      console.log('Google Client ID is configured successfully');
     }
   }, [clientId]);
 
