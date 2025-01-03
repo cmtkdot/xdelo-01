@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from '@/components/ui/use-toast';
+import { initGoogleSheetsAPI } from '../../utils/googleSheets/auth';
 
 interface UseHeaderMappingProps {
   spreadsheetId: string;
@@ -25,8 +26,20 @@ export const useHeaderMapping = ({
         setError(null);
         setIsLoading(true);
 
-        if (!window.gapi?.client?.sheets) {
-          throw new Error('Google Sheets API not initialized');
+        // Initialize Google Sheets API with proper auth
+        await initGoogleSheetsAPI();
+
+        // Get the access token from localStorage
+        const accessToken = localStorage.getItem('google_access_token');
+        if (!accessToken) {
+          throw new Error('No access token found. Please authenticate with Google.');
+        }
+
+        // Set the access token for the client
+        if (window.gapi?.client) {
+          window.gapi.client.setToken({ access_token: accessToken });
+        } else {
+          throw new Error('Google API client not initialized');
         }
 
         let range;
@@ -59,6 +72,7 @@ export const useHeaderMapping = ({
 
         setSheetHeaders(response.result.values[0]);
         
+        // Fetch existing mapping if available
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
         
@@ -89,7 +103,9 @@ export const useHeaderMapping = ({
       }
     };
 
-    fetchHeaders();
+    if (spreadsheetId) {
+      fetchHeaders();
+    }
   }, [spreadsheetId, sheetGid, toast]);
 
   const handleMappingChange = (sheetHeader: string, dbColumn: string) => {
