@@ -59,10 +59,14 @@ export const AddSpreadsheetForm = ({ onSubmit }: AddSpreadsheetFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newSpreadsheetId || !newSpreadsheetName) return;
+    
     setIsLoading(true);
     try {
       await onSubmit(newSpreadsheetName, newSpreadsheetId, sheetGid || undefined);
       setIsSheetAdded(true);
+    } catch (error) {
+      console.error('Error adding sheet:', error);
     } finally {
       setIsLoading(false);
     }
@@ -88,9 +92,7 @@ export const AddSpreadsheetForm = ({ onSubmit }: AddSpreadsheetFormProps) => {
         <GoogleSheetsHeaderMapping
           spreadsheetId={newSpreadsheetId}
           sheetGid={sheetGid}
-          onMappingComplete={(mapping) => {
-            handleMappingComplete();
-          }}
+          onMappingComplete={handleMappingComplete}
         />
       </div>
     );
