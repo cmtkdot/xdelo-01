@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 export const initGoogleSheetsAPI = async () => {
   try {
@@ -12,22 +13,16 @@ export const initGoogleSheetsAPI = async () => {
 
       await new Promise((resolve) => window.gapi.load('client', resolve));
       
-      const { data: { api_key } } = await supabase.functions.invoke('get-google-api-key');
+      const { data: { api_key }, error } = await supabase.functions.invoke('get-google-api-key');
+      if (error) throw error;
       
       await window.gapi.client.init({
         apiKey: api_key,
         discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
       });
-    }
 
-    // Get the access token from localStorage
-    const accessToken = localStorage.getItem('google_access_token');
-    if (!accessToken) {
-      throw new Error('No access token found. Please authenticate with Google.');
+      console.log('Google Sheets API initialized successfully');
     }
-
-    // Set the access token for the client
-    window.gapi.client.setToken({ access_token: accessToken });
 
     return true;
   } catch (error) {

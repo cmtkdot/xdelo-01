@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from '@/components/ui/use-toast';
-import { initGoogleSheetsAPI } from '../../utils/googleSheets/auth';
+import { initGoogleSheetsAPI } from '@/components/media/utils/googleSheets/auth';
 
 interface UseHeaderMappingProps {
   spreadsheetId: string;
