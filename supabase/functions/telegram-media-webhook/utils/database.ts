@@ -52,7 +52,8 @@ export const saveMedia = async (
   metadata: any,
   mediaGroupId: string | null,
   googleDriveId: string | null,
-  googleDriveUrl: string | null
+  googleDriveUrl: string | null,
+  publicUrl: string | null
 ) => {
   const { data: mediaData, error: mediaError } = await supabase
     .from('media')
@@ -67,6 +68,7 @@ export const saveMedia = async (
       media_group_id: mediaGroupId,
       google_drive_id: googleDriveId,
       google_drive_url: googleDriveUrl,
+      public_url: publicUrl,
     })
     .select()
     .single();

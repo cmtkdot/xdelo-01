@@ -6,13 +6,14 @@ export interface MediaItem {
   file_url: string;
   media_type: string;
   caption?: string;
-  metadata?: Record<string, any> | string | null;  // Updated to handle Json type from Supabase
+  metadata?: Record<string, any> | string | null;
   created_at?: string;
   updated_at?: string;
   media_group_id?: string;
   additional_data?: Record<string, any>;
   google_drive_id?: string;
   google_drive_url?: string;
+  public_url?: string;
   chat?: {
     title?: string;
     username?: string;

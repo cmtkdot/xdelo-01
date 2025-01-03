@@ -5,7 +5,8 @@ import {
   generateSafeFileName, 
   determineMediaType, 
   getMediaItem,
-  formatMediaMetadata 
+  formatMediaMetadata,
+  generatePublicUrl 
 } from "./utils/fileHandling.ts";
 import { saveChannel, saveMessage, saveMedia, saveBotUser } from "./utils/database.ts";
 import { uploadToGoogleDrive } from "./utils/googleDrive.ts";
@@ -15,16 +16,6 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// Initialize Supabase client
-const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Required environment variables SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are not set');
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -143,35 +134,35 @@ serve(async (req) => {
         throw storageError;
       }
 
-      const { data: publicUrl } = supabase.storage
-        .from("telegram-media")
-        .getPublicUrl(fileName);
+      // Generate public URL
+      const publicUrl = generatePublicUrl("telegram-media", fileName);
 
       // Upload to Google Drive with video conversion if needed
       let driveData;
       try {
-        driveData = await uploadToGoogleDrive(publicUrl.publicUrl, fileName);
+        driveData = await uploadToGoogleDrive(publicUrl, fileName);
         console.log('Successfully uploaded to Google Drive:', driveData);
       } catch (error) {
         console.error('Failed to upload to Google Drive:', error);
       }
 
-      // Save media with Google Drive information
+      // Save media with public URL
       const mediaData = await saveMedia(
         supabase,
         userId,
         chat.id,
         fileName,
-        publicUrl.publicUrl,
+        fileUrl,
         mediaType,
         messageCaption,
         metadata,
         message.media_group_id,
         driveData?.fileId,
-        driveData?.webViewLink
+        driveData?.webViewLink,
+        publicUrl
       );
 
-      console.log(`Successfully processed media with caption: "${messageCaption}" and media_group_id: ${message.media_group_id}`);
+      console.log(`Successfully processed media with public URL: ${publicUrl}`);
 
       await supabase.from("bot_activities").insert({
         event_type: "media_saved",

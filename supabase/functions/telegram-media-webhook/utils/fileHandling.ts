@@ -71,3 +71,8 @@ export const formatMediaMetadata = (mediaItem: any, message: any): Record<string
     return {};
   }
 };
+
+export const generatePublicUrl = (bucketName: string, fileName: string) => {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  return `${supabaseUrl}/storage/v1/object/public/${bucketName}/${fileName}`;
+};
