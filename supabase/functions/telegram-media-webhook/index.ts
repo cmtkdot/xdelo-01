@@ -62,6 +62,39 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // Handle caption updates for edited messages
+    if (payload.edited_message || payload.edited_channel_post) {
+      console.log("Processing edited message with potential caption update");
+      
+      // Try to find the existing media entry using message_id from metadata
+      const { data: existingMedia, error: findError } = await supabase
+        .from('media')
+        .select('*')
+        .eq('chat_id', chat.id)
+        .contains('metadata', { message_id: message.message_id });
+
+      if (findError) {
+        console.error('Error finding existing media:', findError);
+      } else if (existingMedia && existingMedia.length > 0) {
+        console.log('Found existing media to update caption:', existingMedia[0].id);
+        
+        // Update the caption
+        const { error: updateError } = await supabase
+          .from('media')
+          .update({ 
+            caption: message.caption,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingMedia[0].id);
+
+        if (updateError) {
+          console.error('Error updating media caption:', updateError);
+        } else {
+          console.log('Successfully updated media caption');
+        }
+      }
+    }
     
     try {
       await saveBotUser(
@@ -90,7 +123,8 @@ serve(async (req) => {
         update_id: payload.update_id,
         edit_date: message.edit_date,
         media_group_id: message.media_group_id,
-        message_type: messageType
+        message_type: messageType,
+        is_caption_update: !!payload.edited_message || !!payload.edited_channel_post
       }
     });
 
