@@ -29,7 +29,8 @@ const GoogleDriveUploader = ({
   const uploadToGoogleDrive = async () => {
     try {
       if (selectedFiles && selectedFiles.length > 0) {
-        console.log('Uploading multiple files:', selectedFiles);
+        console.log('Starting batch upload to Google Drive folder: 1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet');
+        console.log('Files to upload:', selectedFiles);
         
         const payload = {
           files: selectedFiles.map(file => ({
@@ -49,6 +50,8 @@ const GoogleDriveUploader = ({
           throw error;
         }
 
+        console.log('Upload response:', data);
+
         if (data?.results) {
           const results = Array.isArray(data.results) ? data.results : [data.results];
           
@@ -57,6 +60,11 @@ const GoogleDriveUploader = ({
             const mediaItem = selectedFiles[i];
             
             if (result.fileId && result.webViewLink) {
+              console.log(`Updating media record ${mediaItem.id} with Google Drive info:`, {
+                fileId: result.fileId,
+                webViewLink: result.webViewLink
+              });
+
               const { error: updateError } = await supabase
                 .from('media')
                 .update({
@@ -67,6 +75,8 @@ const GoogleDriveUploader = ({
 
               if (updateError) {
                 console.error('Error updating media record:', updateError);
+              } else {
+                console.log(`Successfully updated media record ${mediaItem.id}`);
               }
             }
           }
@@ -77,14 +87,13 @@ const GoogleDriveUploader = ({
           description: `Successfully uploaded ${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''} to Google Drive`,
         });
 
-        // Call onSuccess to trigger data refresh
         onSuccess?.();
-        // Close the dialog
         onClose?.();
         
         return data;
       } else if (fileUrl && fileName) {
-        console.log('Uploading single file:', { fileUrl, fileName });
+        console.log('Starting single file upload to Google Drive folder: 1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet');
+        console.log('File details:', { fileUrl, fileName });
         
         const payload = { fileUrl, fileName };
         console.log('Request payload:', payload);
@@ -98,14 +107,14 @@ const GoogleDriveUploader = ({
           throw error;
         }
 
+        console.log('Upload response:', data);
+
         toast({
           title: "Success!",
           description: "File successfully uploaded to Google Drive",
         });
 
-        // Call onSuccess to trigger data refresh
         onSuccess?.();
-        // Close the dialog
         onClose?.();
 
         return data;
