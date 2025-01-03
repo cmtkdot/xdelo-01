@@ -77,7 +77,7 @@ const GoogleSheetsConfigContent = ({
   // Check if user is authenticated with Google
   const isGoogleAuthenticated = !!localStorage.getItem('google_access_token');
 
-  const handleHeaderMappingComplete = async (spreadsheetId: string, mapping: Record<string, string>) => {
+  const handleHeaderMappingComplete = async (mapping: Record<string, string>, spreadsheetId: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
@@ -134,9 +134,7 @@ const GoogleSheetsConfigContent = ({
                 sheet={sheet}
                 onToggleAutoSync={toggleAutoSync}
                 onRemove={removeSpreadsheet}
-                onHeaderMappingComplete={(mapping) => {
-                  handleHeaderMappingComplete(sheet.id, mapping);
-                }}
+                onHeaderMappingComplete={(mapping) => handleHeaderMappingComplete(mapping, sheet.id)}
               />
             ))}
           </div>
