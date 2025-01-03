@@ -65,18 +65,22 @@ const GoogleDriveUploader = ({
                 webViewLink: result.webViewLink
               });
 
+              // Generate public URL using the Supabase project URL
+              const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/telegram-media/${mediaItem.file_name}`;
+
               const { error: updateError } = await supabase
                 .from('media')
                 .update({
                   google_drive_id: result.fileId,
-                  google_drive_url: result.webViewLink
+                  google_drive_url: result.webViewLink,
+                  public_url: publicUrl
                 })
                 .eq('id', mediaItem.id);
 
               if (updateError) {
                 console.error('Error updating media record:', updateError);
               } else {
-                console.log(`Successfully updated media record ${mediaItem.id}`);
+                console.log(`Successfully updated media record ${mediaItem.id} with public URL:`, publicUrl);
               }
             }
           }
@@ -108,6 +112,27 @@ const GoogleDriveUploader = ({
         }
 
         console.log('Upload response:', data);
+
+        // Generate public URL for single file upload
+        const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/telegram-media/${fileName}`;
+
+        // Update the media record with the public URL
+        if (data?.id && data?.webViewLink) {
+          const { error: updateError } = await supabase
+            .from('media')
+            .update({
+              google_drive_id: data.id,
+              google_drive_url: data.webViewLink,
+              public_url: publicUrl
+            })
+            .eq('file_name', fileName);
+
+          if (updateError) {
+            console.error('Error updating media record:', updateError);
+          } else {
+            console.log('Successfully updated media record with public URL:', publicUrl);
+          }
+        }
 
         toast({
           title: "Success!",
