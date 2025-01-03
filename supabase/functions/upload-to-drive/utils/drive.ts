@@ -1,4 +1,66 @@
 import { ROOT_FOLDER_NAME } from '../config.ts';
+import { isVideoFile, convertToMp4 } from './videoProcessing.ts';
+
+export const uploadToDrive = async (fileUrl: string, fileName: string, accessToken: string) => {
+  console.log(`Starting upload to Google Drive for file: ${fileName}`);
+  
+  try {
+    const folderId = await findOrCreateRootFolder(accessToken);
+    
+    console.log('Fetching file from URL:', fileUrl);
+    const response = await fetch(fileUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file from URL: ${fileUrl}. Status: ${response.status}`);
+    }
+    
+    let blob = await response.blob();
+    console.log('Original file fetched. Type:', blob.type, 'Size:', blob.size);
+
+    // Convert video files to MP4
+    if (isVideoFile(blob.type)) {
+      console.log('Video file detected, converting to MP4...');
+      const buffer = await blob.arrayBuffer();
+      const convertedBuffer = await convertToMp4(buffer);
+      blob = new Blob([convertedBuffer], { type: 'video/mp4' });
+      console.log('Video conversion completed. New size:', blob.size);
+    }
+
+    const metadata = {
+      name: fileName,
+      parents: [folderId],
+      mimeType: blob.type
+    };
+
+    console.log('Uploading to Google Drive with metadata:', metadata);
+
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', blob);
+
+    const uploadResponse = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: form
+      }
+    );
+
+    if (!uploadResponse.ok) {
+      const errorData = await uploadResponse.text();
+      throw new Error(`Google Drive API Error: ${errorData}`);
+    }
+
+    const result = await uploadResponse.json();
+    console.log('File successfully uploaded to Google Drive:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in uploadToDrive:', error);
+    throw new Error(`Failed to upload to Google Drive: ${fileName}. Error: ${error.message}`);
+  }
+};
 
 async function findOrCreateRootFolder(accessToken: string): Promise<string> {
   console.log('Looking for root folder:', ROOT_FOLDER_NAME);
@@ -83,59 +145,3 @@ async function findOrCreateRootFolder(accessToken: string): Promise<string> {
   console.log('Folder permissions set successfully');
   return folder.id;
 }
-
-export const uploadToDrive = async (fileUrl: string, fileName: string, accessToken: string) => {
-  console.log(`Starting upload to Google Drive for file: ${fileName}`);
-  
-  try {
-    // First get or create the root folder
-    const folderId = await findOrCreateRootFolder(accessToken);
-    
-    console.log('Fetching file from URL:', fileUrl);
-    const response = await fetch(fileUrl);
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to fetch file:', errorText);
-      throw new Error(`Failed to fetch file from URL: ${fileUrl}. Status: ${response.status}`);
-    }
-    
-    const blob = await response.blob();
-    console.log('File fetched successfully. Size:', blob.size, 'Type:', blob.type);
-    
-    const metadata = {
-      name: fileName,
-      parents: [folderId]
-    };
-
-    console.log('Preparing upload to Google Drive with metadata:', metadata);
-
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', blob);
-
-    console.log('Sending request to Google Drive API...');
-    const uploadResponse = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: form
-      }
-    );
-
-    if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.text();
-      console.error('Google Drive API Error Response:', errorData);
-      throw new Error(`Google Drive API Error: ${errorData}`);
-    }
-
-    const result = await uploadResponse.json();
-    console.log('File successfully uploaded to Google Drive:', result);
-    return result;
-  } catch (error) {
-    console.error('Error in uploadToDrive:', error);
-    throw new Error(`Failed to upload to Google Drive: ${fileName}. Error: ${error.message}`);
-  }
-};
