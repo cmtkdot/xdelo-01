@@ -2,12 +2,13 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -22,7 +23,23 @@ serve(async (req) => {
       .from('media')
       .select('*');
 
-    if (mediaError) throw mediaError;
+    if (mediaError) {
+      console.error('Error fetching media:', mediaError);
+      throw mediaError;
+    }
+
+    if (!mediaFiles || mediaFiles.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          message: 'No media files found to update',
+          updates: [] 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      );
+    }
 
     const updates = [];
 
@@ -56,6 +73,8 @@ serve(async (req) => {
       }
 
       try {
+        console.log(`Updating content type for ${fileName} to ${contentType}`);
+        
         const { error: updateError } = await supabase
           .storage
           .from('telegram-media')
@@ -66,6 +85,11 @@ serve(async (req) => {
 
         if (updateError) {
           console.error(`Error updating ${fileName}:`, updateError);
+          updates.push({
+            fileName,
+            error: updateError.message,
+            success: false
+          });
           continue;
         }
 
@@ -97,8 +121,12 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    console.error('Error in update-media-content-types:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack 
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500 
