@@ -29,8 +29,8 @@ export const MediaTableRow = ({
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   
-  // Prioritize Google Drive URL if available
-  const fileUrl = item.google_drive_url || item.file_url;
+  // Prioritize URLs in this order: Google Drive > Public URL > File URL
+  const fileUrl = item.google_drive_url || item.public_url || item.file_url;
 
   const handleRowClick = (e: React.MouseEvent) => {
     // Prevent row click when clicking on buttons, links or input
@@ -154,23 +154,53 @@ export const MediaTableRow = ({
         )}
       </TableCell>
       <TableCell className="text-white/70">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenFile(fileUrl);
-          }}
-          className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group"
-        >
-          <Link2 className="w-4 h-4 flex-shrink-0" />
-          <span className="truncate max-w-[300px] group-hover:underline">
-            {fileUrl}
-          </span>
-        </button>
+        <div className="space-y-1">
+          {item.google_drive_url && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenFile(item.google_drive_url!);
+              }}
+              className="flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors group w-full"
+            >
+              <Link2 className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate max-w-[300px] group-hover:underline">
+                Google Drive
+              </span>
+            </button>
+          )}
+          {item.public_url && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenFile(item.public_url!);
+              }}
+              className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group w-full"
+            >
+              <Link2 className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate max-w-[300px] group-hover:underline">
+                Public URL
+              </span>
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFile(item.file_url);
+            }}
+            className="flex items-center gap-2 text-white/70 hover:text-white/90 transition-colors group w-full"
+          >
+            <Link2 className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate max-w-[300px] group-hover:underline">
+              Original URL
+            </span>
+          </button>
+        </div>
       </TableCell>
       <TableCell>
         <MediaTableActions
           id={item.id}
-          fileUrl={item.file_url}
+          fileUrl={fileUrl}
           fileName={item.file_name}
           chatId={item.chat_id}
           messageId={messageId}
