@@ -12,6 +12,8 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
   if (!item) return null;
 
   const isVideo = item.media_type === "video";
+  // Use Google Drive URL if available
+  const displayUrl = item.google_drive_url || item.file_url;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -27,14 +29,14 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
         <div className="relative w-full h-full min-h-[200px] flex items-center justify-center p-4 bg-gray-50/50 dark:bg-black/60">
           {isVideo ? (
             <video
-              src={item.file_url}
+              src={displayUrl}
               className="max-w-full max-h-[70vh] rounded-lg shadow-md"
               controls
               autoPlay
             />
           ) : (
             <img
-              src={item.file_url}
+              src={displayUrl}
               alt={item.caption || "Media"}
               className="max-w-full max-h-[70vh] rounded-lg object-contain shadow-md"
             />

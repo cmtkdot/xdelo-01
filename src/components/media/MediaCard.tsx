@@ -15,7 +15,7 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const isVideo = item.media_type === "video";
 
-  // Prioritize Google Drive URL if available
+  // Prioritize Google Drive URL if available, fallback to file_url
   const displayUrl = item.google_drive_url || item.file_url;
 
   const handleCardClick = (e: React.MouseEvent) => {
