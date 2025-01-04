@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import useMediaData from "./media/hooks/useMediaData";
 import useMediaSubscription from "./media/hooks/useMediaSubscription";
-import { MediaFilter } from "./media/types";
+import { MediaFilter } from "./types";
 import { useToast } from "@/components/ui/use-toast";
 import WebhookInterface from "./webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
-import { Channel } from "./media/types";
+import { Channel } from "./types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,8 +34,12 @@ const MediaGallery = () => {
   const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
   const { toast } = useToast();
 
-  const { data: mediaItems, isLoading, refetch } = useMediaData(filter);
+  const { data: mediaItems, isLoading, error, refetch } = useMediaData(filter);
   useMediaSubscription(() => refetch());
+
+  useEffect(() => {
+    console.log("MediaGallery data:", { mediaItems, isLoading, error });
+  }, [mediaItems, isLoading, error]);
 
   const fetchChannels = async () => {
     const { data, error } = await supabase
@@ -128,6 +132,17 @@ const MediaGallery = () => {
     }
   };
 
+  if (error) {
+    console.error("Error loading media:", error);
+    return (
+      <div className="text-center py-8 bg-white/5 rounded-lg border border-white/10 backdrop-blur-xl">
+        <p className="text-red-400">
+          Error loading media: {error.message}
+        </p>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return <MediaGallerySkeleton />;
   }
@@ -158,7 +173,7 @@ const MediaGallery = () => {
       </div>
 
       <MediaGalleryContent
-        mediaItems={mediaItems}
+        mediaItems={mediaItems || []}
         selectedMedia={selectedMedia}
         onToggleSelect={handleToggleSelect}
       />

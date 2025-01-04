@@ -9,7 +9,21 @@ interface MediaGalleryContentProps {
 }
 
 const MediaGalleryContent = ({ mediaItems, selectedMedia, onToggleSelect }: MediaGalleryContentProps) => {
-  if (!mediaItems || mediaItems.length === 0) {
+  console.log("MediaGalleryContent received items:", mediaItems?.length);
+  
+  if (!mediaItems) {
+    console.log("No media items received");
+    return (
+      <div className="text-center py-8 bg-white/5 rounded-lg border border-white/10 backdrop-blur-xl">
+        <p className="text-gray-400">
+          No media items found. There might be an issue with data loading.
+        </p>
+      </div>
+    );
+  }
+
+  if (mediaItems.length === 0) {
+    console.log("Empty media items array received");
     return (
       <div className="text-center py-8 bg-white/5 rounded-lg border border-white/10 backdrop-blur-xl">
         <p className="text-gray-400">
@@ -19,6 +33,7 @@ const MediaGalleryContent = ({ mediaItems, selectedMedia, onToggleSelect }: Medi
     );
   }
 
+  console.log("Rendering media grid with items:", mediaItems.length);
   return (
     <ScrollArea className="h-[calc(100vh-16rem)] w-full">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-6">
