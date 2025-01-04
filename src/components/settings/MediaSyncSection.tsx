@@ -43,24 +43,31 @@ const MediaSyncSection = () => {
 
     try {
       setSyncing(true);
-      toast.loading("Syncing media...");
+      const loadingToast = toast.loading("Syncing media...");
       
-      const { error } = await supabase.functions.invoke('sync-media-captions', {
+      const { data, error } = await supabase.functions.invoke('sync-media-captions', {
         body: { 
-          chatIds: Array.from(selectedChannels),
-          updatePublicUrls: true
+          chatIds: Array.from(selectedChannels)
         }
       });
 
-      if (error) throw error;
+      toast.dismiss(loadingToast);
 
-      toast.dismiss();
-      toast.success("Media sync completed successfully", {
-        description: `Successfully synced ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''}`
-      });
+      if (error) {
+        throw error;
+      }
+
+      if (data?.updatedCount === 0) {
+        toast.info("No media items found to update", {
+          description: "All selected channels are up to date"
+        });
+      } else {
+        toast.success("Media sync completed successfully", {
+          description: `Updated ${data?.updatedCount} media items from ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''}`
+        });
+      }
     } catch (error) {
       console.error('Error syncing media:', error);
-      toast.dismiss();
       toast.error("Failed to sync media", {
         description: error instanceof Error ? error.message : "An unexpected error occurred"
       });

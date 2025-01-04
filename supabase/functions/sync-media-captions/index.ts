@@ -31,18 +31,20 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { chatIds, updatePublicUrls } = await req.json();
-
-    let query = supabaseClient
-      .from('media')
-      .select('*')
-      .eq('user_id', user.id);
-
-    if (chatIds && chatIds.length > 0) {
-      query = query.in('chat_id', chatIds);
+    const { chatIds } = await req.json();
+    
+    if (!chatIds || !Array.isArray(chatIds) || chatIds.length === 0) {
+      throw new Error('No chat IDs provided');
     }
 
-    const { data: mediaItems, error: fetchError } = await query;
+    console.log(`Processing ${chatIds.length} channels for user ${user.id}`);
+
+    // Fetch media items for the specified channels
+    const { data: mediaItems, error: fetchError } = await supabaseClient
+      .from('media')
+      .select('*')
+      .in('chat_id', chatIds)
+      .eq('user_id', user.id);
 
     if (fetchError) {
       console.error('Error fetching media items:', fetchError);
@@ -51,7 +53,22 @@ serve(async (req) => {
 
     console.log(`Found ${mediaItems?.length || 0} media items to update`);
 
-    const updates = mediaItems?.map(item => {
+    if (!mediaItems?.length) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'No media items found to update',
+          updatedCount: 0
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    // Update media items with correct public URLs
+    const updates = mediaItems.map(item => {
       let publicUrl;
       
       if (item.media_type?.includes('video')) {
@@ -64,53 +81,40 @@ serve(async (req) => {
       
       return {
         id: item.id,
-        user_id: user.id,
         public_url: publicUrl
       };
     });
 
-    if (!updates?.length) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'No media items need updating',
-          updatedCount: 0
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      );
-    }
-
     // Update records in batches
     const batchSize = 100;
-    const results = [];
+    let updatedCount = 0;
     
     for (let i = 0; i < updates.length; i += batchSize) {
       const batch = updates.slice(i, i + batchSize);
-      console.log(`Processing batch ${i/batchSize + 1} of ${Math.ceil(updates.length/batchSize)}`);
+      console.log(`Processing batch ${Math.floor(i/batchSize) + 1} of ${Math.ceil(updates.length/batchSize)}`);
       
-      const { data, error } = await supabaseClient
+      const { error: updateError } = await supabaseClient
         .from('media')
-        .upsert(batch, { onConflict: 'id' })
-        .select();
+        .upsert(batch, { 
+          onConflict: 'id',
+          ignoreDuplicates: false
+        });
 
-      if (error) {
-        console.error('Error updating batch:', error);
-        throw error;
+      if (updateError) {
+        console.error('Error updating batch:', updateError);
+        throw updateError;
       }
       
-      results.push(...(data || []));
+      updatedCount += batch.length;
     }
 
-    console.log(`Successfully updated ${results.length} media records`);
+    console.log(`Successfully updated ${updatedCount} media records`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Updated ${results.length} media records with public URLs`,
-        updatedCount: results.length
+        message: `Updated ${updatedCount} media records with public URLs`,
+        updatedCount
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
