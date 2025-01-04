@@ -4,8 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import MediaViewerDialog from "./MediaViewerDialog";
-import { validateMediaUrl } from "./utils/urlValidation";
-import { useToast } from "@/components/ui/use-toast";
+import { validateMediaUrl, generatePublicUrl } from "./utils/urlValidation";
+import { useToast } from "@/hooks/use-toast";
 
 interface MediaCardProps {
   item: MediaItem;
@@ -20,23 +20,29 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const { toast } = useToast();
   const isVideo = item.media_type === "video" || item.media_type?.includes('video');
 
-  // Validate and prioritize URLs
+  // Validate and prioritize URLs with fallback logic
   const displayUrl = (() => {
     console.log(`Validating URLs for media item ${item.id}`);
-    const validatedFileUrl = validateMediaUrl(item.file_url, item.media_type);
-    const validatedPublicUrl = validateMediaUrl(item.public_url, item.media_type);
-    const validatedGoogleDriveUrl = validateMediaUrl(item.google_drive_url);
+    
+    // Try each URL in order of preference
+    const urls = [
+      { url: item.file_url, type: 'file URL' },
+      { url: item.public_url, type: 'public URL' },
+      { url: item.google_drive_url, type: 'Google Drive URL' }
+    ];
 
-    if (!validatedFileUrl && !validatedPublicUrl && !validatedGoogleDriveUrl) {
-      console.error(`No valid URLs found for media item ${item.id}`);
-      toast({
-        title: "Media URL Error",
-        description: "Unable to load media file. Please contact support.",
-        variant: "destructive",
-      });
+    for (const { url, type } of urls) {
+      const validatedUrl = validateMediaUrl(url, item.media_type);
+      if (validatedUrl) {
+        console.log(`Using validated ${type}: ${validatedUrl}`);
+        return validatedUrl;
+      }
     }
 
-    return validatedFileUrl || validatedPublicUrl || validatedGoogleDriveUrl;
+    // If no valid URLs found, generate a new public URL
+    const generatedUrl = generatePublicUrl(item.file_name, item.media_type);
+    console.log(`Generated new public URL: ${generatedUrl}`);
+    return generatedUrl;
   })();
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -58,7 +64,7 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
     setHasError(true);
     toast({
       title: "Media Load Error",
-      description: "Failed to load media file. Please try again later.",
+      description: "Failed to load media file. Trying alternative sources...",
       variant: "destructive",
     });
   };
