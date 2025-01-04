@@ -33,8 +33,8 @@ export const SyncChannelButton = ({ channelIds, onComplete }: SyncChannelButtonP
 
       toast({
         title: "Sync Complete",
-        description: `Processed ${data.processed} media items${data.errors > 0 ? ` with ${data.errors} errors` : ''}`,
-        variant: data.errors > 0 ? "destructive" : "default",
+        description: `Successfully synced ${data?.processed || 0} media items${data?.errors > 0 ? ` with ${data.errors} errors` : ''}`,
+        variant: data?.errors > 0 ? "destructive" : "default",
       });
 
       if (onComplete) onComplete();
@@ -56,12 +56,12 @@ export const SyncChannelButton = ({ channelIds, onComplete }: SyncChannelButtonP
       disabled={isSyncing}
       variant="outline"
       size="sm"
-      className="gap-2"
+      className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
     >
       {isSyncing ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
       ) : (
-        <RefreshCw className="h-4 w-4" />
+        <RefreshCw className="h-4 w-4 mr-2" />
       )}
       Sync Channel
     </Button>
