@@ -10,14 +10,13 @@ export async function getChannelMessages(botToken: string, channelId: number, of
   console.log(`[getChannelMessages] Starting fetch for channel ${channelId} with offset ${offset}`);
   
   try {
-    // Using getHistory method instead of getChatHistory
-    const url = `https://api.telegram.org/bot${botToken}/getHistory`;
+    const url = `https://api.telegram.org/bot${botToken}/getUpdates`;
     console.log(`[getChannelMessages] Calling Telegram API: ${url}`);
     
     const requestBody = {
-      chat_id: channelId,
       offset: offset,
-      limit: 100
+      limit: 100,
+      allowed_updates: ["message", "channel_post"]
     };
     
     console.log(`[getChannelMessages] Request payload:`, requestBody);
@@ -41,34 +40,7 @@ export async function getChannelMessages(botToken: string, channelId: number, of
         body: errorText
       });
 
-      // Try alternative method if first one fails
-      if (response.status === 404) {
-        console.log('[getChannelMessages] Trying alternative method getMessages...');
-        const altResponse = await fetch(
-          `https://api.telegram.org/bot${botToken}/getMessages`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody),
-          }
-        );
-
-        if (!altResponse.ok) {
-          const altErrorText = await altResponse.text();
-          console.error('[getChannelMessages] Alternative method also failed:', altErrorText);
-          throw new Error(`Failed to fetch messages: ${altResponse.statusText} (${altErrorText})`);
-        }
-
-        const altData = await altResponse.json();
-        if (!altData.ok) {
-          throw new Error(altData.description || 'Failed to fetch messages');
-        }
-        return altData.result;
-      }
-
-      // Log detailed error to database
+      // Log error to database
       await logOperation(
         supabase,
         'sync-telegram-channel',
@@ -81,7 +53,7 @@ export async function getChannelMessages(botToken: string, channelId: number, of
 
     const data = await response.json();
     console.log(`[getChannelMessages] Successful response for channel ${channelId}:`, {
-      messageCount: data.result?.length || 0,
+      updateCount: data.result?.length || 0,
       hasMore: data.result?.length === 100
     });
     
@@ -90,15 +62,24 @@ export async function getChannelMessages(botToken: string, channelId: number, of
       throw new Error(data.description || 'Failed to fetch messages');
     }
 
+    // Filter updates for this specific channel
+    const channelUpdates = data.result.filter(update => 
+      (update.message?.chat.id === channelId) || 
+      (update.channel_post?.chat.id === channelId)
+    );
+
+    // Map to message format
+    const messages = channelUpdates.map(update => update.message || update.channel_post);
+
     // Log successful fetch
     await logOperation(
       supabase,
       'sync-telegram-channel',
       'info',
-      `Successfully fetched ${data.result?.length || 0} messages from channel ${channelId} at offset ${offset}`
+      `Successfully fetched ${messages.length} messages from channel ${channelId} at offset ${offset}`
     );
 
-    return data.result;
+    return messages;
   } catch (error) {
     console.error(`[getChannelMessages] Error details:`, {
       channelId,
@@ -119,6 +100,45 @@ export async function getChannelMessages(botToken: string, channelId: number, of
   }
 }
 
+export async function getChannelHistory(botToken: string, channelId: number, offset = 0) {
+  console.log(`[getChannelHistory] Starting fetch for channel ${channelId} with offset ${offset}`);
+  
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/forwardMessages`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: channelId,
+          from_chat_id: channelId,
+          message_ids: Array.from({ length: 100 }, (_, i) => offset + i + 1)
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[getChannelHistory] Failed to fetch history:`, errorText);
+      throw new Error(`Failed to fetch history: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.ok) {
+      console.error('[getChannelHistory] Telegram API error:', data);
+      throw new Error(data.description || 'Failed to fetch history');
+    }
+
+    return data.result;
+  } catch (error) {
+    console.error(`[getChannelHistory] Error fetching history:`, error);
+    throw error;
+  }
+}
+
 export async function getAllChannelMessages(botToken: string, channelId: number) {
   console.log(`[getAllChannelMessages] Starting message fetch for channel ${channelId}`);
   
@@ -126,10 +146,28 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
   let offset = 0;
   let hasMore = true;
   
+  // First try to get recent updates
+  try {
+    console.log(`[getAllChannelMessages] Fetching recent updates`);
+    const updates = await getChannelMessages(botToken, channelId);
+    messages.push(...updates);
+  } catch (error) {
+    console.error('[getAllChannelMessages] Error getting recent updates:', error);
+    
+    // Log error to database
+    await logOperation(
+      supabase,
+      'sync-telegram-channel',
+      'error',
+      `Error fetching recent updates: ${error.message}\nStack: ${error.stack}`
+    );
+  }
+  
+  // Then try to get history
   while (hasMore) {
     try {
       console.log(`[getAllChannelMessages] Fetching batch at offset ${offset}`);
-      const batch = await getChannelMessages(botToken, channelId, offset);
+      const batch = await getChannelHistory(botToken, channelId, offset);
       
       if (!batch || batch.length === 0) {
         console.log(`[getAllChannelMessages] No more messages found at offset ${offset}`);
@@ -141,7 +179,7 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
       messages.push(...batch);
       offset += batch.length;
       
-      // Add a small delay to avoid hitting rate limits
+      // Add delay to avoid rate limits
       await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
       console.error(`[getAllChannelMessages] Error fetching messages at offset ${offset}:`, error);
@@ -154,12 +192,26 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
         `Error fetching messages at offset ${offset}: ${error.message}\nStack: ${error.stack}`
       );
       
-      throw error;
+      hasMore = false;
     }
   }
   
   console.log(`[getAllChannelMessages] Completed fetch for channel ${channelId}. Total messages: ${messages.length}`);
   return messages;
+}
+
+async function getBotInfo(botToken: string) {
+  const response = await fetch(
+    `https://api.telegram.org/bot${botToken}/getMe`
+  );
+
+  const data = await response.json();
+  
+  if (!data.ok) {
+    throw new Error('Failed to get bot info');
+  }
+
+  return data.result;
 }
 
 export async function verifyChannelAccess(botToken: string, chatId: number) {
@@ -184,6 +236,26 @@ export async function verifyChannelAccess(botToken: string, chatId: number) {
     const data = await response.json();
     if (!data.ok) {
       throw new Error(data.description || 'Failed to verify channel access');
+    }
+
+    // Verify bot permissions
+    const botInfo = await getBotInfo(botToken);
+    const botPermissions = await fetch(
+      `https://api.telegram.org/bot${botToken}/getChatMember`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          user_id: botInfo.id
+        }),
+      }
+    ).then(res => res.json());
+
+    if (!botPermissions.ok || !['administrator', 'creator'].includes(botPermissions.result.status)) {
+      throw new Error('Bot needs to be an administrator of the channel');
     }
 
     return data.result;
