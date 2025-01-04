@@ -9,12 +9,12 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
 
+  try {
     const { chatId } = await req.json();
     
     if (!chatId) {
@@ -23,20 +23,25 @@ serve(async (req) => {
 
     console.log(`Starting sync for channel ${chatId}`);
     
+    // Create sync session
+    const { data: syncSession, error: sessionError } = await supabase
+      .from('sync_sessions')
+      .insert({
+        channel_id: chatId,
+        status: 'in_progress',
+        started_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (sessionError) {
+      throw new Error(`Failed to create sync session: ${sessionError.message}`);
+    }
+
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
     if (!botToken) {
       throw new Error('Telegram bot token not configured');
     }
-
-    // Update sync status
-    await supabaseClient
-      .from('sync_logs')
-      .insert({
-        channel_id: chatId,
-        sync_type: 'telegram_channel',
-        status: 'in_progress',
-        progress: 0
-      });
 
     // Verify channel access
     await verifyChannelAccess(botToken, chatId);
@@ -56,20 +61,19 @@ serve(async (req) => {
     for (const message of messages) {
       if (message.photo || message.video || message.document) {
         try {
-          const result = await processMediaMessage(message, chatId, supabaseClient, botToken);
+          const result = await processMediaMessage(message, chatId, supabase, botToken);
           if (result) {
             totalProcessed++;
           }
           
           // Update sync progress
-          await supabaseClient
-            .from('sync_logs')
+          await supabase
+            .from('sync_sessions')
             .update({
-              progress: Math.round((totalProcessed / messages.length) * 100),
-              details: { processed: totalProcessed, errors: totalErrors }
+              progress: { processed: totalProcessed, total: messages.length },
+              updated_at: new Date().toISOString()
             })
-            .eq('channel_id', chatId)
-            .eq('status', 'in_progress');
+            .eq('id', syncSession.id);
 
         } catch (error) {
           console.error(`Error processing message ${message.message_id}:`, error);
@@ -78,28 +82,46 @@ serve(async (req) => {
             messageId: message.message_id,
             error: error.message
           });
+
+          // Log error
+          await supabase
+            .from('sync_logs')
+            .insert({
+              session_id: syncSession.id,
+              type: 'error',
+              message: `Error processing message ${message.message_id}: ${error.message}`,
+              metadata: {
+                messageId: message.message_id,
+                error: error.message,
+                stack: error.stack
+              }
+            });
         }
       }
     }
 
     // Update final sync status
-    await supabaseClient
-      .from('sync_logs')
+    await supabase
+      .from('sync_sessions')
       .update({
-        status: 'completed',
-        progress: 100,
+        status: totalErrors > 0 ? 'completed_with_errors' : 'completed',
         completed_at: new Date().toISOString(),
-        details: { processed: totalProcessed, errors: totalErrors }
+        final_count: totalProcessed,
+        progress: {
+          processed: totalProcessed,
+          total: messages.length,
+          errors: totalErrors
+        }
       })
-      .eq('channel_id', chatId)
-      .eq('status', 'in_progress');
+      .eq('id', syncSession.id);
 
     return new Response(
       JSON.stringify({
         success: true,
         processed: totalProcessed,
         errors: totalErrors,
-        details: errors
+        details: errors,
+        sessionId: syncSession.id
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

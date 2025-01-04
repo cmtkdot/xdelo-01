@@ -551,6 +551,50 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_sessions: {
+        Row: {
+          channel_id: number | null
+          completed_at: string | null
+          created_at: string | null
+          final_count: number | null
+          id: string
+          progress: Json | null
+          started_at: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          channel_id?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          final_count?: number | null
+          id?: string
+          progress?: Json | null
+          started_at?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          channel_id?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          final_count?: number | null
+          id?: string
+          progress?: Json | null
+          started_at?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_sessions_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["chat_id"]
+          },
+        ]
+      }
       webhook_configurations: {
         Row: {
           body_params: Json | null
