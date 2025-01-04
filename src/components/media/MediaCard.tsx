@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import MediaViewerDialog from "./MediaViewerDialog";
+import { validateMediaUrl } from "./utils/urlValidation";
+import { useToast } from "@/components/ui/use-toast";
 
 interface MediaCardProps {
   item: MediaItem;
@@ -15,13 +17,29 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const { toast } = useToast();
   const isVideo = item.media_type === "video" || item.media_type?.includes('video');
 
-  // Prioritize file_url from Supabase over Google Drive URL
-  const displayUrl = item.file_url || item.google_drive_url;
+  // Validate and prioritize URLs
+  const displayUrl = (() => {
+    console.log(`Validating URLs for media item ${item.id}`);
+    const validatedFileUrl = validateMediaUrl(item.file_url, item.media_type);
+    const validatedPublicUrl = validateMediaUrl(item.public_url, item.media_type);
+    const validatedGoogleDriveUrl = validateMediaUrl(item.google_drive_url);
+
+    if (!validatedFileUrl && !validatedPublicUrl && !validatedGoogleDriveUrl) {
+      console.error(`No valid URLs found for media item ${item.id}`);
+      toast({
+        title: "Media URL Error",
+        description: "Unable to load media file. Please contact support.",
+        variant: "destructive",
+      });
+    }
+
+    return validatedFileUrl || validatedPublicUrl || validatedGoogleDriveUrl;
+  })();
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Prevent opening dialog when clicking checkbox
     if ((e.target as HTMLElement).closest('.checkbox-area')) {
       return;
     }
@@ -29,14 +47,31 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   };
 
   const handleMediaLoad = () => {
+    console.log(`Media loaded successfully: ${item.id}`);
     setIsLoading(false);
     setHasError(false);
   };
 
   const handleMediaError = () => {
+    console.error(`Failed to load media: ${item.id}`);
     setIsLoading(false);
     setHasError(true);
+    toast({
+      title: "Media Load Error",
+      description: "Failed to load media file. Please try again later.",
+      variant: "destructive",
+    });
   };
+
+  if (!displayUrl) {
+    return (
+      <Card className="group relative overflow-hidden backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-gray-200/50 dark:border-white/10">
+        <CardContent className="p-4 text-center text-red-500">
+          Invalid media URL
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <>
