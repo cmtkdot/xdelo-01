@@ -10,7 +10,8 @@ export async function getChannelMessages(botToken: string, channelId: number, of
   console.log(`[getChannelMessages] Starting fetch for channel ${channelId} with offset ${offset}`);
   
   try {
-    const url = `https://api.telegram.org/bot${botToken}/getChatHistory`;
+    // Using getHistory method instead of getChatHistory
+    const url = `https://api.telegram.org/bot${botToken}/getHistory`;
     console.log(`[getChannelMessages] Calling Telegram API: ${url}`);
     
     const requestBody = {
@@ -39,6 +40,33 @@ export async function getChannelMessages(botToken: string, channelId: number, of
         statusText: response.statusText,
         body: errorText
       });
+
+      // Try alternative method if first one fails
+      if (response.status === 404) {
+        console.log('[getChannelMessages] Trying alternative method getMessages...');
+        const altResponse = await fetch(
+          `https://api.telegram.org/bot${botToken}/getMessages`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          }
+        );
+
+        if (!altResponse.ok) {
+          const altErrorText = await altResponse.text();
+          console.error('[getChannelMessages] Alternative method also failed:', altErrorText);
+          throw new Error(`Failed to fetch messages: ${altResponse.statusText} (${altErrorText})`);
+        }
+
+        const altData = await altResponse.json();
+        if (!altData.ok) {
+          throw new Error(altData.description || 'Failed to fetch messages');
+        }
+        return altData.result;
+      }
 
       // Log detailed error to database
       await logOperation(
