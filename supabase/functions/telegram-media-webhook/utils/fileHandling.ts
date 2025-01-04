@@ -7,23 +7,28 @@ export const generateSafeFileName = (baseName: string, extension: string): strin
 export const getContentType = (fileName: string, mediaType: string): string => {
   const ext = fileName.split('.').pop()?.toLowerCase();
   
-  // Handle specific file types
-  switch (ext) {
-    case 'mov':
-      return 'video/quicktime';
-    case 'mp4':
-      return 'video/mp4';
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'png':
-      return 'image/png';
-    case 'gif':
-      return 'image/gif';
-    default:
-      // Use provided mediaType as fallback
-      return mediaType || 'application/octet-stream';
-  }
+  // Enhanced MIME type mapping
+  const mimeTypes: Record<string, string> = {
+    'mov': 'video/quicktime',
+    'mp4': 'video/mp4',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'webm': 'video/webm',
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'm4a': 'audio/mp4',
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  };
+
+  // Use the mapped MIME type if available, otherwise use provided mediaType or fallback
+  return ext && mimeTypes[ext] 
+    ? mimeTypes[ext] 
+    : (mediaType || 'application/octet-stream');
 };
 
 export const getBucketId = (): string => {

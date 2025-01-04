@@ -38,20 +38,30 @@ export const handleMediaUpload = async (
       fileExt || 'unknown'
     );
 
-    const mediaType = message.document?.mime_type || 
-                     (message.photo ? 'image/jpeg' : 'video/quicktime');
+    // Determine media type with proper MIME type
+    let mediaType = message.document?.mime_type || 'application/octet-stream';
+    if (message.photo) {
+      mediaType = 'image/jpeg';
+    } else if (message.video) {
+      mediaType = 'video/mp4';
+    }
+
     const bucketId = getBucketId();
-    
     console.log('Uploading to bucket:', bucketId);
 
     const contentType = getContentType(safeFileName, mediaType);
     console.log('Using content type:', contentType);
 
+    // Fetch the file content
+    const fileContent = await (await fetch(downloadUrl)).arrayBuffer();
+
+    // Upload to Supabase Storage with proper content type
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucketId)
-      .upload(safeFileName, await (await fetch(downloadUrl)).arrayBuffer(), {
+      .upload(safeFileName, fileContent, {
         contentType,
-        upsert: false
+        upsert: false,
+        cacheControl: '3600'
       });
 
     if (uploadError) {
@@ -59,6 +69,7 @@ export const handleMediaUpload = async (
       throw uploadError;
     }
 
+    // Generate public URL using the bucket's public URL
     const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucketId}/${safeFileName}`;
     console.log('Generated public URL:', publicUrl);
 
@@ -68,14 +79,16 @@ export const handleMediaUpload = async (
       file_size: mediaItem.file_size,
       message_id: message.message_id,
       media_group_id: message.media_group_id,
-      content_type: contentType
+      content_type: contentType,
+      mime_type: mediaType
     };
 
+    // Insert into media table with proper URLs and metadata
     const mediaData = {
       user_id: userId,
       chat_id: message.chat.id,
       file_name: safeFileName,
-      file_url: publicUrl,
+      file_url: publicUrl, // Use the public URL as the file URL
       media_type: mediaType,
       caption: message.caption,
       metadata,
