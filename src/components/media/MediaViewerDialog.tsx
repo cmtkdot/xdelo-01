@@ -1,6 +1,6 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { MediaItem } from "./types";
-import { X, Link2, Calendar, FileVideo, Image as ImageIcon } from "lucide-react";
+import { X, Link2, Calendar, FileVideo, Image as ImageIcon, Upload, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -11,6 +11,11 @@ import { MediaViewerContent } from "./viewer/MediaViewerContent";
 import { MediaViewerUrls } from "./viewer/MediaViewerUrls";
 import { MediaViewerDetails } from "./viewer/MediaViewerDetails";
 import { MediaViewerMetadata } from "./viewer/MediaViewerMetadata";
+import { Button } from "@/components/ui/button";
+import GoogleDriveUploader from "./GoogleDriveUploader";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface MediaViewerDialogProps {
   item: MediaItem | null;
@@ -21,6 +26,10 @@ interface MediaViewerDialogProps {
 const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [isSyncingCaption, setSyncingCaption] = useState(false);
+  const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   if (!item) return null;
 
@@ -32,6 +41,38 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
   const handleMediaError = () => {
     setIsLoading(false);
     setHasError(true);
+  };
+
+  const handleSyncCaption = async () => {
+    if (!item.chat_id || !item.metadata?.message_id) return;
+    
+    setSyncingCaption(true);
+    try {
+      const { error } = await supabase.functions.invoke('sync-media-captions', {
+        body: { 
+          chatId: item.chat_id,
+          messageId: item.metadata.message_id
+        }
+      });
+
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['media-table'] });
+      
+      toast({
+        title: "Success",
+        description: "Caption synced successfully",
+      });
+    } catch (error) {
+      console.error('Error syncing caption:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync caption",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingCaption(false);
+    }
   };
 
   return (
@@ -59,7 +100,7 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
         
         <ScrollArea className="flex-1 p-4 bg-white/80 dark:bg-black/60 border-t border-gray-200/50 dark:border-white/10 max-h-[40vh]">
           <div className="space-y-4">
-            <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 {item.media_type === "video" ? (
                   <FileVideo className="w-4 h-4" />
@@ -68,12 +109,36 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
                 )}
                 {item.file_name}
               </h3>
-              {item.caption && (
-                <p className="text-sm text-gray-700 dark:text-white/90">
-                  {item.caption}
-                </p>
-              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSyncCaption}
+                  disabled={isSyncingCaption || !item.chat_id || !item.metadata?.message_id}
+                  className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaption ? 'animate-spin' : ''}`} />
+                  Sync Caption
+                </Button>
+                {!item.google_drive_url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setUploadDialogOpen(true)}
+                    className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload to Drive
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {item.caption && (
+              <p className="text-sm text-gray-700 dark:text-white/90">
+                {item.caption}
+              </p>
+            )}
 
             <Separator className="bg-gray-200/50 dark:bg-white/10" />
 
@@ -87,6 +152,21 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
           </div>
         </ScrollArea>
       </DialogContent>
+
+      <Dialog open={isUploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent>
+          <DialogTitle>Upload to Google Drive</DialogTitle>
+          <GoogleDriveUploader
+            fileUrl={item.file_url}
+            fileName={item.file_name}
+            onSuccess={() => {
+              setUploadDialogOpen(false);
+              queryClient.invalidateQueries({ queryKey: ['media-table'] });
+            }}
+            onClose={() => setUploadDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
