@@ -3,7 +3,6 @@ import useMediaData from "./media/hooks/useMediaData";
 import useMediaSubscription from "./media/hooks/useMediaSubscription";
 import { MediaFilter } from "./media/types";
 import { useToast } from "@/components/ui/use-toast";
-import WebhookInterface from "./webhook/WebhookInterface";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "./media/types";
 import MediaGalleryHeader from "./media/MediaGalleryHeader";
@@ -26,7 +25,6 @@ const MediaGallery = () => {
     isDeletingDuplicates,
     isDeleteDialogOpen,
     setIsDeleteDialogOpen,
-    getSelectedMediaData,
     mediaItems,
     isLoading,
     error
@@ -48,17 +46,13 @@ const MediaGallery = () => {
   }
 
   return (
-    <div className="w-full max-w-[2000px] mx-auto space-y-4 px-4 md:px-6">
+    <div className="w-full max-w-[2000px] mx-auto space-y-4">
       <MediaGalleryHeader
         onSyncCaptions={handleSyncCaptions}
         onDeleteDuplicates={handleDeleteDuplicates}
         isSyncingCaptions={isSyncingCaptions}
         isDeletingDuplicates={isDeletingDuplicates}
       />
-      
-      <div className="w-full">
-        <WebhookInterface selectedMedia={getSelectedMediaData()} />
-      </div>
       
       <div className="w-full backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
         <MediaFilters

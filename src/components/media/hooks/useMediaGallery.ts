@@ -1,29 +1,37 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MediaFilter, Channel, MediaItem } from "../types";
+import { MediaFilter, Channel } from "../types";
 import { useToast } from "@/components/ui/use-toast";
 import useMediaData from "./useMediaData";
 import useMediaSubscription from "./useMediaSubscription";
+import { useMediaOperations } from "./useMediaOperations";
+import { useMediaSelection } from "./useMediaSelection";
 
-const useMediaGallery = () => {
+export const useMediaGallery = () => {
   const [filter, setFilter] = useState<MediaFilter>({
     selectedChannel: "all",
     selectedType: "all",
     uploadStatus: "all"
   });
   const [channels, setChannels] = useState<Channel[]>([]);
-  const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isSyncingCaptions, setSyncingCaptions] = useState(false);
-  const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
   const { toast } = useToast();
 
   const { data: mediaItems, isLoading, error, refetch } = useMediaData(filter);
   useMediaSubscription(() => refetch());
 
-  useEffect(() => {
-    console.log("MediaGallery data:", { mediaItems, isLoading, error });
-  }, [mediaItems, isLoading, error]);
+  const {
+    isDeletingDuplicates,
+    isSyncingCaptions,
+    handleDeleteDuplicates,
+    handleSyncCaptions,
+  } = useMediaOperations(refetch);
+
+  const {
+    selectedMedia,
+    handleToggleSelect,
+    getSelectedMediaData,
+  } = useMediaSelection(mediaItems);
 
   const fetchChannels = async () => {
     const { data, error } = await supabase
@@ -46,155 +54,6 @@ const useMediaGallery = () => {
   useEffect(() => {
     fetchChannels();
   }, []);
-
-  const handleToggleSelect = (id: string) => {
-    setSelectedMedia(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  };
-
-  const getSelectedMediaData = () => {
-    if (!mediaItems) return [];
-    return mediaItems.filter(item => selectedMedia.has(item.id));
-  };
-
-  const handleDeleteDuplicates = async () => {
-    try {
-      setDeletingDuplicates(true);
-
-      // Log start of duplicate deletion
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'delete-duplicates',
-          status: 'info',
-          message: 'Starting duplicate media cleanup'
-        });
-
-      const { error } = await supabase.functions.invoke('delete-duplicates', {
-        body: { keepNewest: true }
-      });
-
-      if (error) throw error;
-
-      // Log success
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'delete-duplicates',
-          status: 'success',
-          message: 'Successfully cleaned up duplicate media files'
-        });
-
-      toast({
-        title: "Success",
-        description: "Duplicate media files have been cleaned up",
-      });
-
-      refetch();
-    } catch (error) {
-      console.error('Error deleting duplicates:', error);
-
-      // Log error
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'delete-duplicates',
-          status: 'error',
-          message: `Error cleaning up duplicates: ${error.message}`
-        });
-
-      toast({
-        title: "Error",
-        description: "Failed to delete duplicate media files",
-        variant: "destructive",
-      });
-    } finally {
-      setDeletingDuplicates(false);
-    }
-  };
-
-  const handleSyncCaptions = async () => {
-    try {
-      setSyncingCaptions(true);
-      
-      // Get all active channels
-      const { data: channelsData, error: channelsError } = await supabase
-        .from('channels')
-        .select('chat_id')
-        .eq('is_active', true);
-
-      if (channelsError) throw channelsError;
-
-      if (!channelsData || channelsData.length === 0) {
-        toast({
-          title: "No channels found",
-          description: "Please add some channels first",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const chatIds = channelsData.map(channel => channel.chat_id);
-      console.log('Syncing captions for channels:', chatIds);
-
-      // Log start of caption sync
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'sync-media-captions',
-          status: 'info',
-          message: `Starting caption sync for channels: ${chatIds.join(', ')}`
-        });
-
-      const { error } = await supabase.functions.invoke('sync-media-captions', {
-        body: { chatIds }
-      });
-
-      if (error) throw error;
-
-      // Log success
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'sync-media-captions',
-          status: 'success',
-          message: 'Successfully synchronized media captions'
-        });
-
-      toast({
-        title: "Success",
-        description: "Media captions have been synchronized",
-      });
-
-      refetch();
-    } catch (error) {
-      console.error('Error syncing captions:', error);
-
-      // Log error
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'sync-media-captions',
-          status: 'error',
-          message: `Error syncing captions: ${error.message}`
-        });
-
-      toast({
-        title: "Error",
-        description: "Failed to sync media captions",
-        variant: "destructive",
-      });
-    } finally {
-      setSyncingCaptions(false);
-    }
-  };
 
   return {
     filter,
