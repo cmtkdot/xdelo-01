@@ -91,7 +91,7 @@ export const MediaTableToolbar = ({ selectedMedia, onDeleteSuccess }: MediaTable
         toast({
           title: "Partial Success",
           description: `Resynced ${data.updatedCount} items, but ${data.errors.length} failed`,
-          variant: "warning",
+          variant: "destructive",
         });
       } else {
         toast({
