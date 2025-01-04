@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input"
 import { MediaTableActions } from "./MediaTableActions"
 import { SyncChannelButton } from "./actions/SyncChannelButton"
-import MediaTableFilters from "../MediaTableFilters"
+import MediaTableFilters from "./MediaTableFilters"
 import { Channel } from "../types"
 
 interface MediaTableToolbarProps {
@@ -38,7 +38,6 @@ export function MediaTableToolbar({
             onComplete={onRefetch}
           />
         </div>
-        <MediaTableActions />
       </div>
       <MediaTableFilters
         selectedChannel={selectedChannels[0] || "all"}

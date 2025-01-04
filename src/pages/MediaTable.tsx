@@ -156,21 +156,24 @@ const MediaTable = () => {
         
         <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg overflow-hidden">
           <div className="p-4 border-b border-white/10">
-            <div className="mb-4">
-              <MediaTableFilters
-                selectedChannel={selectedChannel}
-                setSelectedChannel={setSelectedChannel}
-                selectedType={selectedType}
-                setSelectedType={setSelectedType}
-                uploadStatus={uploadStatus}
-                setUploadStatus={setUploadStatus}
-                channels={channels}
-              />
-            </div>
-
+            <MediaTableFilters
+              selectedChannel={selectedChannel}
+              setSelectedChannel={setSelectedChannel}
+              selectedType={selectedType}
+              setSelectedType={setSelectedType}
+              uploadStatus={uploadStatus}
+              setUploadStatus={setUploadStatus}
+              channels={channels}
+            />
             <MediaTableToolbar
-              selectedMedia={selectedMedia}
-              onDeleteSuccess={() => refetch()}
+              selectedChannels={[selectedChannel]}
+              setSelectedChannels={([channel]) => setSelectedChannel(channel)}
+              selectedTypes={[selectedType]}
+              setSelectedTypes={([type]) => setSelectedType(type)}
+              uploadStatus={uploadStatus}
+              setUploadStatus={setUploadStatus}
+              channels={channels || []}
+              onRefetch={() => refetch()}
             />
           </div>
 
