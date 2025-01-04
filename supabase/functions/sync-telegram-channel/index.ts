@@ -1,17 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { processMediaMessage } from "./utils/mediaProcessor.ts";
-import { logError, logSuccess, logInfo } from "./utils/errorHandler.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { logOperation, createMediaRecord } from "../_shared/database.ts";
+import { uploadToStorage, generateSafeFileName } from "../_shared/storage.ts";
+import { getAndDownloadTelegramFile } from "../_shared/telegram.ts";
+import { MediaMetadata } from "../_shared/types.ts";
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const supabase = createClient(
@@ -35,10 +32,9 @@ serve(async (req) => {
     let totalProcessed = 0;
     let totalErrors = 0;
 
-    // Process each channel
     for (const channelId of chatIds) {
       try {
-        await logInfo(supabase, `Starting sync for channel ${channelId}`);
+        await logOperation(supabase, 'sync-telegram-channel', 'info', `Starting sync for channel ${channelId}`);
 
         const response = await fetch(
           `https://api.telegram.org/bot${botToken}/getUpdates?chat_id=${channelId}&limit=100`
@@ -53,16 +49,57 @@ serve(async (req) => {
           throw new Error(`Telegram API error: ${JSON.stringify(data)}`);
         }
 
-        // Process messages with media
         for (const update of data.result) {
           const message = update.message || update.channel_post;
           if (message && (message.photo || message.video || message.document)) {
             try {
-              const result = await processMediaMessage(message, channelId, supabase, botToken);
-              if (result) {
-                results.push(result);
-                totalProcessed++;
-              }
+              const mediaItem = message.photo 
+                ? message.photo[message.photo.length - 1] 
+                : message.video || message.document;
+
+              const { buffer, filePath } = await getAndDownloadTelegramFile(mediaItem.file_id, botToken);
+              
+              const timestamp = Date.now();
+              const fileName = generateSafeFileName(
+                `${mediaItem.file_unique_id}_${timestamp}`,
+                filePath.split('.').pop() || 'unknown'
+              );
+
+              const mediaType = message.photo ? 'image/jpeg' : (message.video ? 'video/mp4' : 'application/octet-stream');
+              
+              const publicUrl = await uploadToStorage(
+                supabase,
+                fileName,
+                buffer,
+                mediaType
+              );
+
+              const metadata: MediaMetadata = {
+                file_id: mediaItem.file_id,
+                file_unique_id: mediaItem.file_unique_id,
+                message_id: message.message_id,
+                media_group_id: message.media_group_id,
+                content_type: mediaType,
+                mime_type: mediaType,
+                file_size: mediaItem.file_size,
+                file_path: filePath
+              };
+
+              const mediaData = await createMediaRecord(
+                supabase,
+                crypto.randomUUID(), // This should be replaced with actual user ID in production
+                message.chat.id,
+                fileName,
+                publicUrl,
+                mediaType,
+                message.caption,
+                metadata,
+                message.media_group_id,
+                publicUrl
+              );
+
+              results.push({ mediaData, publicUrl });
+              totalProcessed++;
             } catch (error) {
               console.error(`Error processing message ${message.message_id}:`, error);
               totalErrors++;
@@ -74,7 +111,7 @@ serve(async (req) => {
           }
         }
 
-        await logSuccess(supabase, `Successfully synced channel: ${channelId}`);
+        await logOperation(supabase, 'sync-telegram-channel', 'success', `Successfully synced channel: ${channelId}`);
 
       } catch (error) {
         totalErrors++;
@@ -83,7 +120,7 @@ serve(async (req) => {
           error: error.message
         });
 
-        await logError(supabase, error, `processing channel ${channelId}`);
+        await logOperation(supabase, 'sync-telegram-channel', 'error', `Error processing channel ${channelId}: ${error.message}`);
       }
     }
 
@@ -95,23 +132,14 @@ serve(async (req) => {
         details: { results, errors }
       }),
       { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: totalErrors > 0 ? 207 : 200
       }
     );
 
   } catch (error) {
     console.error('Error in sync-telegram-channel function:', error);
-    
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-    
-    await logError(supabase, error, 'sync-telegram-channel');
+    await logOperation(supabase, 'sync-telegram-channel', 'error', `Global error: ${error.message}`);
 
     return new Response(
       JSON.stringify({
@@ -119,11 +147,8 @@ serve(async (req) => {
         error: error.message
       }),
       { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        },
-        status: 400
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
       }
     );
   }

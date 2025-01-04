@@ -1,11 +1,3 @@
-export interface TelegramFile {
-  file_id: string;
-  file_unique_id: string;
-  file_size?: number;
-  file_path?: string;
-  mime_type?: string;
-}
-
 export async function getTelegramFilePath(fileId: string, botToken: string): Promise<string> {
   const response = await fetch(
     `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`
