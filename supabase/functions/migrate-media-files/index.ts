@@ -17,10 +17,15 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get all media records
-    const { data: mediaRecords, error: fetchError } = await supabase
-      .from('media')
-      .select('*');
+    const { channelId } = await req.json();
+    
+    // Build the query based on whether a specific channel was selected
+    let query = supabase.from('media').select('*');
+    if (channelId) {
+      query = query.eq('chat_id', parseInt(channelId));
+    }
+    
+    const { data: mediaRecords, error: fetchError } = await query;
 
     if (fetchError) {
       throw fetchError;
