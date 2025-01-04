@@ -8,82 +8,126 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('Starting caption sync process');
+    // Get the user from the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
 
-    // Get all media items with media_group_id
-    const { data: mediaGroups, error: fetchError } = await supabase
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      throw new Error('Unauthorized');
+    }
+
+    const { chatIds, updatePublicUrls } = await req.json();
+
+    let query = supabaseClient
       .from('media')
       .select('*')
-      .not('media_group_id', 'is', null)
-      .order('created_at', { ascending: false });
+      .eq('user_id', user.id);
 
-    if (fetchError) throw fetchError;
-
-    // Group media by media_group_id
-    const groupedMedia = mediaGroups.reduce((acc: any, item: any) => {
-      if (!acc[item.media_group_id]) {
-        acc[item.media_group_id] = [];
-      }
-      acc[item.media_group_id].push(item);
-      return acc;
-    }, {});
-
-    let syncedCount = 0;
-    console.log(`Found ${Object.keys(groupedMedia).length} media groups to process`);
-
-    // Process each media group
-    for (const [groupId, items] of Object.entries(groupedMedia)) {
-      const mediaItems = items as any[];
-      
-      // Find the most recent caption in the group
-      const latestCaption = mediaItems
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .find(item => item.caption)?.caption;
-
-      if (latestCaption) {
-        console.log(`Syncing caption for media group ${groupId}: "${latestCaption}"`);
-        
-        // Update all items in the group with the latest caption
-        const { error: updateError } = await supabase
-          .from('media')
-          .update({ caption: latestCaption })
-          .eq('media_group_id', groupId);
-
-        if (updateError) {
-          console.error(`Error updating captions for group ${groupId}:`, updateError);
-          continue;
-        }
-
-        syncedCount += mediaItems.length;
-      }
+    if (chatIds && chatIds.length > 0) {
+      query = query.in('chat_id', chatIds);
     }
+
+    const { data: mediaItems, error: fetchError } = await query;
+
+    if (fetchError) {
+      console.error('Error fetching media items:', fetchError);
+      throw fetchError;
+    }
+
+    console.log(`Found ${mediaItems?.length || 0} media items to update`);
+
+    const updates = mediaItems?.map(item => {
+      let publicUrl;
+      
+      if (item.media_type?.includes('video')) {
+        publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-video/${item.file_name}`;
+      } else if (item.media_type?.includes('image') || item.media_type?.includes('photo')) {
+        publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-pictures/${item.file_name}`;
+      } else {
+        publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${item.file_name}`;
+      }
+      
+      return {
+        id: item.id,
+        user_id: user.id,
+        public_url: publicUrl
+      };
+    });
+
+    if (!updates?.length) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'No media items need updating',
+          updatedCount: 0
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    // Update records in batches
+    const batchSize = 100;
+    const results = [];
+    
+    for (let i = 0; i < updates.length; i += batchSize) {
+      const batch = updates.slice(i, i + batchSize);
+      console.log(`Processing batch ${i/batchSize + 1} of ${Math.ceil(updates.length/batchSize)}`);
+      
+      const { data, error } = await supabaseClient
+        .from('media')
+        .upsert(batch, { onConflict: 'id' })
+        .select();
+
+      if (error) {
+        console.error('Error updating batch:', error);
+        throw error;
+      }
+      
+      results.push(...(data || []));
+    }
+
+    console.log(`Successfully updated ${results.length} media records`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Successfully synced captions for ${syncedCount} media items`,
+        message: `Updated ${results.length} media records with public URLs`,
+        updatedCount: results.length
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
     );
+
   } catch (error) {
-    console.error('Error processing request:', error);
+    console.error('Error in sync-media-captions function:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({
+        success: false,
+        error: error.message
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: 400,
       }
     );
   }

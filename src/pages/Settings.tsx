@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import MediaMigrationSection from "@/components/settings/MediaMigrationSection";
+import MediaSyncSection from "@/components/settings/MediaSyncSection";
 
 const Settings = () => {
   const { theme, setTheme } = useTheme();
@@ -43,6 +44,10 @@ const Settings = () => {
             </div>
           </div>
 
+          <Separator className="bg-gray-200/50 dark:bg-white/10" />
+          
+          <MediaSyncSection />
+          
           <Separator className="bg-gray-200/50 dark:bg-white/10" />
           
           <MediaMigrationSection />
