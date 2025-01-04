@@ -66,21 +66,32 @@ serve(async (req) => {
     // Process media items
     for (const item of mediaItems || []) {
       try {
-        // Delete existing file from storage if it exists
+        // Only attempt to delete if the file exists
         if (item.file_name) {
-          await logToDatabase(supabaseClient, 'resync-media', 'info', `Attempting to delete file: ${item.file_name}`);
-          
-          const { error: deleteError } = await supabaseClient
+          const { data: fileExists } = await supabaseClient
             .storage
             .from('telegram-media')
-            .remove([item.file_name]);
+            .list('', {
+              limit: 1,
+              offset: 0,
+              search: item.file_name
+            });
 
-          if (deleteError) {
-            await logToDatabase(supabaseClient, 'resync-media', 'error', `Error deleting file ${item.file_name}: ${deleteError.message}`);
-            throw deleteError;
+          if (fileExists && fileExists.length > 0) {
+            await logToDatabase(supabaseClient, 'resync-media', 'info', `Attempting to delete file: ${item.file_name}`);
+            
+            const { error: deleteError } = await supabaseClient
+              .storage
+              .from('telegram-media')
+              .remove([item.file_name]);
+
+            if (deleteError) {
+              await logToDatabase(supabaseClient, 'resync-media', 'error', `Error deleting file ${item.file_name}: ${deleteError.message}`);
+              console.error(`Error deleting file ${item.file_name}:`, deleteError);
+            } else {
+              await logToDatabase(supabaseClient, 'resync-media', 'success', `Successfully deleted file: ${item.file_name}`);
+            }
           }
-
-          await logToDatabase(supabaseClient, 'resync-media', 'success', `Successfully deleted file: ${item.file_name}`);
         }
 
         // Generate new public URL using the bucket's public URL
