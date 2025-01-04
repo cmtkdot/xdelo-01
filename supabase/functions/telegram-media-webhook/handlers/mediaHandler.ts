@@ -1,14 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { saveMedia } from "../utils/database.ts";
-import { 
-  generateSafeFileName, 
-  determineMediaType, 
-  getMediaItem,
-  formatMediaMetadata,
-  getContentType,
-  generatePublicUrl,
-  getBucketId
-} from "../utils/fileHandling.ts";
+import { getContentType, getBucketId, generateSafeFileName } from "../utils/fileHandling.ts";
 
 export const handleMediaUpload = async (
   supabase: any,
@@ -19,7 +9,8 @@ export const handleMediaUpload = async (
   try {
     const mediaItem = message.photo 
       ? message.photo[message.photo.length - 1] 
-      : getMediaItem(message);
+      : message.document || message.video || message.audio || 
+        message.voice || message.animation || message.sticker;
     
     if (!mediaItem) {
       console.error('No media item found in message');
@@ -47,15 +38,19 @@ export const handleMediaUpload = async (
       fileExt || 'unknown'
     );
 
-    const mediaType = determineMediaType(message);
+    const mediaType = message.document?.mime_type || 
+                     (message.photo ? 'image/jpeg' : 'video/quicktime');
     const bucketId = getBucketId(mediaType, fileExt);
     
     console.log('Uploading to bucket:', bucketId);
 
+    const contentType = getContentType(safeFileName, mediaType);
+    console.log('Using content type:', contentType);
+
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucketId)
       .upload(safeFileName, await (await fetch(downloadUrl)).arrayBuffer(), {
-        contentType: getContentType(safeFileName, mediaType),
+        contentType,
         upsert: false
       });
 
@@ -64,11 +59,16 @@ export const handleMediaUpload = async (
       throw uploadError;
     }
 
-    const publicUrl = generatePublicUrl(bucketId, safeFileName);
+    const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucketId}/${safeFileName}`;
     console.log('Generated public URL:', publicUrl);
 
-    const metadata = formatMediaMetadata(mediaItem, message);
-    console.log('Formatted metadata:', metadata);
+    const metadata = {
+      file_id: mediaItem.file_id,
+      file_unique_id: mediaItem.file_unique_id,
+      file_size: mediaItem.file_size,
+      message_id: message.message_id,
+      media_group_id: message.media_group_id
+    };
 
     const mediaData = {
       user_id: userId,
@@ -79,26 +79,21 @@ export const handleMediaUpload = async (
       caption: message.caption,
       metadata,
       media_group_id: message.media_group_id,
+      public_url: publicUrl
     };
 
-    console.log('Saving media with data:', mediaData);
+    const { data: savedMedia, error: dbError } = await supabase
+      .from('media')
+      .insert([mediaData])
+      .select()
+      .single();
 
-    const savedMedia = await saveMedia(
-      supabase,
-      mediaData.user_id,
-      mediaData.chat_id,
-      mediaData.file_name,
-      mediaData.file_url,
-      mediaData.media_type,
-      mediaData.caption,
-      mediaData.metadata,
-      mediaData.media_group_id,
-      null,
-      null,
-      publicUrl
-    );
+    if (dbError) {
+      console.error('Error saving media to database:', dbError);
+      throw dbError;
+    }
 
-    return { mediaData, publicUrl };
+    return { mediaData: savedMedia, publicUrl };
   } catch (error) {
     console.error('Error in handleMediaUpload:', error);
     throw error;
