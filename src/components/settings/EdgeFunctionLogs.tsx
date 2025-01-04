@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Database } from "@/integrations/supabase/types";
+
+type EdgeFunctionLog = Database['public']['Tables']['edge_function_logs']['Row'];
 
 interface LogEntry {
   id: string;
@@ -10,6 +13,14 @@ interface LogEntry {
   status: 'success' | 'error';
   message: string;
 }
+
+const mapDatabaseLogToLogEntry = (dbLog: EdgeFunctionLog): LogEntry => ({
+  id: dbLog.id,
+  timestamp: dbLog.timestamp || new Date().toISOString(),
+  function_name: dbLog.function_name,
+  status: dbLog.status as 'success' | 'error',
+  message: dbLog.message
+});
 
 export const EdgeFunctionLogs = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -26,7 +37,8 @@ export const EdgeFunctionLogs = () => {
           table: 'edge_function_logs',
         },
         (payload) => {
-          setLogs((currentLogs) => [payload.new as LogEntry, ...currentLogs].slice(0, 100));
+          const newLog = mapDatabaseLogToLogEntry(payload.new as EdgeFunctionLog);
+          setLogs((currentLogs) => [newLog, ...currentLogs].slice(0, 100));
         }
       )
       .subscribe();
@@ -40,7 +52,7 @@ export const EdgeFunctionLogs = () => {
         .limit(100);
 
       if (!error && data) {
-        setLogs(data);
+        setLogs(data.map(mapDatabaseLogToLogEntry));
       }
     };
 

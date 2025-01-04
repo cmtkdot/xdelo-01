@@ -170,6 +170,30 @@ export type Database = {
         }
         Relationships: []
       }
+      edge_function_logs: {
+        Row: {
+          function_name: string
+          id: string
+          message: string
+          status: string
+          timestamp: string | null
+        }
+        Insert: {
+          function_name: string
+          id?: string
+          message: string
+          status: string
+          timestamp?: string | null
+        }
+        Update: {
+          function_name?: string
+          id?: string
+          message?: string
+          status?: string
+          timestamp?: string | null
+        }
+        Relationships: []
+      }
       expense: {
         Row: {
           amount: string | null
