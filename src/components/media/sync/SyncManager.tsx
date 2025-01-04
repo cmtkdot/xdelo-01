@@ -30,12 +30,17 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
 
     getChannelInfo();
 
-    // Subscribe to sync progress updates
+    // Subscribe to sync progress updates using a realtime channel
     const channel = supabase
       .channel('sync_progress')
       .on(
-        'broadcast',
-        { event: 'sync_update' },
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'sync_logs',
+          filter: `channel_id=eq.${channelId}`
+        },
         (payload: { new: SyncLog }) => {
           const syncStatus: SyncStatus = {
             progress: payload.new.progress,
