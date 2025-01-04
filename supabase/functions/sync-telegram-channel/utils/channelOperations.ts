@@ -17,9 +17,9 @@ export async function verifyChannelAccess(botToken: string, channelId: number) {
 export async function getChannelMessages(botToken: string, channelId: number, offset = 0) {
   console.log(`Fetching messages from offset ${offset} for channel ${channelId}`);
   
-  // Use getHistory method from Telegram Bot API
+  // Use messages.getHistory method from Telegram Bot API
   const response = await fetch(
-    `https://api.telegram.org/bot${botToken}/getHistory`,
+    `https://api.telegram.org/bot${botToken}/messages.getHistory`,
     {
       method: 'POST',
       headers: {
