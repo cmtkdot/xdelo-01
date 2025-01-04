@@ -20,6 +20,7 @@ const MediaMigrationSection = () => {
         .select('*');
       
       if (error) {
+        console.error('Error fetching channels:', error);
         toast.error("Failed to load channels", {
           description: error.message
         });
@@ -31,6 +32,7 @@ const MediaMigrationSection = () => {
 
   const handleMigration = async () => {
     const loadingToast = toast.loading("Starting media migration...");
+    console.log('Starting migration for channel:', selectedChannel);
     
     try {
       setMigrating(true);
@@ -40,7 +42,12 @@ const MediaMigrationSection = () => {
         }
       });
 
-      if (error) throw error;
+      console.log('Migration response:', data, error);
+
+      if (error) {
+        console.error('Migration error:', error);
+        throw error;
+      }
 
       toast.dismiss(loadingToast);
       toast.success("Media migration completed", {

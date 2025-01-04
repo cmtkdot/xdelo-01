@@ -28,6 +28,7 @@ const MediaSyncSection = () => {
         .order('title');
       
       if (error) {
+        console.error('Error fetching channels:', error);
         toast.error("Failed to load channels", {
           description: error.message
         });
@@ -46,6 +47,7 @@ const MediaSyncSection = () => {
     }
 
     const loadingToast = toast.loading("Starting media sync...");
+    console.log('Starting sync for channels:', Array.from(selectedChannels));
 
     try {
       setSyncing(true);
@@ -55,9 +57,13 @@ const MediaSyncSection = () => {
         }
       });
 
+      console.log('Sync response:', data, error);
       toast.dismiss(loadingToast);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sync error:', error);
+        throw error;
+      }
 
       if (data?.updatedCount === 0) {
         toast.info("No updates needed", {
