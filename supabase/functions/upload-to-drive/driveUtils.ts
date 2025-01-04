@@ -7,8 +7,69 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
       throw new Error(`Failed to fetch file: ${response.statusText}`);
     }
 
-    const blob = await response.blob();
-    console.log(`File fetched successfully, size: ${blob.size} bytes`);
+    let blob = await response.blob();
+    const originalType = blob.type;
+    
+    // Handle video conversion if needed
+    if (originalType.startsWith('video/') && !originalType.includes('mp4')) {
+      console.log('Converting video to MP4 format...');
+      
+      // Create form data for conversion
+      const formData = new FormData();
+      formData.append('file', blob, fileName);
+      
+      // Get Cloud Convert API key
+      const cloudConvertApiKey = Deno.env.get('CLOUD_CONVERTAPIKEY');
+      if (!cloudConvertApiKey) {
+        throw new Error('Cloud Convert API key not configured');
+      }
+
+      // Create conversion job
+      const createJobResponse = await fetch('https://api.cloudconvert.com/v2/jobs', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${cloudConvertApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          tasks: {
+            'import-1': {
+              operation: 'import/url',
+              url: fileUrl
+            },
+            'convert-1': {
+              operation: 'convert',
+              input: 'import-1',
+              output_format: 'mp4',
+              engine: 'ffmpeg',
+              input_format: originalType.split('/')[1]
+            },
+            'export-1': {
+              operation: 'export/url',
+              input: 'convert-1',
+              inline: false,
+              archive_multiple_files: false
+            }
+          }
+        })
+      });
+
+      if (!createJobResponse.ok) {
+        throw new Error(`Failed to create conversion job: ${await createJobResponse.text()}`);
+      }
+
+      const jobData = await createJobResponse.json();
+      console.log('Video conversion job created:', jobData);
+
+      // Wait for conversion to complete and get the converted file
+      const convertedFileResponse = await fetch(jobData.data.result.files[0].url);
+      if (!convertedFileResponse.ok) {
+        throw new Error('Failed to fetch converted video');
+      }
+      
+      blob = await convertedFileResponse.blob();
+      console.log('Video conversion completed');
+    }
 
     const metadata = {
       name: fileName,
@@ -45,7 +106,8 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
     
     return {
       fileId: result.id,
-      webViewLink
+      webViewLink,
+      convertedToMp4: originalType.startsWith('video/') && !originalType.includes('mp4')
     };
   } catch (error) {
     console.error('Error in uploadToDrive:', error);
