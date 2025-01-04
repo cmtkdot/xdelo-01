@@ -10,6 +10,13 @@ interface SyncChannelButtonProps {
   onComplete?: () => void;
 }
 
+interface SyncPayload {
+  progress: number;
+  status: string;
+  error_message?: string;
+  completed_at?: string;
+}
+
 const SyncChannelButton = ({ channelId, onComplete }: SyncChannelButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -47,11 +54,12 @@ const SyncChannelButton = ({ channelId, onComplete }: SyncChannelButtonProps) =>
             filter: `channel_id=eq.${channelId}`
           },
           (payload) => {
-            if (payload.new) {
-              setProgress(payload.new.progress || 0);
-              setStatus(payload.new.status || 'Processing...');
+            const newData = payload.new as SyncPayload;
+            if (newData) {
+              setProgress(newData.progress || 0);
+              setStatus(newData.status || 'Processing...');
               
-              if (payload.new.status === 'completed') {
+              if (newData.status === 'completed') {
                 toast({
                   title: "Sync Complete",
                   description: "Channel media has been synchronized",
@@ -60,10 +68,10 @@ const SyncChannelButton = ({ channelId, onComplete }: SyncChannelButtonProps) =>
                   setIsDialogOpen(false);
                   if (onComplete) onComplete();
                 }, 1500);
-              } else if (payload.new.status === 'failed') {
+              } else if (newData.status === 'failed') {
                 toast({
                   title: "Sync Failed",
-                  description: payload.new.error_message || "An error occurred during sync",
+                  description: newData.error_message || "An error occurred during sync",
                   variant: "destructive",
                 });
               }

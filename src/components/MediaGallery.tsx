@@ -11,7 +11,6 @@ import MediaGalleryContent from "./media/MediaGalleryContent";
 import MediaGallerySkeleton from "./media/MediaGallerySkeleton";
 import DeleteMediaDialog from "./media/DeleteMediaDialog";
 import { SyncManager } from "./media/sync/SyncManager";
-import useMediaGallery from "./media/hooks/useMediaGallery";
 import SyncChannelButton from "./media/sync/SyncChannelButton";
 
 const MediaGallery = () => {
@@ -29,7 +28,8 @@ const MediaGallery = () => {
     setIsDeleteDialogOpen,
     mediaItems,
     isLoading,
-    error
+    error,
+    refetch
   } = useMediaGallery();
 
   if (error) {
