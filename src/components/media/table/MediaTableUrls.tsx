@@ -19,7 +19,7 @@ export const MediaTableUrls = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onOpenFile(googleDriveUrl);
+            window.open(googleDriveUrl, '_blank');
           }}
           className="flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors group w-full"
         >
@@ -33,7 +33,7 @@ export const MediaTableUrls = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onOpenFile(publicUrl);
+            window.open(publicUrl, '_blank');
           }}
           className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group w-full"
         >
