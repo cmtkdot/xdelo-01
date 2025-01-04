@@ -1,4 +1,5 @@
 import { Image, Trash2, RefreshCw, RotateCw } from "lucide-react";
+import { useState } from "react"; // Add this import
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
