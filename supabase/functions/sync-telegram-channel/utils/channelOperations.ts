@@ -17,9 +17,9 @@ export async function verifyChannelAccess(botToken: string, channelId: number) {
 export async function getChannelMessages(botToken: string, channelId: number, offset = 0) {
   console.log(`Fetching messages from offset ${offset} for channel ${channelId}`);
   
-  // Use messages.getHistory as it's the most reliable method
+  // Use getHistory method from Telegram Bot API
   const response = await fetch(
-    `https://api.telegram.org/bot${botToken}/messages.getHistory`,
+    `https://api.telegram.org/bot${botToken}/getHistory`,
     {
       method: 'POST',
       headers: {
@@ -65,6 +65,7 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
       if (data.result.length < 100) {
         hasMore = false;
       } else {
+        // Use the last message's ID as the next offset
         offset = messages[messages.length - 1].message_id;
       }
 
