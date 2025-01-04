@@ -13,7 +13,10 @@ export const initGoogleSheetsAPI = async () => {
       await new Promise((resolve) => window.gapi.load('client', resolve));
       
       const { data: { api_key }, error } = await supabase.functions.invoke('get-google-api-key');
-      if (error) throw error;
+      if (error) {
+        console.error('Error getting Google API key:', error);
+        throw new Error('Failed to retrieve Google API key');
+      }
       
       await window.gapi.client.init({
         apiKey: api_key,
