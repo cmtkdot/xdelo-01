@@ -25,7 +25,11 @@ serve(async (req) => {
     } catch (e) {
       console.error('Error parsing request body:', e);
       return new Response(
-        JSON.stringify({ success: false, error: 'Invalid JSON in request body' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid JSON in request body',
+          details: e.message 
+        }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400 
@@ -37,7 +41,11 @@ serve(async (req) => {
 
     if (!mediaIds || !Array.isArray(mediaIds) || mediaIds.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Invalid or missing mediaIds array' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid or missing mediaIds array',
+          details: 'Please provide an array of media IDs to resync' 
+        }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400 
@@ -57,9 +65,18 @@ serve(async (req) => {
 
     for (const id of mediaIds) {
       try {
+        // Log the start of processing for this media ID
+        await supabase
+          .from('edge_function_logs')
+          .insert({
+            function_name: 'resync-media',
+            status: 'info',
+            message: `Starting resync for media ID: ${id}`
+          });
+
         const { data: media, error: mediaError } = await supabase
           .from('media')
-          .select('*')
+          .select('*, channels!inner(*)')
           .eq('id', id)
           .single();
 
@@ -114,23 +131,44 @@ serve(async (req) => {
 
           if (uploadError) throw uploadError;
 
-          // Update media record with new file name
+          // Update media record with new file name and public URL
+          const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${newFileName}`;
+          
           const { error: updateError } = await supabase
             .from('media')
             .update({
               file_name: newFileName,
+              file_url: publicUrl,
+              public_url: publicUrl,
               updated_at: new Date().toISOString()
             })
             .eq('id', id);
 
           if (updateError) throw updateError;
 
-          results.push({ id, status: 'recreated' });
+          await supabase
+            .from('edge_function_logs')
+            .insert({
+              function_name: 'resync-media',
+              status: 'success',
+              message: `Successfully resynced media ID: ${id} with new file: ${newFileName}`
+            });
+
+          results.push({ id, status: 'recreated', newFileName });
         } else {
           results.push({ id, status: 'exists' });
         }
       } catch (error) {
         console.error(`Failed to recreate file for ${id}:`, error.message);
+        
+        await supabase
+          .from('edge_function_logs')
+          .insert({
+            function_name: 'resync-media',
+            status: 'error',
+            message: `Error resyncing media ${id}: ${error.message}`
+          });
+
         errors.push({ id, error: error.message });
       }
     }
@@ -151,6 +189,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in resync-media function:', error);
+    
+    await supabase
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'resync-media',
+        status: 'error',
+        message: `Global error: ${error.message}`
+      });
+
     return new Response(
       JSON.stringify({ 
         success: false, 
