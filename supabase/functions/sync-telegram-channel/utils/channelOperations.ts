@@ -17,66 +17,26 @@ export async function verifyChannelAccess(botToken: string, channelId: number) {
 export async function getChannelMessages(botToken: string, channelId: number, offset = 0) {
   console.log(`Fetching messages from offset ${offset} for channel ${channelId}`);
   
+  // Use messages.getHistory as it's the most reliable method
   const response = await fetch(
-    `https://api.telegram.org/bot${botToken}/getChannelHistory`, {
+    `https://api.telegram.org/bot${botToken}/messages.getHistory`,
+    {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         chat_id: channelId,
-        offset: offset,
+        offset_id: offset,
         limit: 100
       })
     }
   );
 
   if (!response.ok) {
-    console.log('getChannelHistory failed, trying getChatHistory...');
-    
-    // Try alternative endpoint
-    const historyResponse = await fetch(
-      `https://api.telegram.org/bot${botToken}/getChatHistory`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          chat_id: channelId,
-          offset: offset,
-          limit: 100
-        })
-      }
-    );
-
-    if (!historyResponse.ok) {
-      console.log('getChatHistory failed, trying messages.getHistory...');
-      
-      // Final attempt with messages.getHistory
-      const messagesResponse = await fetch(
-        `https://api.telegram.org/bot${botToken}/messages.getHistory`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            chat_id: channelId,
-            offset_id: offset,
-            limit: 100
-          })
-        }
-      );
-
-      if (!messagesResponse.ok) {
-        const error = await messagesResponse.json();
-        console.error('Error fetching messages:', error);
-        throw new Error(`Failed to fetch messages: ${error.description}`);
-      }
-      
-      return await messagesResponse.json();
-    }
-    
-    return await historyResponse.json();
+    const error = await response.json();
+    console.error('Error fetching messages:', error);
+    throw new Error(`Failed to fetch messages: ${error.description}`);
   }
   
   return await response.json();
@@ -105,7 +65,7 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
       if (data.result.length < 100) {
         hasMore = false;
       } else {
-        offset += data.result.length;
+        offset = messages[messages.length - 1].message_id;
       }
 
       // Add a delay to avoid hitting rate limits
