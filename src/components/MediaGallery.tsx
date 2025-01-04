@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import useMediaData from "./media/hooks/useMediaData";
 import useMediaSubscription from "./media/hooks/useMediaSubscription";
-import { MediaFilter } from "./media/types";
+import { MediaFilter } from "./types";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Channel } from "./media/types";
+import { Channel } from "./types";
 import MediaGalleryHeader from "./media/MediaGalleryHeader";
 import MediaFilters from "./media/MediaFilters";
 import MediaGalleryContent from "./media/MediaGalleryContent";
 import MediaGallerySkeleton from "./media/MediaGallerySkeleton";
 import DeleteMediaDialog from "./media/DeleteMediaDialog";
+import { SyncManager } from "./media/sync/SyncManager";
 import useMediaGallery from "./media/hooks/useMediaGallery";
 
 const MediaGallery = () => {
@@ -65,6 +66,10 @@ const MediaGallery = () => {
           channels={channels}
         />
       </div>
+
+      {filter.selectedChannel !== 'all' && (
+        <SyncManager channelId={filter.selectedChannel} />
+      )}
 
       <MediaGalleryContent
         mediaItems={mediaItems || []}
