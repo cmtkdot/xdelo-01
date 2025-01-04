@@ -33,7 +33,9 @@ export const MediaTableUrls = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            window.open(publicUrl, '_blank');
+            // Ensure the URL is properly formatted for direct viewing
+            const formattedUrl = publicUrl.startsWith('http') ? publicUrl : `https://${publicUrl}`;
+            window.open(formattedUrl, '_blank');
           }}
           className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group w-full"
         >
