@@ -67,11 +67,30 @@ const useMediaGallery = () => {
   const handleDeleteDuplicates = async () => {
     try {
       setDeletingDuplicates(true);
+
+      // Log start of duplicate deletion
+      await supabase
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'delete-duplicates',
+          status: 'info',
+          message: 'Starting duplicate media cleanup'
+        });
+
       const { error } = await supabase.functions.invoke('delete-duplicates', {
         body: { keepNewest: true }
       });
 
       if (error) throw error;
+
+      // Log success
+      await supabase
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'delete-duplicates',
+          status: 'success',
+          message: 'Successfully cleaned up duplicate media files'
+        });
 
       toast({
         title: "Success",
@@ -81,6 +100,16 @@ const useMediaGallery = () => {
       refetch();
     } catch (error) {
       console.error('Error deleting duplicates:', error);
+
+      // Log error
+      await supabase
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'delete-duplicates',
+          status: 'error',
+          message: `Error cleaning up duplicates: ${error.message}`
+        });
+
       toast({
         title: "Error",
         description: "Failed to delete duplicate media files",
@@ -115,11 +144,29 @@ const useMediaGallery = () => {
       const chatIds = channelsData.map(channel => channel.chat_id);
       console.log('Syncing captions for channels:', chatIds);
 
+      // Log start of caption sync
+      await supabase
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-media-captions',
+          status: 'info',
+          message: `Starting caption sync for channels: ${chatIds.join(', ')}`
+        });
+
       const { error } = await supabase.functions.invoke('sync-media-captions', {
         body: { chatIds }
       });
 
       if (error) throw error;
+
+      // Log success
+      await supabase
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-media-captions',
+          status: 'success',
+          message: 'Successfully synchronized media captions'
+        });
 
       toast({
         title: "Success",
@@ -129,6 +176,16 @@ const useMediaGallery = () => {
       refetch();
     } catch (error) {
       console.error('Error syncing captions:', error);
+
+      // Log error
+      await supabase
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-media-captions',
+          status: 'error',
+          message: `Error syncing captions: ${error.message}`
+        });
+
       toast({
         title: "Error",
         description: "Failed to sync media captions",
