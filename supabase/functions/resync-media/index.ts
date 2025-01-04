@@ -88,7 +88,7 @@ serve(async (req) => {
         }
 
         updates.push(updateData);
-        console.log(`Successfully processed media item: ${item.id}`);
+        console.log(`Successfully processed media item: ${item.id} with new URL: ${publicUrl}`);
       } catch (error) {
         console.error(`Error processing media item ${item.id}:`, error);
         errors.push({ id: item.id, error: error.message });
