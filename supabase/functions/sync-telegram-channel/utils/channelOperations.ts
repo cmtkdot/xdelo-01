@@ -15,27 +15,26 @@ export async function verifyChannelAccess(botToken: string, channelId: number) {
 }
 
 export async function getChannelMessages(botToken: string, channelId: number, offset = 0) {
-  console.log(`Fetching messages from offset ${offset}`);
+  console.log(`Fetching messages from offset ${offset} for channel ${channelId}`);
   
-  // Use getHistory method which works with webhooks
   const response = await fetch(
-    `https://api.telegram.org/bot${botToken}/getHistory`, {
+    `https://api.telegram.org/bot${botToken}/getChannelHistory`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         chat_id: channelId,
-        offset_id: offset,
+        offset: offset,
         limit: 100
       })
     }
   );
 
   if (!response.ok) {
-    console.log('getHistory failed, trying getChatHistory...');
+    console.log('getChannelHistory failed, trying getChatHistory...');
     
-    // Try getChatHistory as fallback
+    // Try alternative endpoint
     const historyResponse = await fetch(
       `https://api.telegram.org/bot${botToken}/getChatHistory`, {
         method: 'POST',
@@ -44,7 +43,7 @@ export async function getChannelMessages(botToken: string, channelId: number, of
         },
         body: JSON.stringify({
           chat_id: channelId,
-          offset_id: offset,
+          offset: offset,
           limit: 100
         })
       }
@@ -53,7 +52,7 @@ export async function getChannelMessages(botToken: string, channelId: number, of
     if (!historyResponse.ok) {
       console.log('getChatHistory failed, trying messages.getHistory...');
       
-      // Final fallback to messages.getHistory
+      // Final attempt with messages.getHistory
       const messagesResponse = await fetch(
         `https://api.telegram.org/bot${botToken}/messages.getHistory`, {
           method: 'POST',
@@ -61,17 +60,13 @@ export async function getChannelMessages(botToken: string, channelId: number, of
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            peer: {
-              _: 'inputPeerChannel',
-              channel_id: Math.abs(channelId),
-              access_hash: '0' // We'll get this from channel info if needed
-            },
+            chat_id: channelId,
             offset_id: offset,
             limit: 100
           })
         }
       );
-      
+
       if (!messagesResponse.ok) {
         const error = await messagesResponse.json();
         console.error('Error fetching messages:', error);
@@ -110,7 +105,7 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
       if (data.result.length < 100) {
         hasMore = false;
       } else {
-        offset += 100;
+        offset += data.result.length;
       }
 
       // Add a delay to avoid hitting rate limits
