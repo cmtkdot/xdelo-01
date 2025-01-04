@@ -16,8 +16,21 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Validate content type
+    const contentType = req.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Content-Type must be application/json');
+    }
+
     // Parse request body
-    const { mediaIds } = await req.json();
+    const requestText = await req.text();
+    console.log('Request body received:', requestText);
+
+    if (!requestText || requestText.trim() === '') {
+      throw new Error('Empty request body');
+    }
+
+    const { mediaIds } = JSON.parse(requestText);
     console.log('Received request to resync media IDs:', mediaIds);
 
     if (!mediaIds || !Array.isArray(mediaIds) || mediaIds.length === 0) {
@@ -102,7 +115,6 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in resync-media function:', error);
-    await logOperation(supabase, 'resync-media', 'error', `Global error: ${error.message}`);
 
     return new Response(
       JSON.stringify({ 

@@ -1,82 +1,70 @@
-import { corsHeaders } from "../../_shared/cors.ts";
+import { logOperation } from "../../_shared/database.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-export async function verifyChannelAccess(botToken: string, channelId: number) {
-  const response = await fetch(
-    `https://api.telegram.org/bot${botToken}/getChat?chat_id=${channelId}`
-  );
-  
-  if (!response.ok) {
-    const error = await response.json();
-    console.error('Error verifying channel access:', error);
-    throw new Error(`Failed to access channel: ${error.description}`);
-  }
-  
-  return await response.json();
-}
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
 export async function getChannelMessages(botToken: string, channelId: number, offset = 0) {
   console.log(`Fetching messages from offset ${offset} for channel ${channelId}`);
   
-  // Use messages.getHistory method from Telegram Bot API
   const response = await fetch(
-    `https://api.telegram.org/bot${botToken}/messages.getHistory`,
+    `https://api.telegram.org/bot${botToken}/getHistory`,
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         chat_id: channelId,
-        offset_id: offset,
+        offset: offset,
         limit: 100
-      })
+      }),
     }
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    console.error('Error fetching messages:', error);
-    throw new Error(`Failed to fetch messages: ${error.description}`);
+    const errorText = await response.text();
+    console.error(`Failed to fetch messages: ${errorText}`);
+    throw new Error(`Failed to fetch messages: ${response.statusText}`);
   }
+
+  const data = await response.json();
   
-  return await response.json();
+  if (!data.ok) {
+    console.error('Telegram API error:', data);
+    throw new Error(data.description || 'Failed to fetch messages');
+  }
+
+  return data.result;
 }
 
 export async function getAllChannelMessages(botToken: string, channelId: number) {
-  console.log(`Starting to fetch all messages for channel ${channelId}`);
-  
   const messages = [];
   let offset = 0;
   let hasMore = true;
-
+  
   while (hasMore) {
     try {
-      const data = await getChannelMessages(botToken, channelId, offset);
+      console.log(`Fetching messages at offset ${offset}`);
+      const batch = await getChannelMessages(botToken, channelId, offset);
       
-      if (!data.ok || !data.result || data.result.length === 0) {
-        console.log('No more messages to fetch');
+      if (!batch || batch.length === 0) {
         hasMore = false;
         break;
       }
-
-      messages.push(...data.result);
-      console.log(`Fetched ${data.result.length} messages`);
       
-      if (data.result.length < 100) {
-        hasMore = false;
-      } else {
-        // Use the last message's ID as the next offset
-        offset = messages[messages.length - 1].message_id;
-      }
-
-      // Add a delay to avoid hitting rate limits
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      messages.push(...batch);
+      offset += batch.length;
+      
+      // Add a small delay to avoid hitting rate limits
+      await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
       console.error(`Error fetching messages at offset ${offset}:`, error);
       throw error;
     }
   }
-
-  console.log(`Total messages fetched: ${messages.length}`);
+  
   return messages;
 }

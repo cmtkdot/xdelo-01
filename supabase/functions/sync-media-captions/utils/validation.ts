@@ -5,6 +5,14 @@ export interface SyncRequest {
 
 export const validateRequest = async (req: Request) => {
   try {
+    // Log the raw request for debugging
+    console.log('Validating request...');
+    
+    const contentType = req.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Content-Type must be application/json');
+    }
+
     const requestText = await req.text();
     console.log('Request body received:', requestText);
     
@@ -21,8 +29,8 @@ export const validateRequest = async (req: Request) => {
 
     return data;
   } catch (error) {
+    console.error('Request validation error:', error);
     if (error instanceof SyntaxError) {
-      console.error('JSON parsing error:', error);
       throw new Error(`Invalid JSON in request body: ${error.message}`);
     }
     throw error;
@@ -45,7 +53,11 @@ export const validateMediaRecords = async (supabase: any, mediaGroupId?: string,
 
   const { data: mediaRecords, error: fetchError } = await mediaQuery;
 
-  if (fetchError) throw fetchError;
+  if (fetchError) {
+    console.error('Error fetching media records:', fetchError);
+    throw fetchError;
+  }
+  
   if (!mediaRecords?.length) {
     return { message: 'No media records found to process' };
   }
