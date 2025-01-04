@@ -1,7 +1,4 @@
 import { MediaItem } from "../types";
-import { validateMediaUrl } from "../utils/urlValidation";
-import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState } from "react";
 
 interface MediaViewerContentProps {
   item: MediaItem;
@@ -18,33 +15,7 @@ export const MediaViewerContent = ({
   onMediaLoad,
   onMediaError
 }: MediaViewerContentProps) => {
-  const [displayUrl, setDisplayUrl] = useState<string | null>(null);
-  const { toast } = useToast();
   const isVideo = item.media_type === "video" || item.media_type?.includes('video');
-
-  useEffect(() => {
-    // Try file_url first, then fall back to public_url
-    const validatedUrl = validateMediaUrl(item.file_url) || validateMediaUrl(item.public_url);
-    if (validatedUrl) {
-      console.log(`Using validated URL in viewer: ${validatedUrl}`);
-      setDisplayUrl(validatedUrl);
-    } else {
-      console.error('No valid URL available for media item:', item);
-      toast({
-        title: "Error",
-        description: "No valid media URL available",
-        variant: "destructive"
-      });
-    }
-  }, [item]);
-
-  if (!displayUrl) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-red-500">No valid media URL available</p>
-      </div>
-    );
-  }
 
   return (
     <div className="relative w-full h-full min-h-[200px] flex items-center justify-center p-4 bg-gray-50/50 dark:bg-black/60">
@@ -62,7 +33,7 @@ export const MediaViewerContent = ({
 
       {isVideo ? (
         <video
-          src={displayUrl}
+          src={item.file_url}
           className="max-w-full max-h-[50vh] rounded-lg shadow-md"
           controls
           autoPlay
@@ -72,7 +43,7 @@ export const MediaViewerContent = ({
         />
       ) : (
         <img
-          src={displayUrl}
+          src={item.file_url}
           alt={item.caption || "Media"}
           className="max-w-full max-h-[50vh] rounded-lg object-contain shadow-md"
           onLoad={onMediaLoad}
