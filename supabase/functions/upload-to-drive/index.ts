@@ -2,7 +2,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getGoogleApiKey } from "../_shared/google-auth.ts";
 import { generateServiceAccountToken } from "./auth.ts";
 import { uploadToDrive } from "./driveUtils.ts";
-import { FFmpeg } from "https://esm.sh/@ffmpeg/ffmpeg@0.12.7";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -42,23 +41,54 @@ serve(async (req) => {
           // Check if video conversion is needed
           if (file.fileName.match(/\.(mov|avi|wmv|flv|webm)$/i)) {
             console.log('Converting video to MP4:', file.fileName);
-            const videoResponse = await fetch(file.fileUrl);
-            const videoBuffer = await videoResponse.arrayBuffer();
             
-            const ffmpeg = new FFmpeg();
-            await ffmpeg.load();
-            
-            const inputUint8Array = new Uint8Array(videoBuffer);
-            await ffmpeg.writeFile('input', inputUint8Array);
-            
-            await ffmpeg.exec(['-i', 'input', '-c:v', 'libx264', '-preset', 'medium', '-crf', '23', 'output.mp4']);
-            
-            const data = await ffmpeg.readFile('output.mp4');
-            const convertedBlob = new Blob([data], { type: 'video/mp4' });
-            
-            // Update file information for upload
+            // Get Cloud Convert API key
+            const cloudConvertApiKey = Deno.env.get('CLOUD_CONVERTAPIKEY');
+            if (!cloudConvertApiKey) {
+              throw new Error('Cloud Convert API key not configured');
+            }
+
+            // Create conversion job
+            const createJobResponse = await fetch('https://api.cloudconvert.com/v2/jobs', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${cloudConvertApiKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                tasks: {
+                  'import-1': {
+                    operation: 'import/url',
+                    url: file.fileUrl
+                  },
+                  'convert-1': {
+                    operation: 'convert',
+                    input: 'import-1',
+                    output_format: 'mp4',
+                    engine: 'ffmpeg',
+                    input_format: file.fileName.split('.').pop()
+                  },
+                  'export-1': {
+                    operation: 'export/url',
+                    input: 'convert-1',
+                    inline: false,
+                    archive_multiple_files: false
+                  }
+                }
+              })
+            });
+
+            if (!createJobResponse.ok) {
+              throw new Error(`Failed to create conversion job: ${await createJobResponse.text()}`);
+            }
+
+            const jobData = await createJobResponse.json();
+            console.log('Video conversion job created:', jobData);
+
+            // Wait for the job to complete
+            const convertedFileUrl = jobData.data.tasks.find(task => task.name === 'export-1').result.files[0].url;
+            file.fileUrl = convertedFileUrl;
             file.fileName = file.fileName.replace(/\.[^/.]+$/, '.mp4');
-            file.fileUrl = URL.createObjectURL(convertedBlob);
           }
           
           return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
@@ -70,23 +100,54 @@ serve(async (req) => {
       // Check if video conversion is needed
       if (requestBody.fileName.match(/\.(mov|avi|wmv|flv|webm)$/i)) {
         console.log('Converting video to MP4:', requestBody.fileName);
-        const videoResponse = await fetch(requestBody.fileUrl);
-        const videoBuffer = await videoResponse.arrayBuffer();
         
-        const ffmpeg = new FFmpeg();
-        await ffmpeg.load();
-        
-        const inputUint8Array = new Uint8Array(videoBuffer);
-        await ffmpeg.writeFile('input', inputUint8Array);
-        
-        await ffmpeg.exec(['-i', 'input', '-c:v', 'libx264', '-preset', 'medium', '-crf', '23', 'output.mp4']);
-        
-        const data = await ffmpeg.readFile('output.mp4');
-        const convertedBlob = new Blob([data], { type: 'video/mp4' });
-        
-        // Update file information for upload
+        // Get Cloud Convert API key
+        const cloudConvertApiKey = Deno.env.get('CLOUD_CONVERTAPIKEY');
+        if (!cloudConvertApiKey) {
+          throw new Error('Cloud Convert API key not configured');
+        }
+
+        // Create conversion job
+        const createJobResponse = await fetch('https://api.cloudconvert.com/v2/jobs', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${cloudConvertApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            tasks: {
+              'import-1': {
+                operation: 'import/url',
+                url: requestBody.fileUrl
+              },
+              'convert-1': {
+                operation: 'convert',
+                input: 'import-1',
+                output_format: 'mp4',
+                engine: 'ffmpeg',
+                input_format: requestBody.fileName.split('.').pop()
+              },
+              'export-1': {
+                operation: 'export/url',
+                input: 'convert-1',
+                inline: false,
+                archive_multiple_files: false
+              }
+            }
+          })
+        });
+
+        if (!createJobResponse.ok) {
+          throw new Error(`Failed to create conversion job: ${await createJobResponse.text()}`);
+        }
+
+        const jobData = await createJobResponse.json();
+        console.log('Video conversion job created:', jobData);
+
+        // Wait for the job to complete
+        const convertedFileUrl = jobData.data.tasks.find(task => task.name === 'export-1').result.files[0].url;
+        requestBody.fileUrl = convertedFileUrl;
         requestBody.fileName = requestBody.fileName.replace(/\.[^/.]+$/, '.mp4');
-        requestBody.fileUrl = URL.createObjectURL(convertedBlob);
       }
       
       results = await uploadToDrive(requestBody.fileUrl, requestBody.fileName, accessToken);
