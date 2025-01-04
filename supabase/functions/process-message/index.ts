@@ -24,7 +24,6 @@ serve(async (req) => {
     
     if (settings?.model?.startsWith('claude')) {
       console.log("Using Claude model");
-      // Claude API call
       response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -55,7 +54,6 @@ serve(async (req) => {
     } 
     else if (settings?.model?.startsWith('gemini')) {
       console.log("Using Gemini model");
-      // Gemini API call
       const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${settings.model}:generateContent?key=${geminiApiKey}`;
       response = await fetch(apiUrl, {
         method: 'POST',
@@ -84,7 +82,6 @@ serve(async (req) => {
     }
     else if (settings?.model?.startsWith('gpt')) {
       console.log("Using OpenAI model");
-      // OpenAI API call
       response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
