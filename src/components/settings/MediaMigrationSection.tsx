@@ -34,7 +34,7 @@ const MediaMigrationSection = () => {
 
   const handleMigration = async () => {
     const loadingToast = toast.loading("Starting media migration...", {
-      description: `Preparing to migrate ${selectedChannel === "all" ? "all media" : "media for selected channel"}`
+      description: `Preparing to migrate ${selectedChannel === "all" ? "all media" : "media for selected channel"} to content-specific buckets`
     });
     
     console.log('Starting migration for channel:', selectedChannel);
@@ -62,7 +62,7 @@ const MediaMigrationSection = () => {
 
       toast.dismiss(loadingToast);
       toast.success("Media migration completed", {
-        description: `Successfully migrated media files${selectedChannel !== "all" ? " for selected channel" : ""}`
+        description: `Successfully migrated media files to appropriate buckets (telegram-pictures/telegram-video)${selectedChannel !== "all" ? " for selected channel" : ""}`
       });
       
       console.log('Migration completed successfully:', data);
@@ -97,7 +97,7 @@ const MediaMigrationSection = () => {
       <CardHeader>
         <CardTitle className="text-gray-800 dark:text-white">Media Migration</CardTitle>
         <CardDescription className="text-gray-500 dark:text-gray-400">
-          Migrate existing media files to new storage buckets based on their content type
+          Migrate existing media files to content-specific buckets (telegram-pictures for images, telegram-video for videos)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -120,7 +120,7 @@ const MediaMigrationSection = () => {
 
         <div className="flex flex-col space-y-2">
           <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-            This will move media files from the telegram-media bucket to telegram-pictures or telegram-video based on their content type
+            This will organize media files into appropriate buckets: images to telegram-pictures and videos to telegram-video
           </div>
           <Button
             variant="outline"

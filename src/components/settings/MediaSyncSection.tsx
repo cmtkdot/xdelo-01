@@ -49,7 +49,7 @@ const MediaSyncSection = () => {
     }
 
     const loadingToast = toast.loading("Starting media sync...", {
-      description: `Preparing to sync ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''}`
+      description: `Preparing to sync ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''} and organize files into content-specific buckets`
     });
     
     console.log('Starting sync for channels:', Array.from(selectedChannels));
@@ -83,7 +83,7 @@ const MediaSyncSection = () => {
         });
       } else {
         toast.success("Sync completed successfully", {
-          description: `Updated ${data?.updatedCount} media items from ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''}`
+          description: `Updated ${data?.updatedCount} media items from ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''} and organized into appropriate buckets`
         });
       }
       
@@ -141,7 +141,7 @@ const MediaSyncSection = () => {
       <CardHeader>
         <CardTitle className="text-gray-800 dark:text-white">Media Sync</CardTitle>
         <CardDescription className="text-gray-500 dark:text-gray-400">
-          Manually sync media from selected Telegram channels
+          Sync and organize media from selected Telegram channels into content-specific buckets
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
