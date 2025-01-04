@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const logToDatabase = async (supabase, functionName: string, status: 'info' | 'error' | 'success', message: string) => {
+const logToDatabase = async (supabase: any, functionName: string, status: 'info' | 'error' | 'success', message: string) => {
   try {
     await supabase
       .from('edge_function_logs')
@@ -22,7 +22,7 @@ const logToDatabase = async (supabase, functionName: string, status: 'info' | 'e
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   const supabaseClient = createClient(
@@ -31,20 +31,6 @@ serve(async (req) => {
   );
 
   try {
-    // Get the user from the request
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
-    }
-
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (userError || !user) {
-      throw new Error('Unauthorized');
-    }
-
     const { mediaIds } = await req.json();
     await logToDatabase(supabaseClient, 'resync-media', 'info', `Starting media resync for IDs: ${mediaIds.join(', ')}`);
 
@@ -66,65 +52,139 @@ serve(async (req) => {
     // Process media items
     for (const item of mediaItems || []) {
       try {
-        // Check if the file exists in storage
-        if (item.file_name) {
-          const { data: fileExists } = await supabaseClient
-            .storage
-            .from('telegram-media')
-            .list('', {
-              limit: 1,
-              offset: 0,
-              search: item.file_name
-            });
-
-          // Only proceed with URL updates if the file exists
-          if (fileExists && fileExists.length > 0) {
-            // Generate new public URL using the bucket's public URL
-            const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${item.file_name}`;
-
-            // Verify the file is accessible
-            try {
-              const response = await fetch(publicUrl);
-              if (!response.ok) {
-                throw new Error(`File not accessible: ${response.status}`);
-              }
-
-              // Update media record with new URLs
-              const updateData = {
-                id: item.id,
-                public_url: publicUrl,
-                file_url: publicUrl,
-                updated_at: new Date().toISOString()
-              };
-
-              const { error: updateError } = await supabaseClient
-                .from('media')
-                .update(updateData)
-                .eq('id', item.id);
-
-              if (updateError) {
-                await logToDatabase(supabaseClient, 'resync-media', 'error', `Error updating media item ${item.id}: ${updateError.message}`);
-                throw updateError;
-              }
-
-              await logToDatabase(supabaseClient, 'resync-media', 'success', `Successfully processed media item: ${item.id} with new URL: ${publicUrl}`);
-              updates.push(updateData);
-            } catch (error) {
-              await logToDatabase(supabaseClient, 'resync-media', 'error', `Error verifying file accessibility for ${item.id}: ${error.message}`);
-              errors.push({ id: item.id, error: error.message });
-            }
-          } else {
-            await logToDatabase(supabaseClient, 'resync-media', 'error', `File not found in storage: ${item.file_name}`);
-            errors.push({ id: item.id, error: 'File not found in storage' });
-          }
-        } else {
+        if (!item.file_name) {
           await logToDatabase(supabaseClient, 'resync-media', 'error', `No file name for media item: ${item.id}`);
           errors.push({ id: item.id, error: 'No file name' });
+          continue;
+        }
+
+        // Check if file exists in storage
+        const { data: fileExists } = await supabaseClient
+          .storage
+          .from('telegram-media')
+          .list('', {
+            limit: 1,
+            offset: 0,
+            search: item.file_name
+          });
+
+        // If file doesn't exist, try to recreate it using the original file name
+        if (!fileExists || fileExists.length === 0) {
+          // Extract original file name from metadata if available
+          const originalFileName = typeof item.metadata === 'object' && item.metadata !== null
+            ? (item.metadata as Record<string, any>).file_name || item.file_name
+            : item.file_name;
+
+          await logToDatabase(
+            supabaseClient, 
+            'resync-media', 
+            'info', 
+            `File not found, attempting to recreate with original name: ${originalFileName}`
+          );
+
+          // Generate new file name while preserving extension
+          const fileExt = originalFileName.split('.').pop()?.toLowerCase() || '';
+          const timestamp = Date.now();
+          const newFileName = `${originalFileName.split('.')[0]}_${timestamp}.${fileExt}`;
+
+          // Try to fetch the original file content
+          try {
+            const response = await fetch(item.file_url);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch original file: ${response.status}`);
+            }
+
+            const fileContent = await response.arrayBuffer();
+            const contentType = response.headers.get('content-type') || 'application/octet-stream';
+
+            // Upload the file with the new name
+            const { error: uploadError } = await supabaseClient
+              .storage
+              .from('telegram-media')
+              .upload(newFileName, fileContent, {
+                contentType,
+                upsert: false
+              });
+
+            if (uploadError) {
+              throw uploadError;
+            }
+
+            // Generate new public URL
+            const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${newFileName}`;
+
+            // Update media record with new file name and URLs
+            const updateData = {
+              id: item.id,
+              file_name: newFileName,
+              public_url: publicUrl,
+              file_url: publicUrl,
+              updated_at: new Date().toISOString()
+            };
+
+            const { error: updateError } = await supabaseClient
+              .from('media')
+              .update(updateData)
+              .eq('id', item.id);
+
+            if (updateError) {
+              throw updateError;
+            }
+
+            await logToDatabase(
+              supabaseClient,
+              'resync-media',
+              'success',
+              `Successfully recreated and updated media item: ${item.id} with new file: ${newFileName}`
+            );
+            updates.push(updateData);
+
+          } catch (error) {
+            await logToDatabase(
+              supabaseClient,
+              'resync-media',
+              'error',
+              `Failed to recreate file for ${item.id}: ${error.message}`
+            );
+            errors.push({ id: item.id, error: error.message });
+          }
+        } else {
+          // File exists, just update the URLs
+          const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${item.file_name}`;
+          
+          const updateData = {
+            id: item.id,
+            public_url: publicUrl,
+            file_url: publicUrl,
+            updated_at: new Date().toISOString()
+          };
+
+          const { error: updateError } = await supabaseClient
+            .from('media')
+            .update(updateData)
+            .eq('id', item.id);
+
+          if (updateError) {
+            throw updateError;
+          }
+
+          await logToDatabase(
+            supabaseClient,
+            'resync-media',
+            'success',
+            `Successfully updated existing media item: ${item.id}`
+          );
+          updates.push(updateData);
         }
       } catch (error) {
         console.error(`Error processing media item ${item.id}:`, error);
         errors.push({ id: item.id, error: error.message });
-        await logToDatabase(supabaseClient, 'resync-media', 'error', `Error processing media item ${item.id}: ${error.message}`);
+        await logToDatabase(
+          supabaseClient,
+          'resync-media',
+          'error',
+          `Error processing media item ${item.id}: ${error.message}`
+        );
       }
     }
 
@@ -143,7 +203,12 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in resync-media function:', error);
-    await logToDatabase(supabaseClient, 'resync-media', 'error', `Error in resync-media function: ${error.message}`);
+    await logToDatabase(
+      supabaseClient,
+      'resync-media',
+      'error',
+      `Error in resync-media function: ${error.message}`
+    );
     
     return new Response(
       JSON.stringify({
