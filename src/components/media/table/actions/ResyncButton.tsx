@@ -17,7 +17,7 @@ export const ResyncButton = ({ id, onUpdate }: ResyncButtonProps) => {
       setIsResyncing(true);
       console.log('Resyncing media ID:', id);
       
-      // Log the start of the resync operation
+      // Log the start of the resync operation with valid status
       await supabase
         .from('edge_function_logs')
         .insert({
@@ -32,7 +32,7 @@ export const ResyncButton = ({ id, onUpdate }: ResyncButtonProps) => {
 
       if (error) throw error;
 
-      // Log the result
+      // Log the result with valid status
       await supabase
         .from('edge_function_logs')
         .insert({
@@ -61,7 +61,7 @@ export const ResyncButton = ({ id, onUpdate }: ResyncButtonProps) => {
     } catch (error) {
       console.error('Error resyncing media:', error);
       
-      // Log the error
+      // Log the error with valid status
       await supabase
         .from('edge_function_logs')
         .insert({
