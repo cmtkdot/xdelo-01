@@ -17,9 +17,13 @@ serve(async (req) => {
   );
 
   try {
-    const { ids } = await req.json();
-    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+    const { mediaIds } = await req.json();
     
+    if (!mediaIds || !Array.isArray(mediaIds) || mediaIds.length === 0) {
+      throw new Error('Invalid or missing mediaIds array');
+    }
+
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
     if (!botToken) {
       throw new Error('Telegram bot token not configured');
     }
@@ -27,9 +31,8 @@ serve(async (req) => {
     const results = [];
     const errors = [];
 
-    for (const id of ids) {
+    for (const id of mediaIds) {
       try {
-        // Get media record
         const { data: media, error: mediaError } = await supabase
           .from('media')
           .select('*')
@@ -99,47 +102,40 @@ serve(async (req) => {
           if (updateError) throw updateError;
 
           results.push({ id, status: 'recreated' });
-          
-          // Log success
-          await supabase.from('edge_function_logs').insert({
-            function_name: 'resync-media',
-            status: 'success',
-            message: `Successfully recreated file ${newFileName} for media ${id}`
-          });
         } else {
           results.push({ id, status: 'exists' });
         }
       } catch (error) {
         console.error(`Failed to recreate file for ${id}:`, error.message);
         errors.push({ id, error: error.message });
-        
-        // Log error
-        await supabase.from('edge_function_logs').insert({
-          function_name: 'resync-media',
-          status: 'error',
-          message: `Failed to recreate file for ${id}: ${error.message}`
-        });
       }
     }
 
-    if (errors.length > 0) {
-      console.error('Failed to resync media:', errors);
-      return new Response(
-        JSON.stringify({ success: false, errors }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
-    }
-
     return new Response(
-      JSON.stringify({ success: true, results }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      JSON.stringify({ 
+        success: true, 
+        results,
+        errors: errors.length > 0 ? errors : undefined 
+      }),
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        }
+      }
     );
 
   } catch (error) {
     console.error('Error in resync-media function:', error);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        },
+        status: 400
+      }
     );
   }
 });
