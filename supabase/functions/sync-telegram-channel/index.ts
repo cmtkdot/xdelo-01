@@ -1,10 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
-import { logOperation, createMediaRecord } from "../_shared/database.ts";
+import { logOperation } from "../_shared/database.ts";
 import { uploadToStorage, generateSafeFileName } from "../_shared/storage.ts";
 import { getAndDownloadTelegramFile } from "../_shared/telegram.ts";
-import { MediaMetadata } from "../_shared/types.ts";
 
 serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -36,78 +35,122 @@ serve(async (req) => {
       try {
         await logOperation(supabase, 'sync-telegram-channel', 'info', `Starting sync for channel ${channelId}`);
 
-        const response = await fetch(
-          `https://api.telegram.org/bot${botToken}/getUpdates?chat_id=${channelId}&limit=100`
+        // First verify channel access
+        const chatResponse = await fetch(
+          `https://api.telegram.org/bot${botToken}/getChat?chat_id=${channelId}`
         );
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch messages: ${response.statusText}`);
+        if (!chatResponse.ok) {
+          throw new Error(`Failed to access channel: ${chatResponse.statusText}`);
         }
 
-        const data = await response.json();
-        if (!data.ok) {
-          throw new Error(`Telegram API error: ${JSON.stringify(data)}`);
+        const chatData = await chatResponse.json();
+        if (!chatData.ok) {
+          throw new Error(`Telegram API error: ${JSON.stringify(chatData)}`);
         }
 
-        for (const update of data.result) {
-          const message = update.message || update.channel_post;
-          if (message && (message.photo || message.video || message.document)) {
-            try {
-              const mediaItem = message.photo 
-                ? message.photo[message.photo.length - 1] 
-                : message.video || message.document;
+        // Get message history
+        let offset = 0;
+        const limit = 100;
+        let hasMore = true;
 
-              const { buffer, filePath } = await getAndDownloadTelegramFile(mediaItem.file_id, botToken);
-              
-              const timestamp = Date.now();
-              const fileName = generateSafeFileName(
-                `${mediaItem.file_unique_id}_${timestamp}`,
-                filePath.split('.').pop() || 'unknown'
-              );
+        while (hasMore) {
+          const historyResponse = await fetch(
+            `https://api.telegram.org/bot${botToken}/getChatHistory?chat_id=${channelId}&limit=${limit}&offset=${offset}`
+          );
 
-              const mediaType = message.photo ? 'image/jpeg' : (message.video ? 'video/mp4' : 'application/octet-stream');
-              
-              const publicUrl = await uploadToStorage(
-                supabase,
-                fileName,
-                buffer,
-                mediaType
-              );
+          if (!historyResponse.ok) {
+            throw new Error(`Failed to fetch messages: ${historyResponse.statusText}`);
+          }
 
-              const metadata: MediaMetadata = {
-                file_id: mediaItem.file_id,
-                file_unique_id: mediaItem.file_unique_id,
-                message_id: message.message_id,
-                media_group_id: message.media_group_id,
-                content_type: mediaType,
-                mime_type: mediaType,
-                file_size: mediaItem.file_size,
-                file_path: filePath
-              };
+          const historyData = await historyResponse.json();
+          if (!historyData.ok) {
+            throw new Error(`Telegram API error: ${JSON.stringify(historyData)}`);
+          }
 
-              const mediaData = await createMediaRecord(
-                supabase,
-                crypto.randomUUID(), // This should be replaced with actual user ID in production
-                message.chat.id,
-                fileName,
-                publicUrl,
-                mediaType,
-                message.caption,
-                metadata,
-                message.media_group_id,
-                publicUrl
-              );
+          const messages = historyData.result;
+          if (!messages || messages.length === 0) {
+            hasMore = false;
+            continue;
+          }
 
-              results.push({ mediaData, publicUrl });
-              totalProcessed++;
-            } catch (error) {
-              console.error(`Error processing message ${message.message_id}:`, error);
-              totalErrors++;
-              errors.push({
-                messageId: message.message_id,
-                error: error.message
-              });
+          for (const message of messages) {
+            if (message.photo || message.video || message.document) {
+              try {
+                const mediaItem = message.photo 
+                  ? message.photo[message.photo.length - 1] 
+                  : message.video || message.document;
+
+                const { buffer, filePath } = await getAndDownloadTelegramFile(mediaItem.file_id, botToken);
+                
+                const timestamp = Date.now();
+                const fileName = generateSafeFileName(
+                  `${mediaItem.file_unique_id}_${timestamp}`,
+                  filePath.split('.').pop() || 'unknown'
+                );
+
+                const mediaType = message.photo ? 'image/jpeg' : (message.video ? 'video/mp4' : 'application/octet-stream');
+                
+                const publicUrl = await uploadToStorage(
+                  supabase,
+                  fileName,
+                  buffer,
+                  mediaType
+                );
+
+                const metadata = {
+                  file_id: mediaItem.file_id,
+                  file_unique_id: mediaItem.file_unique_id,
+                  message_id: message.message_id,
+                  media_group_id: message.media_group_id,
+                  content_type: mediaType,
+                  mime_type: mediaType,
+                  file_size: mediaItem.file_size,
+                  file_path: filePath
+                };
+
+                // Check if media already exists
+                const { data: existingMedia } = await supabase
+                  .from('media')
+                  .select('id')
+                  .eq('metadata->file_unique_id', mediaItem.file_unique_id)
+                  .single();
+
+                if (!existingMedia) {
+                  const { data: mediaData, error: mediaError } = await supabase
+                    .from('media')
+                    .insert({
+                      user_id: crypto.randomUUID(), // This should be replaced with actual user ID in production
+                      chat_id: message.chat.id,
+                      file_name: fileName,
+                      file_url: publicUrl,
+                      media_type: mediaType,
+                      caption: message.caption,
+                      metadata,
+                      media_group_id: message.media_group_id,
+                      public_url: publicUrl
+                    })
+                    .select()
+                    .single();
+
+                  if (mediaError) throw mediaError;
+                  results.push({ mediaData, publicUrl });
+                  totalProcessed++;
+                }
+              } catch (error) {
+                console.error(`Error processing message ${message.message_id}:`, error);
+                totalErrors++;
+                errors.push({
+                  messageId: message.message_id,
+                  error: error.message
+                });
+              }
             }
+          }
+
+          offset += messages.length;
+          if (messages.length < limit) {
+            hasMore = false;
           }
         }
 
