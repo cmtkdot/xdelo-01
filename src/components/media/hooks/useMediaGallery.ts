@@ -94,7 +94,30 @@ const useMediaGallery = () => {
   const handleSyncCaptions = async () => {
     try {
       setSyncingCaptions(true);
-      const { error } = await supabase.functions.invoke('sync-media-captions');
+      
+      // Get all active channels
+      const { data: channelsData, error: channelsError } = await supabase
+        .from('channels')
+        .select('chat_id')
+        .eq('is_active', true);
+
+      if (channelsError) throw channelsError;
+
+      if (!channelsData || channelsData.length === 0) {
+        toast({
+          title: "No channels found",
+          description: "Please add some channels first",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const chatIds = channelsData.map(channel => channel.chat_id);
+      console.log('Syncing captions for channels:', chatIds);
+
+      const { error } = await supabase.functions.invoke('sync-media-captions', {
+        body: { chatIds }
+      });
 
       if (error) throw error;
 

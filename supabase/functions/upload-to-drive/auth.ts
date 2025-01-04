@@ -12,16 +12,32 @@ function str2ab(str: string): ArrayBuffer {
   return buf;
 }
 
-function formatPrivateKey(privateKey: string): string {
-  // Remove any existing headers, footers, and whitespace
-  let formattedKey = privateKey.replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\s/g, '');
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 
-  // Add proper PEM formatting
-  formattedKey = `-----BEGIN PRIVATE KEY-----\n${formattedKey}\n-----END PRIVATE KEY-----`;
-  
-  return formattedKey;
+function formatPrivateKey(privateKey: string): string {
+  try {
+    // Remove any existing headers, footers, and whitespace
+    let formattedKey = privateKey
+      .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+      .replace(/-----END PRIVATE KEY-----/g, '')
+      .replace(/\\n/g, '')
+      .replace(/\s/g, '');
+
+    // Add proper PEM formatting
+    formattedKey = `-----BEGIN PRIVATE KEY-----\n${formattedKey}\n-----END PRIVATE KEY-----`;
+    
+    return formattedKey;
+  } catch (error) {
+    console.error('Error formatting private key:', error);
+    throw error;
+  }
 }
 
 export async function generateServiceAccountToken(credentials: any) {
@@ -39,6 +55,7 @@ export async function generateServiceAccountToken(credentials: any) {
 
     // Format the private key properly
     const formattedPrivateKey = formatPrivateKey(credentials.private_key);
+    console.log('Formatted private key length:', formattedPrivateKey.length);
 
     // Create JWT header
     const header = {
@@ -55,10 +72,17 @@ export async function generateServiceAccountToken(credentials: any) {
     const signatureInput = `${encodedHeader}.${encodedClaim}`;
 
     try {
-      // Import the private key with proper error handling
+      // Convert the PEM formatted key to ArrayBuffer
+      const keyArrayBuffer = base64ToArrayBuffer(
+        formattedPrivateKey
+          .replace(/-----BEGIN PRIVATE KEY-----\n/, '')
+          .replace(/\n-----END PRIVATE KEY-----/, '')
+      );
+
+      // Import the private key
       const keyData = await crypto.subtle.importKey(
         'pkcs8',
-        str2ab(formattedPrivateKey),
+        keyArrayBuffer,
         {
           name: 'RSASSA-PKCS1-v1_5',
           hash: 'SHA-256',
