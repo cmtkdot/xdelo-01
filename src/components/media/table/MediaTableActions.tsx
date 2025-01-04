@@ -45,10 +45,14 @@ export const MediaTableActions = ({
   onUpdate
 }: MediaTableActionsProps) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   const handleDelete = async () => {
     try {
+      setIsDeleting(true);
+
+      // First, delete the associated message if it exists
       if (chatId && messageId) {
         const { error: messageError } = await supabase
           .from('messages')
@@ -58,9 +62,11 @@ export const MediaTableActions = ({
 
         if (messageError) {
           console.error('Error deleting message:', messageError);
+          // Continue with media deletion even if message deletion fails
         }
       }
 
+      // Then delete the media entry
       const { error: mediaError } = await supabase
         .from('media')
         .delete()
@@ -70,7 +76,7 @@ export const MediaTableActions = ({
 
       toast({
         title: "Success",
-        description: "Media and associated message deleted successfully",
+        description: "Media and associated data deleted successfully",
       });
 
       setIsDeleteDialogOpen(false);
@@ -79,9 +85,11 @@ export const MediaTableActions = ({
       console.error('Error deleting media:', error);
       toast({
         title: "Error",
-        description: "Failed to delete media",
+        description: "Failed to delete media. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -124,15 +132,23 @@ export const MediaTableActions = ({
           <DialogHeader>
             <DialogTitle>Delete Media</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this media and its associated message? This action cannot be undone.
+              Are you sure you want to delete this media and its associated data? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
