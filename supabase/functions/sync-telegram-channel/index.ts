@@ -2,8 +2,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { logOperation } from "../_shared/database.ts";
-import { getAndDownloadTelegramFile } from "../_shared/telegram.ts";
-import { uploadToStorage, generateSafeFileName } from "../_shared/storage.ts";
+import { getAllChannelMessages, verifyChannelAccess } from "./utils/channelOperations.ts";
+import { processMediaMessage } from "./utils/mediaProcessor.ts";
+import { logError, logSuccess, logInfo } from "./utils/errorHandler.ts";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -35,7 +36,7 @@ serve(async (req) => {
     const results = [];
 
     try {
-      await logOperation(supabaseClient, 'sync-telegram-channel', 'info', `Starting sync for channel ${chatId}`);
+      await logInfo(supabaseClient, `Starting sync for channel ${chatId}`);
 
       // Update sync status
       await supabaseClient
@@ -47,140 +48,40 @@ serve(async (req) => {
           progress: 0
         });
 
-      let offset = 0;
-      const limit = 100;
-      let hasMore = true;
+      // Verify channel access
+      await verifyChannelAccess(botToken, chatId);
 
-      while (hasMore) {
-        console.log(`Fetching messages from offset ${offset}`);
-        
-        const response = await fetch(
-          `https://api.telegram.org/bot${botToken}/getUpdates?chat_id=${chatId}&offset=${offset}&limit=${limit}`
-        );
-
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('Error fetching messages:', error);
-          throw new Error(`Failed to fetch messages: ${error.description}`);
-        }
-
-        const data = await response.json();
-        const messages = data.result || [];
-        console.log(`Received ${messages.length} messages`);
-
-        if (!messages || messages.length === 0) {
-          console.log('No more messages to process');
-          hasMore = false;
-          continue;
-        }
-
-        for (const update of messages) {
-          const message = update.message || update.channel_post;
-          if (!message) continue;
-
-          if (message.photo || message.video || message.document) {
-            try {
-              console.log(`Processing message ${message.message_id}`);
-              
-              const mediaItem = message.photo 
-                ? message.photo[message.photo.length - 1] 
-                : message.video || message.document;
-
-              if (!mediaItem) continue;
-
-              // Check if media already exists
-              const { data: existingMedia } = await supabaseClient
-                .from('media')
-                .select('id')
-                .eq('metadata->file_unique_id', mediaItem.file_unique_id)
-                .single();
-
-              if (existingMedia) {
-                console.log(`Media item already exists: ${existingMedia.id}`);
-                continue;
-              }
-
-              // Download and process new media
-              const { buffer, filePath } = await getAndDownloadTelegramFile(
-                mediaItem.file_id,
-                botToken
-              );
-
-              const timestamp = Date.now();
-              const fileName = generateSafeFileName(
-                `${mediaItem.file_unique_id}_${timestamp}`,
-                filePath.split('.').pop() || 'unknown'
-              );
-
-              const mediaType = message.photo 
-                ? 'photo' 
-                : (message.video ? 'video' : 'document');
-
-              const publicUrl = await uploadToStorage(
-                supabaseClient,
-                fileName,
-                buffer,
-                mediaType === 'photo' ? 'image/jpeg' : 'application/octet-stream'
-              );
-
-              const metadata = {
-                file_id: mediaItem.file_id,
-                file_unique_id: mediaItem.file_unique_id,
-                message_id: message.message_id,
-                media_group_id: message.media_group_id,
-                file_size: mediaItem.file_size,
-                file_path: filePath
-              };
-
-              const { data: mediaData, error: mediaError } = await supabaseClient
-                .from('media')
-                .insert({
-                  user_id: crypto.randomUUID(),
-                  chat_id: chatId,
-                  file_name: fileName,
-                  file_url: publicUrl,
-                  media_type: mediaType,
-                  caption: message.caption,
-                  metadata,
-                  media_group_id: message.media_group_id,
-                  public_url: publicUrl
-                })
-                .select()
-                .single();
-
-              if (mediaError) throw mediaError;
-
-              results.push({ mediaData, publicUrl });
+      // Fetch all messages
+      const messages = await getAllChannelMessages(botToken, chatId);
+      
+      for (const message of messages) {
+        if (message.photo || message.video || message.document) {
+          try {
+            const result = await processMediaMessage(message, chatId, supabaseClient, botToken);
+            if (result) {
+              results.push(result);
               totalProcessed++;
-              
-              // Update sync progress
-              await supabaseClient
-                .from('sync_logs')
-                .update({
-                  progress: Math.round((totalProcessed / messages.length) * 100),
-                  details: { processed: totalProcessed, errors: totalErrors }
-                })
-                .eq('channel_id', chatId)
-                .eq('status', 'in_progress');
-
-            } catch (error) {
-              console.error(`Error processing message ${message.message_id}:`, error);
-              totalErrors++;
-              errors.push({
-                messageId: message.message_id,
-                error: error.message
-              });
             }
+            
+            // Update sync progress
+            await supabaseClient
+              .from('sync_logs')
+              .update({
+                progress: Math.round((totalProcessed / messages.length) * 100),
+                details: { processed: totalProcessed, errors: totalErrors }
+              })
+              .eq('channel_id', chatId)
+              .eq('status', 'in_progress');
+
+          } catch (error) {
+            console.error(`Error processing message ${message.message_id}:`, error);
+            totalErrors++;
+            errors.push({
+              messageId: message.message_id,
+              error: error.message
+            });
           }
         }
-
-        offset = messages[messages.length - 1].update_id + 1;
-        if (messages.length < limit) {
-          hasMore = false;
-        }
-
-        // Add a small delay to avoid hitting rate limits
-        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
       // Update final sync status
@@ -195,10 +96,7 @@ serve(async (req) => {
         .eq('channel_id', chatId)
         .eq('status', 'in_progress');
 
-      await logOperation(
-        supabaseClient, 
-        'sync-telegram-channel', 
-        'success', 
+      await logSuccess(supabaseClient, 
         `Successfully synced channel ${chatId}: processed ${totalProcessed} items with ${totalErrors} errors`
       );
 
@@ -221,12 +119,7 @@ serve(async (req) => {
         error: error.message
       });
 
-      await logOperation(
-        supabaseClient, 
-        'sync-telegram-channel', 
-        'error', 
-        `Error processing channel ${chatId}: ${error.message}`
-      );
+      await logError(supabaseClient, error, `Error processing channel ${chatId}`);
     }
 
     return new Response(
