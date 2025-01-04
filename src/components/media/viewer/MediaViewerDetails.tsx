@@ -7,35 +7,28 @@ interface MediaViewerDetailsProps {
 }
 
 export const MediaViewerDetails = ({ item }: MediaViewerDetailsProps) => {
-  const formatDate = (date: string | undefined) => {
-    if (!date) return "N/A";
-    return format(new Date(date), "PPpp");
-  };
-
   return (
-    <div className="grid grid-cols-2 gap-4">
-      <div className="space-y-2">
-        <h4 className="text-xs font-semibold text-gray-700 dark:text-white/80">Upload Details</h4>
-        <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
-          <p>Type: {item.media_type}</p>
-          <p>Channel: {item.chat?.title || 'N/A'}</p>
-          <p>Drive ID: {item.google_drive_id || 'Not uploaded'}</p>
-          <p>Media Group: {item.media_group_id || 'None'}</p>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <h4 className="text-xs font-semibold text-gray-700 dark:text-white/80">Dates</h4>
-        <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span>Created: {formatDate(item.created_at)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span>Updated: {formatDate(item.updated_at)}</span>
-          </div>
-        </div>
+    <div className="space-y-2">
+      <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+        <Calendar className="w-4 h-4" />
+        Details
+      </h4>
+      <div className="space-y-1">
+        {item.created_at && (
+          <p className="text-sm text-gray-700 dark:text-white/90">
+            Created: {format(new Date(item.created_at), 'PPpp')}
+          </p>
+        )}
+        {item.updated_at && (
+          <p className="text-sm text-gray-700 dark:text-white/90">
+            Updated: {format(new Date(item.updated_at), 'PPpp')}
+          </p>
+        )}
+        {item.chat?.title && (
+          <p className="text-sm text-gray-700 dark:text-white/90">
+            Channel: {item.chat.title}
+          </p>
+        )}
       </div>
     </div>
   );

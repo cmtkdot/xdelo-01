@@ -1,93 +1,32 @@
 import { Link2 } from "lucide-react";
 import { MediaItem } from "../types";
-import { Button } from "@/components/ui/button";
 
 interface MediaViewerUrlsProps {
   item: MediaItem;
 }
 
 export const MediaViewerUrls = ({ item }: MediaViewerUrlsProps) => {
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
-
-  const getFormattedDriveUrl = (url: string) => {
-    if (!url) return '';
-    return url.includes('/view') ? url : `https://drive.google.com/file/d/${url}/view`;
-  };
-
   return (
     <div className="space-y-2">
-      <h4 className="text-xs font-semibold text-gray-700 dark:text-white/80">File URLs</h4>
-      <div className="space-y-2">
+      <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+        <Link2 className="w-4 h-4" />
+        URLs
+      </h4>
+      <div className="space-y-1">
         {item.file_url && (
-          <div className="flex items-center gap-2 text-xs group">
-            <Link2 className="w-3 h-3 text-blue-500 flex-shrink-0" />
-            <div className="flex-1 overflow-hidden">
-              <a 
-                href={item.file_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline break-all"
-              >
-                {item.file_url}
-              </a>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => copyToClipboard(item.file_url)}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              Copy
-            </Button>
-          </div>
+          <p className="text-sm text-gray-700 dark:text-white/90 break-all">
+            File URL: {item.file_url}
+          </p>
         )}
         {item.google_drive_url && (
-          <div className="flex items-center gap-2 text-xs group">
-            <Link2 className="w-3 h-3 text-green-500 flex-shrink-0" />
-            <div className="flex-1 overflow-hidden">
-              <a 
-                href={getFormattedDriveUrl(item.google_drive_url)} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-green-500 hover:underline break-all"
-              >
-                {getFormattedDriveUrl(item.google_drive_url)}
-              </a>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => copyToClipboard(getFormattedDriveUrl(item.google_drive_url))}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              Copy
-            </Button>
-          </div>
+          <p className="text-sm text-gray-700 dark:text-white/90 break-all">
+            Google Drive URL: {item.google_drive_url}
+          </p>
         )}
         {item.public_url && (
-          <div className="flex items-center gap-2 text-xs group">
-            <Link2 className="w-3 h-3 text-purple-500 flex-shrink-0" />
-            <div className="flex-1 overflow-hidden">
-              <a 
-                href={item.public_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-purple-500 hover:underline break-all"
-              >
-                {item.public_url}
-              </a>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => copyToClipboard(item.public_url)}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              Copy
-            </Button>
-          </div>
+          <p className="text-sm text-gray-700 dark:text-white/90 break-all">
+            Public URL: {item.public_url}
+          </p>
         )}
       </div>
     </div>
