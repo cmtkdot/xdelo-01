@@ -6,17 +6,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const logToDatabase = async (supabase, functionName: string, status: 'info' | 'error' | 'success', message: string) => {
+  try {
+    await supabase
+      .from('edge_function_logs')
+      .insert({
+        function_name: functionName,
+        status,
+        message
+      });
+  } catch (error) {
+    console.error('Error logging to database:', error);
+  }
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
 
+  try {
     // Get the user from the request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -32,7 +46,7 @@ serve(async (req) => {
     }
 
     const { mediaIds } = await req.json();
-    console.log('Starting media resync for IDs:', mediaIds);
+    await logToDatabase(supabaseClient, 'resync-media', 'info', `Starting media resync for IDs: ${mediaIds.join(', ')}`);
 
     // Get media items to process
     const { data: mediaItems, error: fetchError } = await supabaseClient
@@ -44,7 +58,7 @@ serve(async (req) => {
       throw fetchError;
     }
 
-    console.log(`Found ${mediaItems?.length || 0} media items to process`);
+    await logToDatabase(supabaseClient, 'resync-media', 'info', `Found ${mediaItems?.length || 0} media items to process`);
 
     const updates = [];
     const errors = [];
@@ -54,15 +68,19 @@ serve(async (req) => {
       try {
         // Delete existing file from storage if it exists
         if (item.file_name) {
+          await logToDatabase(supabaseClient, 'resync-media', 'info', `Attempting to delete file: ${item.file_name}`);
+          
           const { error: deleteError } = await supabaseClient
             .storage
             .from('telegram-media')
             .remove([item.file_name]);
 
           if (deleteError) {
-            console.error('Error deleting file:', deleteError);
-            // Continue with update even if delete fails
+            await logToDatabase(supabaseClient, 'resync-media', 'error', `Error deleting file ${item.file_name}: ${deleteError.message}`);
+            throw deleteError;
           }
+
+          await logToDatabase(supabaseClient, 'resync-media', 'success', `Successfully deleted file: ${item.file_name}`);
         }
 
         // Generate new public URL using the bucket's public URL
@@ -84,14 +102,16 @@ serve(async (req) => {
           .eq('id', item.id);
 
         if (updateError) {
+          await logToDatabase(supabaseClient, 'resync-media', 'error', `Error updating media item ${item.id}: ${updateError.message}`);
           throw updateError;
         }
 
+        await logToDatabase(supabaseClient, 'resync-media', 'success', `Successfully processed media item: ${item.id} with new URL: ${publicUrl}`);
         updates.push(updateData);
-        console.log(`Successfully processed media item: ${item.id} with new URL: ${publicUrl}`);
       } catch (error) {
         console.error(`Error processing media item ${item.id}:`, error);
         errors.push({ id: item.id, error: error.message });
+        await logToDatabase(supabaseClient, 'resync-media', 'error', `Error processing media item ${item.id}: ${error.message}`);
       }
     }
 
@@ -110,6 +130,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in resync-media function:', error);
+    await logToDatabase(supabaseClient, 'resync-media', 'error', `Error in resync-media function: ${error.message}`);
+    
     return new Response(
       JSON.stringify({
         success: false,
