@@ -7,7 +7,6 @@ export const generateSafeFileName = (baseName: string, extension: string): strin
 export const getContentType = (fileName: string, mediaType: string): string => {
   const ext = fileName.split('.').pop()?.toLowerCase();
   
-  // Enhanced MIME type mapping
   const mimeTypes: Record<string, string> = {
     'mov': 'video/quicktime',
     'mp4': 'video/mp4',
@@ -25,7 +24,6 @@ export const getContentType = (fileName: string, mediaType: string): string => {
     'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   };
 
-  // Use the mapped MIME type if available, otherwise use provided mediaType or fallback
   return ext && mimeTypes[ext] 
     ? mimeTypes[ext] 
     : (mediaType || 'application/octet-stream');

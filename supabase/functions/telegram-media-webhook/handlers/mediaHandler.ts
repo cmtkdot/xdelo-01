@@ -9,8 +9,7 @@ export const handleMediaUpload = async (
   try {
     const mediaItem = message.photo 
       ? message.photo[message.photo.length - 1] 
-      : message.document || message.video || message.audio || 
-        message.voice || message.animation || message.sticker;
+      : message.document || message.video;
     
     if (!mediaItem) {
       console.error('No media item found in message');
@@ -38,7 +37,7 @@ export const handleMediaUpload = async (
       fileExt || 'unknown'
     );
 
-    // Determine media type with proper MIME type
+    // Determine media type
     let mediaType = message.document?.mime_type || 'application/octet-stream';
     if (message.photo) {
       mediaType = 'image/jpeg';
@@ -55,7 +54,20 @@ export const handleMediaUpload = async (
     // Fetch the file content
     const fileContent = await (await fetch(downloadUrl)).arrayBuffer();
 
-    // Upload to Supabase Storage with proper content type
+    // Check if media with same file_url already exists for this chat
+    const { data: existingMedia } = await supabase
+      .from('media')
+      .select('id')
+      .eq('chat_id', message.chat.id)
+      .eq('file_url', downloadUrl)
+      .single();
+
+    if (existingMedia) {
+      console.log('Media already exists:', existingMedia);
+      return null;
+    }
+
+    // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucketId)
       .upload(safeFileName, fileContent, {
@@ -69,7 +81,7 @@ export const handleMediaUpload = async (
       throw uploadError;
     }
 
-    // Generate public URL using the bucket's public URL
+    // Generate public URL
     const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucketId}/${safeFileName}`;
     console.log('Generated public URL:', publicUrl);
 
@@ -80,15 +92,16 @@ export const handleMediaUpload = async (
       message_id: message.message_id,
       media_group_id: message.media_group_id,
       content_type: contentType,
-      mime_type: mediaType
+      mime_type: mediaType,
+      original_file_path: filePath
     };
 
-    // Insert into media table with proper URLs and metadata
+    // Insert into media table
     const mediaData = {
       user_id: userId,
       chat_id: message.chat.id,
       file_name: safeFileName,
-      file_url: publicUrl, // Use the public URL as the file URL
+      file_url: downloadUrl,
       media_type: mediaType,
       caption: message.caption,
       metadata,
