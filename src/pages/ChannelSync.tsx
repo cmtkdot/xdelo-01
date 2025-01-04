@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import MediaGallery from "@/components/MediaGallery";
@@ -106,7 +104,9 @@ const ChannelSync = () => {
                   onChange={(e) => setSelectedChannel(e.target.value)}
                   className="text-primary"
                 />
-                <Label htmlFor="all">All Channels</Label>
+                <label htmlFor="all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  All Channels
+                </label>
               </div>
               {channels?.map((channel) => (
                 <div key={channel.id} className="flex items-center space-x-2">
@@ -118,7 +118,9 @@ const ChannelSync = () => {
                     onChange={(e) => setSelectedChannel(e.target.value)}
                     className="text-primary"
                   />
-                  <Label htmlFor={channel.id}>{channel.title}</Label>
+                  <label htmlFor={channel.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    {channel.title}
+                  </label>
                 </div>
               ))}
             </div>

@@ -120,8 +120,6 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in sync-telegram-channel function:', error);
     
-    await logOperation(supabaseClient, 'sync-telegram-channel', 'error', `Global error: ${error.message}`);
-
     return new Response(
       JSON.stringify({
         success: false,
