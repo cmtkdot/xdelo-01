@@ -1,69 +1,172 @@
-# Welcome to your Lovable project
+# Media Management Application
 
-## Project info
+## Overview
+This application is a comprehensive media management system that integrates Telegram channels with Supabase storage and provides various synchronization capabilities with external services like Google Drive and Google Sheets.
 
-**URL**: https://lovable.dev/projects/ff3fca13-2a16-4c4c-a9a9-6b16f63b5a38
+## Core Features
 
-## How can I edit this code?
+### 1. Telegram Integration
+- **Webhook Integration**: Automatically captures media files shared in Telegram channels
+- **Channel Management**: Supports multiple Telegram channels with automatic media syncing
+- **Caption Synchronization**: Maintains synchronized captions between Telegram and stored media
 
-There are several ways of editing your application.
+### 2. Media Storage & Management
+- **Supabase Storage**: All media files are stored in Supabase storage buckets
+- **Public URLs**: Automatic generation of public URLs for stored media
+- **Duplicate Detection**: Built-in functionality to detect and manage duplicate media files
+- **Media Types Support**: Handles various media types including:
+  - Images
+  - Videos
+  - Documents
+  - Animations
 
-**Use Lovable**
+### 3. External Integrations
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ff3fca13-2a16-4c4c-a9a9-6b16f63b5a38) and start prompting.
+#### Google Drive Integration
+- Upload media files to Google Drive
+- Maintain links between Supabase media and Google Drive files
+- Automatic file organization in Drive
 
-Changes made via Lovable will be committed automatically to this repo.
+#### Google Sheets Integration
+- Sync media data with Google Sheets
+- Configurable header mapping
+- Automated synchronization at regular intervals
 
-**Use your preferred IDE**
+#### Glide Integration
+- Sync product data from Glide
+- Link media files with Glide products
+- Maintain bidirectional updates
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Technical Architecture
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Database Structure
+The application uses Supabase as its backend with the following key tables:
 
-Follow these steps:
+1. **Media Table**: Core table storing all media information
+   - File metadata
+   - Storage locations
+   - Relationships with other services
+   - Public URLs
+   - Captions and additional data
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2. **Channels Table**: Manages Telegram channel information
+   - Channel details
+   - Sync status
+   - User associations
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. **Webhook Configurations**: Manages external webhook integrations
+   - Endpoint configurations
+   - Headers and authentication
+   - Sync schedules
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Edge Functions
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+1. **resync-media**
+   - Recreates missing media files
+   - Handles file redownloading from Telegram
+   - Updates storage and database records
+
+2. **sync-media-captions**
+   - Synchronizes captions from Telegram
+   - Updates media records
+   - Handles batch processing
+
+3. **upload-to-drive**
+   - Manages Google Drive uploads
+   - Handles authentication
+   - Maintains file metadata
+
+4. **telegram-media-webhook**
+   - Processes incoming Telegram updates
+   - Handles file downloads
+   - Updates database records
+
+### Data Flow
+
+1. **Media Ingestion**
+   ```
+   Telegram Channel -> Webhook -> Supabase Storage -> Media Table
+   ```
+
+2. **Synchronization Flow**
+   ```
+   Media Table <-> Google Drive
+   Media Table <-> Google Sheets
+   Media Table <-> Glide
+   ```
+
+3. **Public Access**
+   ```
+   Public URL -> Supabase Storage -> Media File
+   ```
+
+## Security
+
+### Row Level Security (RLS)
+- Media access controlled through RLS policies
+- User-specific data isolation
+- Public/private access management
+
+### Authentication
+- Supabase authentication integration
+- Secure API access
+- Token-based authorization
+
+## Environment Setup
+
+### Required Environment Variables
+```
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_anon_key
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_WEBHOOK_SECRET=your_webhook_secret
+GOOGLE_API_KEY=your_google_api_key
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+GLIDE_API_TOKEN=your_glide_token
+GLIDE_APP_ID=your_app_id
 ```
 
-**Edit a file directly in GitHub**
+## Development Workflow
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. **Local Development**
+   ```sh
+   npm install
+   npm run dev
+   ```
 
-**Use GitHub Codespaces**
+2. **Edge Function Development**
+   ```sh
+   supabase functions serve
+   ```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+3. **Database Migrations**
+   ```sh
+   supabase db push
+   ```
 
-## What technologies are used for this project?
+## Troubleshooting
 
-This project is built with .
+### Common Issues
+1. **Media Sync Failures**
+   - Check Telegram bot permissions
+   - Verify storage bucket accessibility
+   - Review edge function logs
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+2. **Integration Issues**
+   - Verify API keys and tokens
+   - Check webhook configurations
+   - Review authentication settings
 
-## How can I deploy this project?
+### Logging
+- Edge function logs available in Supabase dashboard
+- Application logs in browser console
+- Webhook execution logs in database
 
-Simply open [Lovable](https://lovable.dev/projects/ff3fca13-2a16-4c4c-a9a9-6b16f63b5a38) and click on Share -> Publish.
+## Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
 
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+## License
+This project is proprietary and confidential.
