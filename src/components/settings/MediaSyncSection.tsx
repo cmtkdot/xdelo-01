@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { validateMediaUrl } from "../media/utils/urlValidation";
 
 interface Channel {
   id: string;
@@ -49,7 +50,7 @@ const MediaSyncSection = () => {
     }
 
     const loadingToast = toast.loading("Starting media sync...", {
-      description: `Preparing to sync ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''} and organize files into content-specific buckets`
+      description: `Preparing to sync ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''} and organize files into content-specific buckets (telegram-pictures/telegram-video)`
     });
     
     console.log('Starting sync for channels:', Array.from(selectedChannels));
@@ -73,6 +74,28 @@ const MediaSyncSection = () => {
           description: `Error: ${error.message}`
         });
         throw error;
+      }
+
+      // Validate URLs after sync
+      const { data: mediaData, error: mediaError } = await supabase
+        .from('media')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (mediaError) {
+        console.error('Error fetching media after sync:', mediaError);
+      } else if (mediaData && mediaData.length > 0) {
+        const media = mediaData[0];
+        const validatedUrl = validateMediaUrl(media.file_url, media.media_type) ||
+                           validateMediaUrl(media.public_url, media.media_type);
+        
+        if (!validatedUrl) {
+          console.warn('URL validation failed after sync');
+          toast.warning("Sync completed with warnings", {
+            description: "Some media URLs may need manual verification"
+          });
+        }
       }
 
       toast.dismiss(loadingToast);
