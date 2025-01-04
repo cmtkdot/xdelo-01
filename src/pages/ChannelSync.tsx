@@ -51,7 +51,7 @@ const ChannelSync = () => {
       console.log('Invoking sync-telegram-channel function...');
       
       const { data, error } = await supabase.functions.invoke('sync-telegram-channel', {
-        body: { channelId: selectedChannel }
+        body: { chatId: parseInt(selectedChannel) }
       });
 
       if (error) throw error;

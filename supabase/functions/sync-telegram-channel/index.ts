@@ -11,15 +11,15 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { chatIds } = await req.json();
+    const { chatId } = await req.json();
     
-    if (!chatIds || !Array.isArray(chatIds) || chatIds.length === 0) {
-      throw new Error('Invalid or missing chatIds array');
+    if (!chatId) {
+      throw new Error('Invalid or missing chatId');
     }
 
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
@@ -27,83 +27,81 @@ serve(async (req) => {
       throw new Error('Telegram bot token not configured');
     }
 
-    const results = [];
-    const errors = [];
     let totalProcessed = 0;
     let totalErrors = 0;
+    const errors = [];
+    const results = [];
 
-    for (const channelId of chatIds) {
-      try {
-        await logOperation(supabase, 'sync-telegram-channel', 'info', `Starting sync for channel ${channelId}`);
+    try {
+      await logOperation(supabaseClient, 'sync-telegram-channel', 'info', `Starting sync for channel ${chatId}`);
 
-        // Verify channel access
-        await verifyChannelAccess(botToken, channelId);
+      // Verify channel access
+      await verifyChannelAccess(botToken, chatId);
 
-        let offset = 0;
-        const limit = 100;
-        let hasMore = true;
+      let offset = 0;
+      const limit = 100;
+      let hasMore = true;
 
-        while (hasMore) {
-          console.log(`Fetching messages from offset ${offset}`);
-          
-          const historyData = await getChannelMessages(botToken, channelId, offset, limit);
-          const messages = historyData.result || [];
+      while (hasMore) {
+        console.log(`Fetching messages from offset ${offset}`);
+        
+        const historyData = await getChannelMessages(botToken, chatId, offset, limit);
+        const messages = historyData.result || [];
 
-          if (!messages || messages.length === 0) {
-            hasMore = false;
-            continue;
-          }
-
-          for (const message of messages) {
-            if (message.photo || message.video || message.document) {
-              try {
-                const result = await processMediaMessage(message, channelId, supabase, botToken);
-                if (result) {
-                  results.push(result);
-                  totalProcessed++;
-                }
-              } catch (error) {
-                console.error(`Error processing message ${message.message_id}:`, error);
-                totalErrors++;
-                errors.push({
-                  messageId: message.message_id,
-                  error: error.message
-                });
-              }
-            }
-          }
-
-          offset += messages.length;
-          if (messages.length < limit) {
-            hasMore = false;
-          }
-
-          // Add a small delay to avoid hitting rate limits
-          await new Promise(resolve => setTimeout(resolve, 100));
+        if (!messages || messages.length === 0) {
+          hasMore = false;
+          continue;
         }
 
-        await logOperation(
-          supabase, 
-          'sync-telegram-channel', 
-          'success', 
-          `Successfully synced channel ${channelId}: processed ${totalProcessed} items with ${totalErrors} errors`
-        );
+        for (const message of messages) {
+          if (message.photo || message.video || message.document) {
+            try {
+              const result = await processMediaMessage(message, chatId, supabaseClient, botToken);
+              if (result) {
+                results.push(result);
+                totalProcessed++;
+              }
+            } catch (error) {
+              console.error(`Error processing message ${message.message_id}:`, error);
+              totalErrors++;
+              errors.push({
+                messageId: message.message_id,
+                error: error.message
+              });
+            }
+          }
+        }
 
-      } catch (error) {
-        console.error(`Error processing channel ${channelId}:`, error);
-        totalErrors++;
-        errors.push({
-          channelId,
-          error: error.message
-        });
+        offset += messages.length;
+        if (messages.length < limit) {
+          hasMore = false;
+        }
 
-        await logOperation(
-          supabase, 
-          'sync-telegram-channel', 
-          'error', 
-          `Error processing channel ${channelId}: ${error.message}`
-        );
+        // Add a small delay to avoid hitting rate limits
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
+
+      await logOperation(
+        supabaseClient, 
+        'sync-telegram-channel', 
+        'success', 
+        `Successfully synced channel ${chatId}: processed ${totalProcessed} items with ${totalErrors} errors`
+      );
+
+    } catch (error) {
+      console.error(`Error processing channel ${chatId}:`, error);
+      totalErrors++;
+      errors.push({
+        chatId,
+        error: error.message
+      });
+
+      await logOperation(
+        supabaseClient, 
+        'sync-telegram-channel', 
+        'error', 
+        `Error processing channel ${chatId}: ${error.message}`
+      );
     }
 
     return new Response(
@@ -122,7 +120,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in sync-telegram-channel function:', error);
     
-    await logOperation(supabase, 'sync-telegram-channel', 'error', `Global error: ${error.message}`);
+    await logOperation(supabaseClient, 'sync-telegram-channel', 'error', `Global error: ${error.message}`);
 
     return new Response(
       JSON.stringify({
