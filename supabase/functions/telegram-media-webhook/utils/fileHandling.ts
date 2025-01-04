@@ -1,4 +1,4 @@
-import { Json } from "https://esm.sh/@supabase/supabase-js@2";
+import { Json } from "../../../src/integrations/supabase/types/base";
 
 export const generateSafeFileName = (baseName: string, extension: string) => {
   const timestamp = Date.now();
@@ -23,19 +23,14 @@ export const getMediaItem = (message: any) => {
       message.voice || message.animation || message.sticker;
 };
 
-export const formatMediaMetadata = (mediaItem: any, message: any) => {
-  // Ensure we're returning a valid object structure
+export const formatMediaMetadata = (mediaItem: any, message: any): Json => {
+  // Ensure all values are strings to match our constraint
   return {
-    file_id: mediaItem.file_id || null,
-    file_unique_id: mediaItem.file_unique_id || null,
-    file_size: mediaItem.file_size || null,
-    message_id: message.message_id || null,
-    media_group_id: message.media_group_id || null,
-    // Add any additional metadata fields with null fallbacks
-    width: mediaItem.width || null,
-    height: mediaItem.height || null,
-    duration: mediaItem.duration || null,
-    mime_type: mediaItem.mime_type || null
+    file_id: mediaItem.file_id?.toString() || 'legacy_file',
+    file_unique_id: mediaItem.file_unique_id?.toString() || `legacy_${crypto.randomUUID()}`,
+    file_size: mediaItem.file_size?.toString() || '0',
+    message_id: message.message_id?.toString() || '0',
+    media_group_id: message.media_group_id?.toString() || null
   };
 };
 

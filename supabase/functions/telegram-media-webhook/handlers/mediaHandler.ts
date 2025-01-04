@@ -66,9 +66,9 @@ export const handleMediaUpload = async (
     }
 
     // Generate the correct public URL based on the bucket
-    const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucketId}/${safeFileName}`;
+    const publicUrl = generatePublicUrl(bucketId, safeFileName);
 
-    // Format metadata properly
+    // Format metadata properly to match our constraint
     const metadata = formatMediaMetadata(mediaItem, message);
     console.log('Formatted metadata:', metadata);
 
