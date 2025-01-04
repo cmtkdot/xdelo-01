@@ -612,10 +612,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
-      migrate_media_files: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       upload_media: {
         Args: {
           p_user_id: string
