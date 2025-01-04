@@ -15,6 +15,10 @@ serve(async (req) => {
   try {
     const { chatId, messageId } = await req.json();
     
+    if (!chatId || !messageId) {
+      throw new Error('Missing required parameters: chatId and messageId');
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
