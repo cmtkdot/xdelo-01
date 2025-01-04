@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,8 +13,8 @@ serve(async (req) => {
   }
 
   try {
-    const { webhook_url, data, headers = {}, params = {}, method = 'POST', body } = await req.json();
-    console.log('Received webhook request:', { webhook_url, method, headers, params, body });
+    const { webhook_url, data, headers = {}, params = {}, method = 'POST', body, schedule_type = 'manual' } = await req.json();
+    console.log('Received webhook request:', { webhook_url, method, headers, params, schedule_type });
 
     if (!webhook_url) {
       return new Response(
@@ -44,6 +45,11 @@ serve(async (req) => {
       );
     }
 
+    // Initialize Supabase client for logging
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     // Add query parameters to URL if they exist
     const url = new URL(webhook_url);
     Object.entries(params).forEach(([key, value]) => {
@@ -66,11 +72,6 @@ serve(async (req) => {
         timestamp: new Date().toISOString()
       };
 
-      // For Glide API, ensure appID is present in the body if it's provided
-      if (url.hostname.includes('glideapp.io') && !requestBody.appID) {
-        console.warn('Warning: Glide API request missing appID in body');
-      }
-
       requestOptions.body = JSON.stringify(requestBody);
       console.log('Request body:', requestOptions.body);
     }
@@ -80,11 +81,33 @@ serve(async (req) => {
 
     const response = await fetch(url.toString(), requestOptions);
     const responseData = await response.json().catch(() => null);
+    
     console.log('Webhook response:', { 
       status: response.status, 
       statusText: response.statusText,
       data: responseData 
     });
+
+    // Log webhook execution in webhook_history
+    if (webhook_url) {
+      const { data: webhookUrlData } = await supabase
+        .from('webhook_urls')
+        .select('id')
+        .eq('url', webhook_url)
+        .single();
+
+      if (webhookUrlData?.id) {
+        await supabase
+          .from('webhook_history')
+          .insert({
+            webhook_url_id: webhookUrlData.id,
+            fields_sent: data?.selected_fields || [],
+            schedule_type,
+            status: response.ok ? 'success' : 'error',
+            media_count: data?.length || 0
+          });
+      }
+    }
 
     // Extract headers from response data if it's an array of objects
     let extractedHeaders = [];

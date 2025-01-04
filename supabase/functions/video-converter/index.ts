@@ -26,46 +26,99 @@ serve(async (req) => {
       .update({ 
         metadata: { 
           conversion_status: 'processing',
-          original_file_name: fileName
-        }
-      })
-      .eq('id', mediaId);
-
-    // For now, we'll simulate conversion by just updating the status
-    // In a production environment, you would:
-    // 1. Download the file from fileUrl
-    // 2. Use a cloud conversion service
-    // 3. Upload the converted file back to storage
-    // 4. Update the media record with the new file URL
-
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Update media record with "completed" status
-    await supabase
-      .from('media')
-      .update({ 
-        metadata: { 
-          conversion_status: 'completed',
           original_file_name: fileName,
-          converted_at: new Date().toISOString()
+          conversion_started_at: new Date().toISOString()
         }
       })
       .eq('id', mediaId);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Video conversion completed',
-        mediaId
-      }),
-      { 
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
+    // Get the Cloud Convert API key
+    const cloudConvertApiKey = Deno.env.get('CLOUD_CONVERTAPIKEY');
+    if (!cloudConvertApiKey) {
+      throw new Error('Cloud Convert API key not configured');
+    }
+
+    try {
+      // Create job
+      const createJobResponse = await fetch('https://api.cloudconvert.com/v2/jobs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${cloudConvertApiKey}`
+        },
+        body: JSON.stringify({
+          tasks: {
+            'import-1': {
+              operation: 'import/url',
+              url: fileUrl
+            },
+            'convert-1': {
+              operation: 'convert',
+              input: 'import-1',
+              output_format: 'mp4',
+              engine: 'ffmpeg',
+              input_format: 'mov'
+            },
+            'export-1': {
+              operation: 'export/url',
+              input: 'convert-1',
+              inline: false,
+              archive_multiple_files: false
+            }
+          }
+        })
+      });
+
+      if (!createJobResponse.ok) {
+        throw new Error(`Failed to create conversion job: ${await createJobResponse.text()}`);
       }
-    );
+
+      const jobData = await createJobResponse.json();
+      console.log('Conversion job created:', jobData);
+
+      // Update media record with conversion job ID
+      await supabase
+        .from('media')
+        .update({ 
+          metadata: { 
+            conversion_status: 'processing',
+            conversion_job_id: jobData.data.id,
+            original_file_name: fileName
+          }
+        })
+        .eq('id', mediaId);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Video conversion job started',
+          jobId: jobData.data.id,
+          mediaId
+        }),
+        { 
+          headers: { 
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    } catch (conversionError) {
+      console.error('Error in video conversion:', conversionError);
+      
+      // Update media record with error status
+      await supabase
+        .from('media')
+        .update({ 
+          metadata: { 
+            conversion_status: 'error',
+            error_message: conversionError.message,
+            error_timestamp: new Date().toISOString()
+          }
+        })
+        .eq('id', mediaId);
+
+      throw conversionError;
+    }
   } catch (error) {
     console.error('Error in video conversion:', error);
     return new Response(
