@@ -1,13 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 import { logOperation } from "../_shared/database.ts";
-import { uploadToStorage, generateSafeFileName } from "../_shared/storage.ts";
 import { getAndDownloadTelegramFile } from "../_shared/telegram.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 serve(async (req) => {
-  const corsResponse = handleCors(req);
-  if (corsResponse) return corsResponse;
+  // Handle CORS
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   try {
     const supabase = createClient(
@@ -15,7 +16,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Parse request body
     const { mediaIds } = await req.json();
+    console.log('Received request to resync media IDs:', mediaIds);
 
     if (!mediaIds || !Array.isArray(mediaIds) || mediaIds.length === 0) {
       throw new Error('Please provide an array of media IDs to resync');
@@ -40,6 +43,7 @@ serve(async (req) => {
           .single();
 
         if (mediaError) throw mediaError;
+        if (!media) throw new Error(`Media not found: ${id}`);
 
         const fileId = media.metadata?.file_id;
         if (!fileId) {
@@ -49,17 +53,19 @@ serve(async (req) => {
         const { buffer, filePath } = await getAndDownloadTelegramFile(fileId, botToken);
         
         const timestamp = Date.now();
-        const newFileName = generateSafeFileName(
-          `${media.file_name.split('.')[0]}_${timestamp}`,
-          filePath.split('.').pop() || 'unknown'
-        );
+        const fileExt = filePath.split('.').pop() || 'unknown';
+        const newFileName = `${media.file_name.split('.')[0]}_${timestamp}.${fileExt}`;
 
-        const publicUrl = await uploadToStorage(
-          supabase,
-          newFileName,
-          buffer,
-          media.metadata?.mime_type || 'application/octet-stream'
-        );
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('telegram-media')
+          .upload(newFileName, buffer, {
+            contentType: media.metadata?.mime_type || 'application/octet-stream',
+            upsert: false
+          });
+
+        if (uploadError) throw uploadError;
+
+        const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${newFileName}`;
 
         const { error: updateError } = await supabase
           .from('media')

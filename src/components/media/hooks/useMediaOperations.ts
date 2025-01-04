@@ -91,11 +91,25 @@ export const useMediaOperations = (refetch: () => void) => {
           message: `Starting caption sync for channels: ${chatIds.join(', ')}`
         });
 
-      const { error } = await supabase.functions.invoke('sync-media-captions', {
+      const { data, error } = await supabase.functions.invoke('sync-media-captions', {
         body: { chatIds }
       });
 
       if (error) throw error;
+
+      if (data?.errors?.length > 0) {
+        console.warn('Some errors occurred during sync:', data.errors);
+        toast({
+          title: "Partial Success",
+          description: `Synced ${data.processed} items with ${data.errors} errors`,
+          variant: "warning",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `Successfully synced ${data.processed} media captions`,
+        });
+      }
 
       await supabase
         .from('edge_function_logs')
@@ -104,11 +118,6 @@ export const useMediaOperations = (refetch: () => void) => {
           status: 'success',
           message: 'Successfully synchronized media captions'
         });
-
-      toast({
-        title: "Success",
-        description: "Media captions have been synchronized",
-      });
 
       refetch();
     } catch (error) {
