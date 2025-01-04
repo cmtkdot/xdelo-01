@@ -43,15 +43,21 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
     setHasError(true);
   };
 
+  const getMessageId = () => {
+    if (!item.metadata || typeof item.metadata === 'string') return null;
+    return item.metadata.message_id;
+  };
+
   const handleSyncCaption = async () => {
-    if (!item.chat_id || !item.metadata?.message_id) return;
+    const messageId = getMessageId();
+    if (!item.chat_id || !messageId) return;
     
     setSyncingCaption(true);
     try {
       const { error } = await supabase.functions.invoke('sync-media-captions', {
         body: { 
           chatId: item.chat_id,
-          messageId: item.metadata.message_id
+          messageId: messageId
         }
       });
 
@@ -114,7 +120,7 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
                   variant="outline"
                   size="sm"
                   onClick={handleSyncCaption}
-                  disabled={isSyncingCaption || !item.chat_id || !item.metadata?.message_id}
+                  disabled={isSyncingCaption || !item.chat_id || !getMessageId()}
                   className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10"
                 >
                   <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaption ? 'animate-spin' : ''}`} />
