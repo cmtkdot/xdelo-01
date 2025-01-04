@@ -15,7 +15,7 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const isVideo = item.media_type === "video";
+  const isVideo = item.media_type === "video" || item.media_type?.includes('video');
 
   // Prioritize file_url from Supabase over Google Drive URL
   const displayUrl = item.file_url || item.google_drive_url;

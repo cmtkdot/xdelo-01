@@ -6,7 +6,8 @@ import {
   getMediaItem,
   formatMediaMetadata,
   getContentType,
-  generatePublicUrl
+  generatePublicUrl,
+  getBucketId
 } from "../utils/fileHandling.ts";
 
 export const handleMediaUpload = async (
@@ -46,17 +47,15 @@ export const handleMediaUpload = async (
       fileExt || 'unknown'
     );
 
-    // Determine which bucket to use based on file type
-    const bucketId = fileExt === 'mov' ? 'telegram-video' : 
-                    (message.photo || mediaItem.mime_type?.includes('image')) ? 'telegram-pictures' : 
-                    'telegram-media';
+    const mediaType = determineMediaType(message);
+    const bucketId = getBucketId(mediaType, fileExt);
     
     console.log('Uploading to bucket:', bucketId);
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucketId)
       .upload(safeFileName, await (await fetch(downloadUrl)).arrayBuffer(), {
-        contentType: getContentType(safeFileName, determineMediaType(message)),
+        contentType: getContentType(safeFileName, mediaType),
         upsert: false
       });
 
@@ -65,10 +64,9 @@ export const handleMediaUpload = async (
       throw uploadError;
     }
 
-    // Generate the correct public URL based on the bucket
     const publicUrl = generatePublicUrl(bucketId, safeFileName);
+    console.log('Generated public URL:', publicUrl);
 
-    // Format metadata properly to match our constraint
     const metadata = formatMediaMetadata(mediaItem, message);
     console.log('Formatted metadata:', metadata);
 
@@ -77,7 +75,7 @@ export const handleMediaUpload = async (
       chat_id: message.chat.id,
       file_name: safeFileName,
       file_url: publicUrl,
-      media_type: determineMediaType(message),
+      media_type: mediaType,
       caption: message.caption,
       metadata,
       media_group_id: message.media_group_id,

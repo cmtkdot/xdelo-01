@@ -42,6 +42,12 @@ export const getContentType = (fileName: string, mediaType: string) => {
   return 'application/octet-stream';
 };
 
+export const getBucketId = (mediaType: string, fileExt: string | undefined) => {
+  if (mediaType === 'video' || fileExt === 'mov') return 'telegram-video';
+  if (mediaType === 'photo' || mediaType.includes('image')) return 'telegram-pictures';
+  return 'telegram-media';
+};
+
 export const generatePublicUrl = (bucketId: string, fileName: string) => {
   return `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucketId}/${fileName}`;
 };

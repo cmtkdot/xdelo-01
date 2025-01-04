@@ -15,7 +15,7 @@ export const MediaViewerContent = ({
   onMediaLoad,
   onMediaError
 }: MediaViewerContentProps) => {
-  const isVideo = item.media_type === "video";
+  const isVideo = item.media_type === "video" || item.media_type?.includes('video');
   const displayUrl = item.file_url || item.google_drive_url;
 
   return (
