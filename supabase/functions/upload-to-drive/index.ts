@@ -69,36 +69,19 @@ serve(async (req) => {
     console.log('Generating access token...');
     const accessToken = await generateServiceAccountToken(credentials);
 
-    // Handle single or multiple file uploads with chunking
+    // Handle single or multiple file uploads
     let results;
     if (requestBody.files && Array.isArray(requestBody.files)) {
       console.log(`Processing ${requestBody.files.length} files for upload`);
-      
-      // Process files in chunks of 3 to avoid memory issues
-      const CHUNK_SIZE = 3;
-      const chunks = [];
-      for (let i = 0; i < requestBody.files.length; i += CHUNK_SIZE) {
-        chunks.push(requestBody.files.slice(i, i + CHUNK_SIZE));
-      }
-      
-      results = [];
-      for (const chunk of chunks) {
-        const chunkResults = await Promise.all(
-          chunk.map(async (file) => {
-            if (!file.fileUrl || !file.fileName) {
-              throw new Error('Missing file information in files array');
-            }
-            console.log('Processing file:', file.fileName);
-            return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
-          })
-        );
-        results.push(...chunkResults);
-        
-        // Add a small delay between chunks to prevent resource exhaustion
-        if (chunks.length > 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
+      results = await Promise.all(
+        requestBody.files.map(async (file) => {
+          if (!file.fileUrl || !file.fileName) {
+            throw new Error('Missing file information in files array');
+          }
+          console.log('Processing file:', file.fileName);
+          return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
+        })
+      );
     } else if (requestBody.fileUrl && requestBody.fileName) {
       console.log('Processing single file:', requestBody.fileName);
       results = await uploadToDrive(requestBody.fileUrl, requestBody.fileName, accessToken);
