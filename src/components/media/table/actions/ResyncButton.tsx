@@ -26,7 +26,10 @@ export const ResyncButton = ({ id, onUpdate }: ResyncButtonProps) => {
         });
 
       const { data, error } = await supabase.functions.invoke('resync-media', {
-        body: { mediaIds: [id] }
+        body: { mediaIds: [id] },
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (error) throw error;
@@ -35,13 +38,13 @@ export const ResyncButton = ({ id, onUpdate }: ResyncButtonProps) => {
         .from('edge_function_logs')
         .insert({
           function_name: 'resync-media',
-          status: data.errors?.length > 0 ? 'error' : 'success',
-          message: data.errors?.length > 0 
+          status: data?.errors?.length > 0 ? 'error' : 'success',
+          message: data?.errors?.length > 0 
             ? `Failed to resync media: ${JSON.stringify(data.errors)}`
             : `Successfully resynced media ID: ${id}`
         });
 
-      if (data.errors?.length > 0) {
+      if (data?.errors?.length > 0) {
         console.warn('Failed to resync media:', data.errors);
         toast({
           title: "Error",

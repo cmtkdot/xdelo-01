@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -17,11 +18,15 @@ serve(async (req) => {
   );
 
   try {
-    const { mediaIds } = await req.json();
-    
+    // Parse request body and validate
+    const requestData = await req.json();
+    const { mediaIds } = requestData;
+
     if (!mediaIds || !Array.isArray(mediaIds) || mediaIds.length === 0) {
       throw new Error('Invalid or missing mediaIds array');
     }
+
+    console.log('Processing mediaIds:', mediaIds);
 
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
     if (!botToken) {
