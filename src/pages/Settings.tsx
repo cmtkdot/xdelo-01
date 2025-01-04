@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import MediaMigrationSection from "@/components/settings/MediaMigrationSection";
 import MediaSyncSection from "@/components/settings/MediaSyncSection";
+import { EdgeFunctionLogs } from "@/components/settings/EdgeFunctionLogs";
 
 const Settings = () => {
   const { theme, setTheme } = useTheme();
@@ -51,6 +52,10 @@ const Settings = () => {
           <Separator className="bg-gray-200/50 dark:bg-white/10" />
           
           <MediaMigrationSection />
+
+          <Separator className="bg-gray-200/50 dark:bg-white/10" />
+          
+          <EdgeFunctionLogs />
         </CardContent>
       </Card>
     </div>
