@@ -19,7 +19,11 @@ export const MediaTableUrls = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            window.open(googleDriveUrl, '_blank');
+            // Ensure we're using the correct view URL format
+            const driveViewUrl = googleDriveUrl.includes('/view') 
+              ? googleDriveUrl 
+              : `https://drive.google.com/file/d/${googleDriveUrl}/view`;
+            window.open(driveViewUrl, '_blank');
           }}
           className="flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors group w-full"
         >
