@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -32,7 +32,7 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
     getChannelInfo();
 
     // Subscribe to sync progress updates using a realtime channel
-    const channel: RealtimeChannel = supabase
+    const channel = supabase
       .channel('sync_progress')
       .on(
         'postgres_changes',
@@ -42,7 +42,7 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
           table: 'sync_logs',
           filter: `channel_id=eq.${channelId}`
         },
-        (payload: { new: SyncLog }) => {
+        (payload: RealtimePostgresChangesPayload<SyncLog>) => {
           const syncStatus: SyncStatus = {
             progress: payload.new.progress,
             status: payload.new.status,
