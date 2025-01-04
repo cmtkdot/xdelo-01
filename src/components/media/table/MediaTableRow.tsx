@@ -1,13 +1,10 @@
 import { format } from "date-fns";
-import { Link2, Loader2 } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { MediaItem } from "../types";
 import { MediaTableActions } from "./MediaTableActions";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { MediaTableUrls } from "./MediaTableUrls";
+import { MediaTableCaption } from "./MediaTableCaption";
 
 interface MediaTableRowProps {
   item: MediaItem;
@@ -24,14 +21,6 @@ export const MediaTableRow = ({
   onToggleSelect,
   onDelete
 }: MediaTableRowProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [caption, setCaption] = useState(item.caption || "");
-  const [isSaving, setIsSaving] = useState(false);
-  const { toast } = useToast();
-  
-  // Prioritize URLs in this order: Google Drive > Public URL > File URL
-  const fileUrl = item.google_drive_url || item.public_url || item.file_url;
-
   const handleRowClick = (e: React.MouseEvent) => {
     if (
       e.target instanceof HTMLElement && 
@@ -63,47 +52,6 @@ export const MediaTableRow = ({
     onToggleSelect(syntheticEvent as unknown as React.MouseEvent);
   };
 
-  const handleCaptionDoubleClick = () => {
-    setIsEditing(true);
-  };
-
-  const handleCaptionSave = async () => {
-    setIsSaving(true);
-    try {
-      const { error } = await supabase
-        .from('media')
-        .update({ caption })
-        .eq('id', item.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Caption updated",
-        description: "The caption has been successfully updated",
-      });
-      
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Error updating caption:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update caption. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleCaptionSave();
-    } else if (e.key === 'Escape') {
-      setIsEditing(false);
-      setCaption(item.caption || "");
-    }
-  };
-
   const messageId = typeof item.metadata === 'object' && item.metadata !== null 
     ? (item.metadata as Record<string, any>).message_id 
     : undefined;
@@ -131,79 +79,24 @@ export const MediaTableRow = ({
         {item.updated_at ? format(new Date(item.updated_at), 'PPpp') : 'N/A'}
       </TableCell>
       <TableCell className="text-white/70">
-        {isEditing ? (
-          <div className="flex items-center gap-2 max-w-[300px]" onClick={(e) => e.stopPropagation()}>
-            <Input
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              onBlur={handleCaptionSave}
-              onKeyDown={handleKeyDown}
-              autoFocus
-              className="bg-black/40 border-white/20 text-white/90"
-            />
-            {isSaving && <Loader2 className="w-4 h-4 animate-spin text-purple-500" />}
-          </div>
-        ) : (
-          <div 
-            className="max-w-[300px] truncate hover:bg-white/5 px-2 py-1 rounded cursor-text" 
-            onDoubleClick={handleCaptionDoubleClick}
-          >
-            {caption || 'No caption'}
-          </div>
-        )}
+        <MediaTableCaption id={item.id} initialCaption={item.caption} />
       </TableCell>
       <TableCell className="text-white/70">
-        <div className="space-y-1">
-          {item.google_drive_url && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenFile(item.google_drive_url!);
-              }}
-              className="flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors group w-full"
-            >
-              <Link2 className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate max-w-[300px] group-hover:underline">
-                Google Drive
-              </span>
-            </button>
-          )}
-          {item.public_url && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenFile(item.public_url!);
-              }}
-              className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group w-full"
-            >
-              <Link2 className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate max-w-[300px] group-hover:underline">
-                Public URL
-              </span>
-            </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenFile(item.file_url);
-            }}
-            className="flex items-center gap-2 text-white/70 hover:text-white/90 transition-colors group w-full"
-          >
-            <Link2 className="w-4 h-4 flex-shrink-0" />
-            <span className="truncate max-w-[300px] group-hover:underline">
-              Original URL
-            </span>
-          </button>
-        </div>
+        <MediaTableUrls
+          googleDriveUrl={item.google_drive_url}
+          publicUrl={item.public_url}
+          fileUrl={item.file_url}
+          onOpenFile={onOpenFile}
+        />
       </TableCell>
       <TableCell>
         <MediaTableActions
           id={item.id}
-          fileUrl={fileUrl}
+          fileUrl={item.file_url}
           fileName={item.file_name}
           chatId={item.chat_id}
           messageId={messageId}
-          onView={() => onOpenFile(fileUrl)}
+          onView={() => onOpenFile(item.file_url)}
           hasGoogleDrive={!!item.google_drive_url}
           onDelete={onDelete}
         />
