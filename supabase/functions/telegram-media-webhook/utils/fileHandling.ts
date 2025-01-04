@@ -26,12 +26,6 @@ export const getContentType = (fileName: string, mediaType: string): string => {
   }
 };
 
-export const getBucketId = (mediaType: string, fileExt: string | undefined): string => {
-  if (mediaType.startsWith('video') || fileExt === 'mov') {
-    return 'telegram-video';
-  }
-  if (mediaType.startsWith('image') || ['jpg', 'jpeg', 'png', 'gif'].includes(fileExt || '')) {
-    return 'telegram-pictures';
-  }
+export const getBucketId = (): string => {
   return 'telegram-media';
 };

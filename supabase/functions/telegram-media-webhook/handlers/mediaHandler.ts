@@ -40,7 +40,7 @@ export const handleMediaUpload = async (
 
     const mediaType = message.document?.mime_type || 
                      (message.photo ? 'image/jpeg' : 'video/quicktime');
-    const bucketId = getBucketId(mediaType, fileExt);
+    const bucketId = getBucketId();
     
     console.log('Uploading to bucket:', bucketId);
 
@@ -67,7 +67,8 @@ export const handleMediaUpload = async (
       file_unique_id: mediaItem.file_unique_id,
       file_size: mediaItem.file_size,
       message_id: message.message_id,
-      media_group_id: message.media_group_id
+      media_group_id: message.media_group_id,
+      content_type: contentType
     };
 
     const mediaData = {
