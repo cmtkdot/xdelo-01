@@ -16,6 +16,11 @@ export interface MediaItem {
   google_drive_id?: string;
   google_drive_url?: string;
   glide_row_id?: string;
+  public_url?: string;
+  chat?: {
+    title: string;
+    username?: string;
+  };
 }
 
 export interface Channel {
