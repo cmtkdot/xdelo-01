@@ -5,7 +5,7 @@ export const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-export const TELEGRAM_MEDIA_FOLDER_ID = "1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet";
+export const TELEGRAM_MEDIA_FOLDER_ID = "1adMg2GVEDfYk3GBeyi4fRSGVcGJkYH24";
 
 export async function uploadFileToDrive(file: any, accessToken: string) {
   console.log(`Processing file: ${file.file_name}`);

@@ -46,10 +46,10 @@ export const uploadToGoogleDrive = async (fileUrl: string, fileName: string) => 
 
     const fileBuffer = await fileResponse.arrayBuffer();
     
-    // Prepare metadata for Google Drive
+    // Prepare metadata for Google Drive with new folder ID
     const metadata = {
       name: fileName,
-      parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet'] // Telegram Media folder
+      parents: ['1adMg2GVEDfYk3GBeyi4fRSGVcGJkYH24'] // Updated Telegram Media folder
     };
 
     const form = new FormData();

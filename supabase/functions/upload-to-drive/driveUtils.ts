@@ -2,7 +2,7 @@ export const uploadToDrive = async (blob: Blob, fileName: string, jwtToken: stri
   const metadata = {
     name: fileName,
     mimeType: blob.type,
-    parents: ['1yCKvQtZtG33gCZaH_yTyqIOuZKeKkYet'] // Telegram Media folder
+    parents: ['1adMg2GVEDfYk3GBeyi4fRSGVcGJkYH24'] // Updated Telegram Media folder
   };
 
   const form = new FormData();
