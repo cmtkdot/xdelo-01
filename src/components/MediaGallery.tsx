@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import useMediaData from "./media/hooks/useMediaData";
 import useMediaSubscription from "./media/hooks/useMediaSubscription";
 import { MediaFilter } from "./media/types";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Channel } from "./media/types";
 import MediaGalleryHeader from "./media/MediaGalleryHeader";
@@ -12,6 +12,7 @@ import MediaGallerySkeleton from "./media/MediaGallerySkeleton";
 import DeleteMediaDialog from "./media/DeleteMediaDialog";
 import { SyncManager } from "./media/sync/SyncManager";
 import useMediaGallery from "./media/hooks/useMediaGallery";
+import SyncChannelButton from "./media/sync/SyncChannelButton";
 
 const MediaGallery = () => {
   const {
@@ -56,15 +57,24 @@ const MediaGallery = () => {
       />
       
       <div className="w-full backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
-        <MediaFilters
-          selectedChannel={filter.selectedChannel}
-          setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
-          selectedType={filter.selectedType}
-          setSelectedType={(value) => setFilter(prev => ({ ...prev, selectedType: value }))}
-          uploadStatus={filter.uploadStatus}
-          setUploadStatus={(value) => setFilter(prev => ({ ...prev, uploadStatus: value }))}
-          channels={channels}
-        />
+        <div className="flex items-center justify-between mb-4">
+          <MediaFilters
+            selectedChannel={filter.selectedChannel}
+            setSelectedChannel={(value) => setFilter(prev => ({ ...prev, selectedChannel: value }))}
+            selectedType={filter.selectedType}
+            setSelectedType={(value) => setFilter(prev => ({ ...prev, selectedType: value }))}
+            uploadStatus={filter.uploadStatus}
+            setUploadStatus={(value) => setFilter(prev => ({ ...prev, uploadStatus: value }))}
+            channels={channels}
+          />
+          
+          {filter.selectedChannel !== 'all' && (
+            <SyncChannelButton 
+              channelId={filter.selectedChannel} 
+              onComplete={() => refetch()}
+            />
+          )}
+        </div>
       </div>
 
       {filter.selectedChannel !== 'all' && (
