@@ -1,5 +1,5 @@
 import { MediaItem } from "../types";
-import { validateMediaUrl, generatePublicUrl } from "../utils/urlValidation";
+import { validateMediaUrl } from "../utils/urlValidation";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 
@@ -23,30 +23,19 @@ export const MediaViewerContent = ({
   const isVideo = item.media_type === "video" || item.media_type?.includes('video');
 
   useEffect(() => {
-    const validateUrls = async () => {
-      // Try each URL in order of preference
-      const urls = [
-        { url: item.file_url, type: 'file URL' },
-        { url: item.public_url, type: 'public URL' },
-        { url: item.google_drive_url, type: 'Google Drive URL' }
-      ];
-
-      for (const { url, type } of urls) {
-        const validatedUrl = validateMediaUrl(url, item.media_type);
-        if (validatedUrl) {
-          console.log(`Using validated ${type} in viewer: ${validatedUrl}`);
-          setDisplayUrl(validatedUrl);
-          return;
-        }
-      }
-
-      // If no valid URLs found, generate a new public URL
-      const generatedUrl = generatePublicUrl(item.file_name, item.media_type);
-      console.log(`Generated new public URL in viewer: ${generatedUrl}`);
-      setDisplayUrl(generatedUrl);
-    };
-
-    validateUrls();
+    // Try file_url first, then fall back to public_url
+    const validatedUrl = validateMediaUrl(item.file_url) || validateMediaUrl(item.public_url);
+    if (validatedUrl) {
+      console.log(`Using validated URL in viewer: ${validatedUrl}`);
+      setDisplayUrl(validatedUrl);
+    } else {
+      console.error('No valid URL available for media item:', item);
+      toast({
+        title: "Error",
+        description: "No valid media URL available",
+        variant: "destructive"
+      });
+    }
   }, [item]);
 
   if (!displayUrl) {

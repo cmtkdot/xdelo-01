@@ -21,8 +21,8 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const [hasError, setHasError] = useState(false);
   const { toast } = useToast();
 
-  // Prioritize file_url and fall back to other URLs
-  const displayUrl = item.file_url || item.public_url || item.google_drive_url;
+  // Prioritize file_url and fall back to public_url
+  const displayUrl = validateMediaUrl(item.file_url || item.public_url);
 
   if (!displayUrl) {
     return (

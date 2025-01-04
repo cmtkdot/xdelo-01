@@ -16,7 +16,6 @@ export const validateMediaUrl = (url: string | null | undefined, mediaType?: str
   return url;
 };
 
-export const generatePublicUrl = (filename: string, mediaType: string): string => {
-  // Default to telegram-media bucket for simplicity
+export const generatePublicUrl = (filename: string): string => {
   return `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/telegram-media/${filename}`;
 };

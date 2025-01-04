@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { MediaItem } from "../types";
 
 interface MediaCardPreviewProps {
