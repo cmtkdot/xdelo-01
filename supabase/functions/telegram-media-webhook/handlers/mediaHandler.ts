@@ -1,14 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { saveMedia } from "../utils/database.ts";
 import { 
   generateSafeFileName, 
   determineMediaType, 
   getMediaItem,
   formatMediaMetadata,
-  generatePublicUrl,
-  getContentType 
+  getContentType,
+  generatePublicUrl
 } from "../utils/fileHandling.ts";
-import { uploadToGoogleDrive } from "../utils/googleDrive.ts";
-import { saveMedia } from "../utils/database.ts";
 
 export const handleMediaUpload = async (
   supabase: any,
@@ -16,67 +15,86 @@ export const handleMediaUpload = async (
   userId: string,
   botToken: string
 ) => {
-  const mediaType = determineMediaType(message);
-  const mediaItem = getMediaItem(message);
-  const metadata = formatMediaMetadata(mediaItem, message);
-  const messageCaption = message.caption || message.text || null;
-  
-  const fileResponse = await fetch(
-    `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`
-  );
-  const fileData = await fileResponse.json();
-  
-  if (!fileData.ok) {
-    throw new Error("Failed to get file path from Telegram");
-  }
-
-  const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
-  const fileName = generateSafeFileName(messageCaption || mediaItem.file_id, fileData.result.file_path.split('.').pop());
-  const contentType = getContentType(fileName, mediaType);
-
-  console.log(`Uploading file ${fileName} with content type ${contentType}`);
-
-  // Upload to Supabase Storage with proper content type
-  const { data: storageData, error: storageError } = await supabase.storage
-    .from("telegram-media")
-    .upload(fileName, await (await fetch(fileUrl)).arrayBuffer(), {
-      contentType: contentType,
-      upsert: true,
-    });
-
-  if (storageError) {
-    console.error('Storage upload error:', storageError);
-    throw storageError;
-  }
-
-  // Generate public URL
-  const publicUrl = generatePublicUrl(fileName);
-  console.log('Generated public URL:', publicUrl);
-
-  // Upload to Google Drive if needed
-  let driveData;
   try {
-    driveData = await uploadToGoogleDrive(publicUrl, fileName);
-    console.log('Successfully uploaded to Google Drive:', driveData);
+    const mediaItem = message.photo 
+      ? message.photo[message.photo.length - 1] 
+      : getMediaItem(message);
+    
+    if (!mediaItem) {
+      console.error('No media item found in message');
+      return null;
+    }
+
+    const fileUrl = `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`;
+    const fileResponse = await fetch(fileUrl);
+    const fileData = await fileResponse.json();
+
+    if (!fileData.ok) {
+      throw new Error(`Failed to get file path: ${JSON.stringify(fileData)}`);
+    }
+
+    const filePath = fileData.result.file_path;
+    const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`;
+    
+    // Get the file extension from the original file path
+    const fileExt = filePath.split('.').pop()?.toLowerCase();
+    const timestamp = Date.now();
+    const safeFileName = generateSafeFileName(
+      `${mediaItem.file_unique_id}_${timestamp}`,
+      fileExt || 'unknown'
+    );
+
+    // Determine which bucket to use based on file type
+    const bucketId = fileExt === 'mov' ? 'telegram-video' : 'telegram-media';
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(bucketId)
+      .upload(safeFileName, await (await fetch(downloadUrl)).arrayBuffer(), {
+        contentType: getContentType(safeFileName, determineMediaType(message)),
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError);
+      throw uploadError;
+    }
+
+    // Generate the correct public URL based on the bucket
+    const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucketId}/${safeFileName}`;
+
+    const mediaData = {
+      user_id: userId,
+      chat_id: message.chat.id,
+      file_name: safeFileName,
+      file_url: publicUrl,
+      media_type: determineMediaType(message),
+      caption: message.caption,
+      metadata: {
+        ...formatMediaMetadata(mediaItem, message),
+        message_id: message.message_id,
+        media_group_id: message.media_group_id
+      },
+      media_group_id: message.media_group_id,
+    };
+
+    const savedMedia = await saveMedia(
+      supabase,
+      mediaData.user_id,
+      mediaData.chat_id,
+      mediaData.file_name,
+      mediaData.file_url,
+      mediaData.media_type,
+      mediaData.caption,
+      mediaData.metadata,
+      mediaData.media_group_id,
+      null,
+      null,
+      publicUrl
+    );
+
+    return { mediaData, publicUrl };
   } catch (error) {
-    console.error('Failed to upload to Google Drive:', error);
+    console.error('Error in handleMediaUpload:', error);
+    throw error;
   }
-
-  // Save media with public URL
-  const mediaData = await saveMedia(
-    supabase,
-    userId,
-    message.chat.id,
-    fileName,
-    fileUrl,
-    mediaType,
-    messageCaption,
-    metadata,
-    message.media_group_id,
-    driveData?.fileId,
-    driveData?.webViewLink,
-    publicUrl
-  );
-
-  return { mediaData, publicUrl };
 };
