@@ -12,6 +12,7 @@ import MediaGallerySkeleton from "./media/MediaGallerySkeleton";
 import DeleteMediaDialog from "./media/DeleteMediaDialog";
 import { SyncManager } from "./media/sync/SyncManager";
 import SyncChannelButton from "./media/sync/SyncChannelButton";
+import { useMediaGallery } from "./media/hooks/useMediaGallery";
 
 const MediaGallery = () => {
   const {
