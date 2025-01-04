@@ -1,4 +1,4 @@
-import { Trash2, Upload } from "lucide-react";
+import { Trash2, Upload, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +22,7 @@ interface MediaTableToolbarProps {
 
 export const MediaTableToolbar = ({ selectedMedia, onDeleteSuccess }: MediaTableToolbarProps) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isResyncing, setIsResyncing] = useState(false);
   const { toast } = useToast();
 
   const handleBulkDelete = async () => {
@@ -72,6 +73,34 @@ export const MediaTableToolbar = ({ selectedMedia, onDeleteSuccess }: MediaTable
     }
   };
 
+  const handleBulkResync = async () => {
+    try {
+      setIsResyncing(true);
+      const { error } = await supabase.functions.invoke('resync-media', {
+        body: { 
+          mediaIds: selectedMedia.map(item => item.id)
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Successfully resynced ${selectedMedia.length} item${selectedMedia.length !== 1 ? 's' : ''}`,
+      });
+      onDeleteSuccess(); // Refresh the list
+    } catch (error) {
+      console.error('Error resyncing media:', error);
+      toast({
+        title: "Error",
+        description: "Failed to resync media items",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResyncing(false);
+    }
+  };
+
   if (selectedMedia.length === 0) {
     return null;
   }
@@ -81,6 +110,16 @@ export const MediaTableToolbar = ({ selectedMedia, onDeleteSuccess }: MediaTable
       <span className="text-sm text-white/70">
         {selectedMedia.length} item{selectedMedia.length !== 1 ? 's' : ''} selected
       </span>
+
+      <Button
+        variant="ghost"
+        className="bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 hover:text-purple-300"
+        onClick={handleBulkResync}
+        disabled={isResyncing}
+      >
+        <RefreshCw className={`w-4 h-4 mr-2 ${isResyncing ? 'animate-spin' : ''}`} />
+        Resync Selected
+      </Button>
 
       <Dialog>
         <DialogTrigger asChild>
