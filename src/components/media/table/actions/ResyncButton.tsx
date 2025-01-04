@@ -25,11 +25,9 @@ export const ResyncButton = ({ id, onUpdate }: ResyncButtonProps) => {
           message: `Starting resync for media ID: ${id}`
         });
 
+      // Fix: Pass mediaIds as an array
       const { data, error } = await supabase.functions.invoke('resync-media', {
-        body: { mediaIds: [id] },
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        body: { mediaIds: [id] }
       });
 
       if (error) throw error;
