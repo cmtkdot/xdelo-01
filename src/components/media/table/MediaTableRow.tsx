@@ -86,7 +86,7 @@ export const MediaTableRow = ({
           googleDriveUrl={item.google_drive_url}
           publicUrl={item.public_url}
           fileUrl={item.file_url}
-          onOpenFile={onOpenFile}
+          onOpenFile={() => onOpenFile(item.file_url)}
         />
       </TableCell>
       <TableCell>

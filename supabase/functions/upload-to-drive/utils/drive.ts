@@ -1,5 +1,3 @@
-import { isVideoFile, isMovFile, convertToMp4 } from './videoProcessing.ts';
-
 export const uploadToDrive = async (fileUrl: string, fileName: string, accessToken: string) => {
   console.log(`Starting upload to Google Drive for file: ${fileName}`);
   
@@ -14,15 +12,12 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
     
     let finalBlob = await response.blob();
     let finalFileName = fileName;
-    
-    // Handle MOV to MP4 conversion
+
+    // Note: Video conversion is temporarily disabled
+    // We'll just upload the original file for now
     if (isMovFile(fileName)) {
-      console.log('Converting MOV to MP4...');
-      const arrayBuffer = await finalBlob.arrayBuffer();
-      const convertedBuffer = await convertToMp4(arrayBuffer);
-      finalBlob = new Blob([convertedBuffer], { type: 'video/mp4' });
-      finalFileName = fileName.replace(/\.mov$/i, '.mp4');
-      console.log('Conversion complete. New filename:', finalFileName);
+      console.log('MOV file detected - uploading original format');
+      finalFileName = fileName;
     }
 
     const metadata = {
