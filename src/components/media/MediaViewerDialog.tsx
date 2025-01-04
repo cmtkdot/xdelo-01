@@ -1,5 +1,5 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { MediaItem } from "./types";
+import { MediaItem } from "../types";
 import { X, Link2, Calendar, FileVideo, Image as ImageIcon, Upload, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { DialogTitle } from "@radix-ui/react-dialog";
@@ -7,15 +7,16 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MediaViewerContent } from "./viewer/MediaViewerContent";
-import { MediaViewerUrls } from "./viewer/MediaViewerUrls";
-import { MediaViewerDetails } from "./viewer/MediaViewerDetails";
-import { MediaViewerMetadata } from "./viewer/MediaViewerMetadata";
+import { MediaViewerContent } from "./MediaViewerContent";
+import { MediaViewerUrls } from "./MediaViewerUrls";
+import { MediaViewerDetails } from "./MediaViewerDetails";
+import { MediaViewerMetadata } from "./MediaViewerMetadata";
 import { Button } from "@/components/ui/button";
-import GoogleDriveUploader from "./GoogleDriveUploader";
+import GoogleDriveUploader from "../GoogleDriveUploader";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Json } from "@/integrations/supabase/types";
 
 interface MediaViewerDialogProps {
   item: MediaItem | null;
@@ -44,8 +45,9 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
   };
 
   const getMessageId = () => {
-    if (!item.metadata || typeof item.metadata === 'string') return null;
-    return item.metadata.message_id;
+    if (!item?.metadata) return null;
+    const metadata = item.metadata as { message_id?: number };
+    return metadata.message_id || null;
   };
 
   const handleSyncCaption = async () => {

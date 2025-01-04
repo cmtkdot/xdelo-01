@@ -2,9 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { RefreshCw, AlertCircle } from "lucide-react";
 import { SyncLog, SyncStatus } from "../types";
 
 interface SyncManagerProps {
@@ -18,7 +16,6 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
   const supabase = useSupabaseClient();
 
   useEffect(() => {
-    // Get channel info
     const getChannelInfo = async () => {
       const { data } = await supabase
         .from('telegram_channels')
@@ -33,7 +30,6 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
 
     getChannelInfo();
 
-    // Subscribe to sync log updates
     const channel = supabase
       .channel('sync_progress')
       .on(
