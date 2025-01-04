@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -23,18 +24,54 @@ serve(async (req) => {
       throw new Error('No authorization header');
     }
 
+    // Log the request body for debugging
+    const requestText = await req.text();
+    console.log('Request body:', requestText);
+
+    let chatIds = [];
+    if (requestText) {
+      try {
+        const { chatIds: parsedChatIds } = JSON.parse(requestText);
+        chatIds = parsedChatIds;
+      } catch (parseError) {
+        console.error('Error parsing request body:', parseError);
+        // If parsing fails, we'll continue with an empty chatIds array
+      }
+    }
+
+    // Log the authentication attempt
+    console.log('Attempting to get user from auth header');
+
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
       authHeader.replace('Bearer ', '')
     );
 
-    if (userError || !user) {
+    if (userError) {
+      console.error('User authentication error:', userError);
+      throw userError;
+    }
+
+    if (!user) {
+      console.error('No user found');
       throw new Error('Unauthorized');
     }
 
-    const { chatIds } = await req.json();
-    
-    if (!chatIds || !Array.isArray(chatIds) || chatIds.length === 0) {
-      throw new Error('No chat IDs provided');
+    console.log(`Authenticated user: ${user.id}`);
+
+    // If no chat IDs provided, fetch all active channels
+    if (!chatIds || chatIds.length === 0) {
+      console.log('No chat IDs provided, fetching active channels');
+      const { data: channels, error: channelsError } = await supabaseClient
+        .from('channels')
+        .select('chat_id')
+        .eq('is_active', true);
+
+      if (channelsError) {
+        console.error('Error fetching channels:', channelsError);
+        throw channelsError;
+      }
+
+      chatIds = channels?.map(channel => channel.chat_id) || [];
     }
 
     console.log(`Processing ${chatIds.length} channels for user ${user.id}`);
@@ -110,6 +147,15 @@ serve(async (req) => {
 
     console.log(`Successfully updated ${updatedCount} media records`);
 
+    // Log the success in edge_function_logs
+    await supabaseClient
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'sync-media-captions',
+        status: 'success',
+        message: `Updated ${updatedCount} media records with public URLs`
+      });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -124,6 +170,21 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in sync-media-captions function:', error);
+
+    // Log the error in edge_function_logs
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    await supabaseClient
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'sync-media-captions',
+        status: 'error',
+        message: error.message
+      });
+
     return new Response(
       JSON.stringify({
         success: false,
