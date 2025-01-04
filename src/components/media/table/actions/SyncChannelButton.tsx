@@ -25,6 +25,7 @@ export function SyncChannelButton({ channelIds, onComplete }: SyncChannelButtonP
 
     try {
       setIsSyncing(true);
+      console.log('Starting sync for channels:', channelIds);
 
       await supabase
         .from('edge_function_logs')
@@ -38,7 +39,12 @@ export function SyncChannelButton({ channelIds, onComplete }: SyncChannelButtonP
         body: { chatIds: channelIds }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sync error:', error);
+        throw error;
+      }
+
+      console.log('Sync response:', data);
 
       await supabase
         .from('edge_function_logs')
