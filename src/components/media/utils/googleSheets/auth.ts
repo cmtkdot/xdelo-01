@@ -32,6 +32,14 @@ export const initGoogleSheetsAPI = async () => {
       throw new Error('No access token found. Please authenticate with Google.');
     }
 
+    // Check token expiration
+    const tokenExpiry = localStorage.getItem('google_token_expiry');
+    if (tokenExpiry && new Date().getTime() > parseInt(tokenExpiry)) {
+      localStorage.removeItem('google_access_token');
+      localStorage.removeItem('google_token_expiry');
+      throw new Error('Google access token has expired. Please re-authenticate.');
+    }
+
     // Set the access token for the client
     window.gapi.client.setToken({ access_token: accessToken });
 

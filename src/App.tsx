@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import Navigation from "./components/Navigation";
 import Index from "./pages/Index";
 import Messages from "./pages/Messages";
@@ -21,6 +22,7 @@ import { Toaster } from "./components/ui/toaster";
 import { SidebarProvider } from "./components/ui/sidebar";
 
 const queryClient = new QueryClient();
+const GOOGLE_CLIENT_ID = "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
@@ -39,9 +41,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <Router>
-          <SidebarProvider>
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <Router>
+            <SidebarProvider>
             <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50 via-blue-100/50 to-indigo-100/50 dark:from-blue-900 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
               {/* Animated background elements - tech-inspired for both modes */}
               <div className="fixed inset-0 pointer-events-none">
@@ -87,9 +90,10 @@ function App() {
               </Routes>
               <Toaster />
             </div>
-          </SidebarProvider>
-        </Router>
-      </ThemeProvider>
+            </SidebarProvider>
+          </Router>
+        </ThemeProvider>
+      </GoogleOAuthProvider>
     </QueryClientProvider>
   );
 }
