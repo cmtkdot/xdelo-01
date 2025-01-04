@@ -10,6 +10,7 @@ interface MediaCardPreviewProps {
 
 export const MediaCardPreview = ({ item, displayUrl, onLoad, onError }: MediaCardPreviewProps) => {
   const isVideo = item.media_type === "video" || item.media_type?.includes('video');
+  console.log(`Rendering media preview for ${item.id} with URL: ${displayUrl}`);
 
   return (
     <div className="relative w-full aspect-square group-hover:scale-105 transition-transform duration-300">
@@ -21,7 +22,10 @@ export const MediaCardPreview = ({ item, displayUrl, onLoad, onError }: MediaCar
           playsInline
           muted
           onLoadedData={onLoad}
-          onError={onError}
+          onError={(e) => {
+            console.error("Video load error:", e);
+            onError();
+          }}
         />
       ) : (
         <img
@@ -30,7 +34,10 @@ export const MediaCardPreview = ({ item, displayUrl, onLoad, onError }: MediaCar
           className="absolute inset-0 w-full h-full object-cover"
           loading="lazy"
           onLoad={onLoad}
-          onError={onError}
+          onError={(e) => {
+            console.error("Image load error:", e);
+            onError();
+          }}
         />
       )}
     </div>

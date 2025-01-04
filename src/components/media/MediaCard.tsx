@@ -2,7 +2,7 @@ import { useState } from "react";
 import { MediaItem } from "./types";
 import { Card, CardContent } from "@/components/ui/card";
 import MediaViewerDialog from "./MediaViewerDialog";
-import { validateMediaUrl, generatePublicUrl } from "./utils/urlValidation";
+import { validateMediaUrl } from "./utils/urlValidation";
 import { useToast } from "@/hooks/use-toast";
 import { MediaCardCheckbox } from "./card/MediaCardCheckbox";
 import { MediaCardContent } from "./card/MediaCardContent";
@@ -21,28 +21,18 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
   const [hasError, setHasError] = useState(false);
   const { toast } = useToast();
 
-  // Validate and prioritize URLs with fallback logic
-  const displayUrl = (() => {
-    console.log(`Validating URLs for media item ${item.id}`);
-    
-    const urls = [
-      { url: item.file_url, type: 'file URL' },
-      { url: item.public_url, type: 'public URL' },
-      { url: item.google_drive_url, type: 'Google Drive URL' }
-    ];
+  // Prioritize file_url and fall back to other URLs
+  const displayUrl = item.file_url || item.public_url || item.google_drive_url;
 
-    for (const { url, type } of urls) {
-      const validatedUrl = validateMediaUrl(url, item.media_type);
-      if (validatedUrl) {
-        console.log(`Using validated ${type}: ${validatedUrl}`);
-        return validatedUrl;
-      }
-    }
-
-    const generatedUrl = generatePublicUrl(item.file_name, item.media_type);
-    console.log(`Generated new public URL: ${generatedUrl}`);
-    return generatedUrl;
-  })();
+  if (!displayUrl) {
+    return (
+      <Card className="group relative overflow-hidden backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-gray-200/50 dark:border-white/10">
+        <CardContent className="p-4 text-center text-red-500">
+          Invalid media URL
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleCardClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.checkbox-area')) {
@@ -63,20 +53,10 @@ const MediaCard = ({ item, isSelected, onToggleSelect }: MediaCardProps) => {
     setHasError(true);
     toast({
       title: "Media Load Error",
-      description: "Failed to load media file. Trying alternative sources...",
+      description: "Failed to load media file",
       variant: "destructive",
     });
   };
-
-  if (!displayUrl) {
-    return (
-      <Card className="group relative overflow-hidden backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-gray-200/50 dark:border-white/10">
-        <CardContent className="p-4 text-center text-red-500">
-          Invalid media URL
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <>
