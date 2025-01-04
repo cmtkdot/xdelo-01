@@ -9,6 +9,7 @@ import {
   Bot,
   FileSpreadsheet,
   Database,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ export const navItems = [
   { path: "/", icon: Home, label: "Dashboard" },
   { path: "/messages", icon: MessageSquare, label: "Messages" },
   { path: "/media", icon: Image, label: "Media" },
+  { path: "/channel-sync", icon: RefreshCw, label: "Channel Sync" },
   { path: "/media-table", icon: FileSpreadsheet, label: "Media Table" },
   { path: "/google-sheet", icon: FileSpreadsheet, label: "Google Sheet" },
   { path: "/webhooks", icon: Webhook, label: "Webhooks" },

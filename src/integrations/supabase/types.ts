@@ -549,59 +549,6 @@ export type Database = {
           sync_type?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "sync_logs_channel_id_fkey"
-            columns: ["channel_id"]
-            isOneToOne: false
-            referencedRelation: "telegram_channels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      telegram_channels: {
-        Row: {
-          access_hash: string | null
-          bot_token: string
-          channel_id: string
-          created_at: string | null
-          id: string
-          last_sync_at: string | null
-          participant_count: number | null
-          sync_status: Json | null
-          title: string
-          updated_at: string | null
-          user_id: string
-          username: string | null
-        }
-        Insert: {
-          access_hash?: string | null
-          bot_token: string
-          channel_id: string
-          created_at?: string | null
-          id?: string
-          last_sync_at?: string | null
-          participant_count?: number | null
-          sync_status?: Json | null
-          title: string
-          updated_at?: string | null
-          user_id: string
-          username?: string | null
-        }
-        Update: {
-          access_hash?: string | null
-          bot_token?: string
-          channel_id?: string
-          created_at?: string | null
-          id?: string
-          last_sync_at?: string | null
-          participant_count?: number | null
-          sync_status?: Json | null
-          title?: string
-          updated_at?: string | null
-          user_id?: string
-          username?: string | null
-        }
         Relationships: []
       }
       webhook_configurations: {

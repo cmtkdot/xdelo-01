@@ -17,6 +17,7 @@ import Login from "./pages/Login";
 import AiChat from "./pages/AiChat";
 import DatabaseChat from "./pages/DatabaseChat";
 import Glide from "./pages/Glide";
+import ChannelSync from "./pages/ChannelSync";
 import { Toaster } from "./components/ui/toaster";
 import { SidebarProvider } from "./components/ui/sidebar";
 
@@ -44,50 +45,45 @@ function App() {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Router>
             <SidebarProvider>
-            <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50 via-blue-100/50 to-indigo-100/50 dark:from-blue-900 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
-              {/* Animated background elements - tech-inspired for both modes */}
-              <div className="fixed inset-0 pointer-events-none">
-                {/* Dot pattern - tech grid */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(59,130,246,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(59,130,246,0.1)_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+              <div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50 via-blue-100/50 to-indigo-100/50 dark:from-blue-900 dark:via-slate-900 dark:to-slate-950 overflow-hidden">
+                <div className="fixed inset-0 pointer-events-none">
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(59,130,246,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(59,130,246,0.1)_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+                  <div className="absolute -top-24 -left-24 w-96 h-96 bg-gradient-to-r from-blue-400/30 to-indigo-400/30 dark:from-blue-500/10 dark:to-indigo-500/10 rounded-full blur-3xl animate-float"></div>
+                  <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-gradient-to-r from-indigo-400/30 to-purple-400/30 dark:from-indigo-500/10 dark:to-purple-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_500px_at_50%_200px,rgba(59,130,246,0.1),transparent)] dark:bg-[radial-gradient(circle_500px_at_50%_200px,rgba(59,130,246,0.05),transparent)]"></div>
+                </div>
                 
-                {/* Gradient orbs - more vibrant in light mode */}
-                <div className="absolute -top-24 -left-24 w-96 h-96 bg-gradient-to-r from-blue-400/30 to-indigo-400/30 dark:from-blue-500/10 dark:to-indigo-500/10 rounded-full blur-3xl animate-float"></div>
-                <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-gradient-to-r from-indigo-400/30 to-purple-400/30 dark:from-indigo-500/10 dark:to-purple-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
-                
-                {/* Tech-inspired accent lines */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_500px_at_50%_200px,rgba(59,130,246,0.1),transparent)] dark:bg-[radial-gradient(circle_500px_at_50%_200px,rgba(59,130,246,0.05),transparent)]"></div>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route
+                    path="/*"
+                    element={
+                      <ProtectedRoute>
+                        <div className="flex flex-col relative z-10">
+                          <Navigation />
+                          <main className="flex-1 p-4 md:p-8 mt-16 container mx-auto">
+                            <Routes>
+                              <Route path="/" element={<Index />} />
+                              <Route path="/messages" element={<Messages />} />
+                              <Route path="/media" element={<Media />} />
+                              <Route path="/channel-sync" element={<ChannelSync />} />
+                              <Route path="/media-table" element={<MediaTable />} />
+                              <Route path="/media-data" element={<MediaData />} />
+                              <Route path="/google-sheet" element={<GoogleSheet />} />
+                              <Route path="/settings" element={<Settings />} />
+                              <Route path="/ai-chat" element={<AiChat />} />
+                              <Route path="/database-chat" element={<DatabaseChat />} />
+                              <Route path="/glide" element={<Glide />} />
+                              <Route path="*" element={<Navigate to="/" replace />} />
+                            </Routes>
+                          </main>
+                        </div>
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+                <Toaster />
               </div>
-              
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route
-                  path="/*"
-                  element={
-                    <ProtectedRoute>
-                      <div className="flex flex-col relative z-10">
-                        <Navigation />
-                        <main className="flex-1 p-4 md:p-8 mt-16 container mx-auto">
-                          <Routes>
-                            <Route path="/" element={<Index />} />
-                            <Route path="/messages" element={<Messages />} />
-                            <Route path="/media" element={<Media />} />
-                            <Route path="/media-table" element={<MediaTable />} />
-                            <Route path="/media-data" element={<MediaData />} />
-                            <Route path="/google-sheet" element={<GoogleSheet />} />
-                            <Route path="/settings" element={<Settings />} />
-                            <Route path="/ai-chat" element={<AiChat />} />
-                            <Route path="/database-chat" element={<DatabaseChat />} />
-                            <Route path="/glide" element={<Glide />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                          </Routes>
-                        </main>
-                      </div>
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
-              <Toaster />
-            </div>
             </SidebarProvider>
           </Router>
         </ThemeProvider>
