@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 const useMediaData = (filter: MediaFilter) => {
   const { toast } = useToast();
   
-  return useQuery({
+  const query = useQuery({
     queryKey: ['media', filter],
     queryFn: async () => {
       console.log("Fetching media with filter:", filter);
@@ -48,6 +48,33 @@ const useMediaData = (filter: MediaFilter) => {
       return data as MediaItem[];
     },
   });
+
+  // Set up real-time subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('media_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'media'
+        },
+        (payload) => {
+          console.log('Media table changed:', payload);
+          query.refetch();
+        }
+      )
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [query]);
+
+  return query;
 };
 
 export default useMediaData;

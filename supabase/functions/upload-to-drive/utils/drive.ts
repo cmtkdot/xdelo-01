@@ -4,7 +4,7 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
   console.log(`Starting upload to Google Drive for file: ${fileName}`);
   
   try {
-    const folderId = await findOrCreateRootFolder(accessToken);
+    const folderId = '1adMg2GVEDfYk3GBeyi4fRSGVcGJkYH24'; // Updated folder ID
     
     console.log('Fetching file from URL:', fileUrl);
     const response = await fetch(fileUrl);
@@ -15,12 +15,22 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
     const blob = await response.blob();
     console.log('File fetched. Type:', blob.type, 'Size:', blob.size);
 
+    // Convert MOV to MP4 if necessary
+    let finalBlob = blob;
+    if (blob.type === 'video/quicktime' || fileName.toLowerCase().endsWith('.mov')) {
+      console.log('Converting MOV to MP4...');
+      const arrayBuffer = await blob.arrayBuffer();
+      const convertedBuffer = await convertToMp4(arrayBuffer);
+      finalBlob = new Blob([convertedBuffer], { type: 'video/mp4' });
+      fileName = fileName.replace(/\.mov$/i, '.mp4');
+    }
+
     // Use chunked upload for large files
     const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
-    if (blob.size > CHUNK_SIZE) {
-      return await uploadLargeFile(blob, fileName, folderId, accessToken);
+    if (finalBlob.size > CHUNK_SIZE) {
+      return await uploadLargeFile(finalBlob, fileName, folderId, accessToken);
     } else {
-      return await uploadSmallFile(blob, fileName, folderId, accessToken);
+      return await uploadSmallFile(finalBlob, fileName, folderId, accessToken);
     }
   } catch (error) {
     console.error('Error in uploadToDrive:', error);
@@ -121,76 +131,4 @@ async function uploadLargeFile(blob: Blob, fileName: string, folderId: string, a
     // Add a small delay between chunks to prevent resource exhaustion
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-}
-
-async function findOrCreateRootFolder(accessToken: string): Promise<string> {
-  console.log('Looking for root folder:', ROOT_FOLDER_NAME);
-  
-  // First, try to find existing folder
-  const searchResponse = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=name='${ROOT_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    }
-  );
-
-  if (!searchResponse.ok) {
-    const errorData = await searchResponse.text();
-    throw new Error(`Failed to search for root folder: ${errorData}`);
-  }
-
-  const searchResult = await searchResponse.json();
-  
-  if (searchResult.files && searchResult.files.length > 0) {
-    console.log('Found existing root folder:', searchResult.files[0].id);
-    return searchResult.files[0].id;
-  }
-
-  // Create new folder if it doesn't exist
-  console.log('Creating new root folder');
-  const createResponse = await fetch(
-    'https://www.googleapis.com/drive/v3/files',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: ROOT_FOLDER_NAME,
-        mimeType: 'application/vnd.google-apps.folder',
-        permissionIds: ['anyone'],
-        writersCanShare: true
-      }),
-    }
-  );
-
-  if (!createResponse.ok) {
-    const errorData = await createResponse.text();
-    throw new Error(`Failed to create root folder: ${errorData}`);
-  }
-
-  const folder = await createResponse.json();
-  console.log('Created new root folder:', folder.id);
-
-  // Set folder permissions
-  await fetch(
-    `https://www.googleapis.com/drive/v3/files/${folder.id}/permissions`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        role: 'writer',
-        type: 'anyone',
-        allowFileDiscovery: true
-      }),
-    }
-  );
-
-  return folder.id;
 }
