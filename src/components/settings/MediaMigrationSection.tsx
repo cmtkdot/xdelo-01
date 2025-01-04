@@ -12,19 +12,26 @@ const MediaMigrationSection = () => {
   const [isMigrating, setMigrating] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
 
-  const { data: channels } = useQuery({
+  const { data: channels, isError: isChannelsError } = useQuery({
     queryKey: ['channels'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('channels')
         .select('*');
       
-      if (error) throw error;
+      if (error) {
+        toast.error("Failed to load channels", {
+          description: error.message
+        });
+        throw error;
+      }
       return data as Channel[];
     }
   });
 
   const handleMigration = async () => {
+    const loadingToast = toast.loading("Starting media migration...");
+    
     try {
       setMigrating(true);
       const { data, error } = await supabase.functions.invoke('migrate-media-files', {
@@ -35,14 +42,33 @@ const MediaMigrationSection = () => {
 
       if (error) throw error;
 
-      toast.success("Media migration completed successfully");
+      toast.dismiss(loadingToast);
+      toast.success("Media migration completed", {
+        description: `Successfully migrated media files${selectedChannel !== "all" ? " for selected channel" : ""}`
+      });
     } catch (error) {
       console.error('Error during migration:', error);
-      toast.error("Failed to migrate media files");
+      toast.dismiss(loadingToast);
+      toast.error("Migration failed", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred"
+      });
     } finally {
       setMigrating(false);
     }
   };
+
+  if (isChannelsError) {
+    return (
+      <Card className="backdrop-blur-xl bg-white/90 dark:bg-black/40 border-gray-200/50 dark:border-white/10">
+        <CardHeader>
+          <CardTitle className="text-gray-800 dark:text-white">Media Migration</CardTitle>
+          <CardDescription className="text-red-500">
+            Failed to load channels. Please try refreshing the page.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="backdrop-blur-xl bg-white/90 dark:bg-black/40 border-gray-200/50 dark:border-white/10">

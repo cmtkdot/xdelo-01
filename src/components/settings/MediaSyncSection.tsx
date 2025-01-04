@@ -19,7 +19,7 @@ const MediaSyncSection = () => {
   const [isSyncing, setSyncing] = useState(false);
   const [selectedChannels, setSelectedChannels] = useState<Set<number>>(new Set());
 
-  const { data: channels, isError: isChannelsError } = useQuery({
+  const { data: channels, isError: isChannelsError, error: channelsError } = useQuery({
     queryKey: ['channels'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -28,7 +28,9 @@ const MediaSyncSection = () => {
         .order('title');
       
       if (error) {
-        toast.error("Failed to load channels");
+        toast.error("Failed to load channels", {
+          description: error.message
+        });
         throw error;
       }
       return data as Channel[];
@@ -37,14 +39,16 @@ const MediaSyncSection = () => {
 
   const handleSync = async () => {
     if (selectedChannels.size === 0) {
-      toast.error("Please select at least one channel to sync");
+      toast.error("No channels selected", {
+        description: "Please select at least one channel to sync"
+      });
       return;
     }
 
+    const loadingToast = toast.loading("Starting media sync...");
+
     try {
       setSyncing(true);
-      const loadingToast = toast.loading("Syncing media...");
-      
       const { data, error } = await supabase.functions.invoke('sync-media-captions', {
         body: { 
           chatIds: Array.from(selectedChannels)
@@ -53,22 +57,21 @@ const MediaSyncSection = () => {
 
       toast.dismiss(loadingToast);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (data?.updatedCount === 0) {
-        toast.info("No media items found to update", {
-          description: "All selected channels are up to date"
+        toast.info("No updates needed", {
+          description: "All selected channels are already up to date"
         });
       } else {
-        toast.success("Media sync completed successfully", {
+        toast.success("Sync completed successfully", {
           description: `Updated ${data?.updatedCount} media items from ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''}`
         });
       }
     } catch (error) {
       console.error('Error syncing media:', error);
-      toast.error("Failed to sync media", {
+      toast.dismiss(loadingToast);
+      toast.error("Sync failed", {
         description: error instanceof Error ? error.message : "An unexpected error occurred"
       });
     } finally {
@@ -104,7 +107,7 @@ const MediaSyncSection = () => {
         <CardHeader>
           <CardTitle className="text-gray-800 dark:text-white">Media Sync</CardTitle>
           <CardDescription className="text-red-500">
-            Failed to load channels. Please try refreshing the page.
+            Failed to load channels: {channelsError instanceof Error ? channelsError.message : "Unknown error"}
           </CardDescription>
         </CardHeader>
       </Card>
