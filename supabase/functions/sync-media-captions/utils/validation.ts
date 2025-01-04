@@ -1,5 +1,3 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 export interface SyncRequest {
   chatIds?: number[];
   mediaGroupId?: string;
@@ -8,12 +6,14 @@ export interface SyncRequest {
 export const validateRequest = async (req: Request) => {
   try {
     const requestText = await req.text();
-    if (!requestText) {
+    console.log('Request body received:', requestText);
+    
+    if (!requestText || requestText.trim() === '') {
       throw new Error('Empty request body');
     }
 
-    console.log('Request body:', requestText);
     const data: SyncRequest = JSON.parse(requestText);
+    console.log('Parsed request data:', data);
     
     if (!data.chatIds?.length && !data.mediaGroupId) {
       throw new Error('Please provide either chatIds array or mediaGroupId');
@@ -22,6 +22,7 @@ export const validateRequest = async (req: Request) => {
     return data;
   } catch (error) {
     if (error instanceof SyntaxError) {
+      console.error('JSON parsing error:', error);
       throw new Error(`Invalid JSON in request body: ${error.message}`);
     }
     throw error;

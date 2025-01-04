@@ -101,13 +101,13 @@ export const useMediaOperations = (refetch: () => void) => {
         console.warn('Some errors occurred during sync:', data.errors);
         toast({
           title: "Partial Success",
-          description: `Synced ${data.processed} items with ${data.errors} errors`,
+          description: `Synced ${data.processed} items with ${data.errors.length} errors`,
           variant: "destructive",
         });
       } else {
         toast({
           title: "Success",
-          description: `Successfully synced ${data.processed} media captions`,
+          description: `Successfully synced ${data?.processed || 0} media captions`,
         });
       }
 
