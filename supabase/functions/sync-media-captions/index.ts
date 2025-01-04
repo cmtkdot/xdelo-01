@@ -24,19 +24,27 @@ serve(async (req) => {
       throw new Error('No authorization header');
     }
 
-    // Log the request body for debugging
-    const requestText = await req.text();
-    console.log('Request body:', requestText);
-
-    let chatIds = [];
-    if (requestText) {
-      try {
-        const { chatIds: parsedChatIds } = JSON.parse(requestText);
-        chatIds = parsedChatIds;
-      } catch (parseError) {
-        console.error('Error parsing request body:', parseError);
-        // If parsing fails, we'll continue with an empty chatIds array
+    let chatIds: number[] = [];
+    try {
+      const body = await req.text();
+      console.log('Request body:', body);
+      
+      if (body) {
+        const parsedBody = JSON.parse(body);
+        if (parsedBody.chatIds && Array.isArray(parsedBody.chatIds)) {
+          chatIds = parsedBody.chatIds;
+        }
       }
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      await supabaseClient
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-media-captions',
+          status: 'error',
+          message: `Error parsing request body: ${parseError.message}`
+        });
+      throw parseError;
     }
 
     // Log the authentication attempt
@@ -48,11 +56,25 @@ serve(async (req) => {
 
     if (userError) {
       console.error('User authentication error:', userError);
+      await supabaseClient
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-media-captions',
+          status: 'error',
+          message: `Authentication error: ${userError.message}`
+        });
       throw userError;
     }
 
     if (!user) {
       console.error('No user found');
+      await supabaseClient
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-media-captions',
+          status: 'error',
+          message: 'No user found'
+        });
       throw new Error('Unauthorized');
     }
 
@@ -68,6 +90,13 @@ serve(async (req) => {
 
       if (channelsError) {
         console.error('Error fetching channels:', channelsError);
+        await supabaseClient
+          .from('edge_function_logs')
+          .insert({
+            function_name: 'sync-media-captions',
+            status: 'error',
+            message: `Error fetching channels: ${channelsError.message}`
+          });
         throw channelsError;
       }
 
@@ -85,12 +114,27 @@ serve(async (req) => {
 
     if (fetchError) {
       console.error('Error fetching media items:', fetchError);
+      await supabaseClient
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-media-captions',
+          status: 'error',
+          message: `Error fetching media items: ${fetchError.message}`
+        });
       throw fetchError;
     }
 
     console.log(`Found ${mediaItems?.length || 0} media items to update`);
 
     if (!mediaItems?.length) {
+      await supabaseClient
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-media-captions',
+          status: 'success',
+          message: 'No media items found to update'
+        });
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -139,6 +183,13 @@ serve(async (req) => {
 
       if (updateError) {
         console.error('Error updating batch:', updateError);
+        await supabaseClient
+          .from('edge_function_logs')
+          .insert({
+            function_name: 'sync-media-captions',
+            status: 'error',
+            message: `Error updating batch: ${updateError.message}`
+          });
         throw updateError;
       }
       
@@ -147,7 +198,7 @@ serve(async (req) => {
 
     console.log(`Successfully updated ${updatedCount} media records`);
 
-    // Log the success in edge_function_logs
+    // Log the success
     await supabaseClient
       .from('edge_function_logs')
       .insert({
@@ -171,7 +222,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in sync-media-captions function:', error);
 
-    // Log the error in edge_function_logs
+    // Log the error
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
