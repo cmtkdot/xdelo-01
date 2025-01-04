@@ -1,13 +1,102 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateWebhookAuth, validateBotToken } from "./utils/auth.ts";
-import { saveChannel, saveMessage, saveBotUser } from "./utils/database.ts";
-import { determineMessageType } from "./utils/messageTypes.ts";
-import { handleMediaUpload } from "./handlers/mediaHandler.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const processMediaMessage = async (supabase: any, message: any, userId: string, botToken: string) => {
+  if (!message.photo && !message.document && !message.video && !message.audio && 
+      !message.voice && !message.animation && !message.sticker) {
+    return null;
+  }
+
+  const mediaItem = message.photo 
+    ? message.photo[message.photo.length - 1] 
+    : message.document || message.video || message.audio || 
+      message.voice || message.animation || message.sticker;
+
+  if (!mediaItem) return null;
+
+  const fileUrl = `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`;
+  const fileResponse = await fetch(fileUrl);
+  const fileData = await fileResponse.json();
+
+  if (!fileData.ok) {
+    throw new Error(`Failed to get file path: ${JSON.stringify(fileData)}`);
+  }
+
+  const filePath = fileData.result.file_path;
+  const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`;
+  const fileExt = filePath.split('.').pop()?.toLowerCase();
+  const timestamp = Date.now();
+  const safeFileName = `${mediaItem.file_unique_id}_${timestamp}.${fileExt || 'unknown'}`;
+  const bucketId = fileExt === 'mov' ? 'telegram-video' : 'telegram-media';
+
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from(bucketId)
+    .upload(safeFileName, await (await fetch(downloadUrl)).arrayBuffer(), {
+      contentType: message.document?.mime_type || 'application/octet-stream',
+      upsert: false
+    });
+
+  if (uploadError) throw uploadError;
+
+  const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucketId}/${safeFileName}`;
+
+  const { data: mediaData, error: mediaError } = await supabase
+    .from('media')
+    .insert({
+      user_id: userId,
+      chat_id: message.chat.id,
+      file_name: safeFileName,
+      file_url: publicUrl,
+      media_type: message.document ? message.document.mime_type : 'photo',
+      caption: message.caption,
+      metadata: {
+        file_id: mediaItem.file_id,
+        file_unique_id: mediaItem.file_unique_id,
+        file_size: mediaItem.file_size,
+        message_id: message.message_id,
+        media_group_id: message.media_group_id
+      },
+      media_group_id: message.media_group_id,
+      public_url: publicUrl
+    })
+    .select()
+    .single();
+
+  if (mediaError) throw mediaError;
+  return mediaData;
+};
+
+const updateCaption = async (supabase: any, message: any) => {
+  const { data: existingMedia, error: findError } = await supabase
+    .from('media')
+    .select('*')
+    .eq('chat_id', message.chat.id)
+    .contains('metadata', { message_id: message.message_id });
+
+  if (findError) {
+    console.error('Error finding existing media:', findError);
+    return;
+  }
+
+  if (existingMedia?.[0]) {
+    const { error: updateError } = await supabase
+      .from('media')
+      .update({ 
+        caption: message.caption,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existingMedia[0].id);
+
+    if (updateError) {
+      console.error('Error updating media caption:', updateError);
+    }
+  }
 };
 
 serve(async (req) => {
@@ -23,155 +112,61 @@ serve(async (req) => {
     if (!validateWebhookAuth(authHeader, webhookSecret)) {
       return new Response(
         JSON.stringify({ error: "Unauthorized - Invalid webhook secret" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!validateBotToken(botToken)) {
       return new Response(
         JSON.stringify({ error: "Unauthorized - Missing bot token" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const payload = await req.json();
-    console.log("Received webhook payload:", JSON.stringify(payload, null, 2));
-
-    const messageType = determineMessageType(payload);
-    const message = payload.message || payload.channel_post || payload.edited_channel_post || payload.edited_message;
+    const message = payload.message || payload.channel_post || 
+                   payload.edited_channel_post || payload.edited_message;
     
     if (!message) {
       return new Response(
         JSON.stringify({ success: true, message: "No message content to process" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
 
-    const chat = message.chat;
-    const userId = crypto.randomUUID();
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    const userId = crypto.randomUUID();
+
     // Handle caption updates for edited messages
     if (payload.edited_message || payload.edited_channel_post) {
-      console.log("Processing edited message with potential caption update");
-      
-      // Try to find the existing media entry using message_id from metadata
-      const { data: existingMedia, error: findError } = await supabase
-        .from('media')
-        .select('*')
-        .eq('chat_id', chat.id)
-        .contains('metadata', { message_id: message.message_id });
-
-      if (findError) {
-        console.error('Error finding existing media:', findError);
-      } else if (existingMedia && existingMedia.length > 0) {
-        console.log('Found existing media to update caption:', existingMedia[0].id);
-        
-        // Update the caption
-        const { error: updateError } = await supabase
-          .from('media')
-          .update({ 
-            caption: message.caption,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingMedia[0].id);
-
-        if (updateError) {
-          console.error('Error updating media caption:', updateError);
-        } else {
-          console.log('Successfully updated media caption');
-        }
-      }
-    }
-    
-    try {
-      await saveBotUser(
-        supabase,
-        userId,
-        message.from?.id?.toString(),
-        message.from?.username,
-        message.from?.first_name,
-        message.from?.last_name
+      await updateCaption(supabase, message);
+      return new Response(
+        JSON.stringify({ success: true, message: "Caption updated successfully" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
-    } catch (error) {
-      console.error('Error creating bot user:', error);
-      throw error;
     }
 
-    await saveChannel(supabase, chat, userId);
-    await saveMessage(supabase, chat, message, userId);
-
-    await supabase.from("bot_activities").insert({
-      event_type: "message_received",
-      message_type: messageType,
-      chat_id: chat.id,
-      message_id: message.message_id,
-      user_id: userId,
-      details: {
-        update_id: payload.update_id,
-        edit_date: message.edit_date,
-        media_group_id: message.media_group_id,
-        message_type: messageType,
-        is_caption_update: !!payload.edited_message || !!payload.edited_channel_post
-      }
-    });
-
-    if (message.photo || message.document || message.video || message.audio || 
-        message.voice || message.animation || message.sticker) {
-      
-      const { mediaData, publicUrl } = await handleMediaUpload(
-        supabase,
-        message,
-        userId,
-        botToken
-      );
-
-      console.log(`Successfully processed media with public URL: ${publicUrl}`);
-
-      await supabase.from("bot_activities").insert({
-        event_type: "media_saved",
-        chat_id: chat.id,
-        user_id: userId,
-        details: {
-          media_type: mediaData.media_type,
-          file_name: mediaData.file_name,
-          media_group_id: message.media_group_id,
-          caption: mediaData.caption,
-          google_drive_id: mediaData.google_drive_id
-        },
-      });
-    }
+    // Process new media messages
+    const mediaData = await processMediaMessage(supabase, message, userId, botToken);
 
     return new Response(
-      JSON.stringify({ success: true, message: "Webhook processed successfully" }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
+      JSON.stringify({ 
+        success: true, 
+        message: "Webhook processed successfully",
+        data: mediaData 
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
+
   } catch (error) {
     console.error("Error processing webhook:", error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
+      JSON.stringify({ success: false, error: error.message }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
 });
