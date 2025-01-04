@@ -48,11 +48,14 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
             return;
           }
 
+          // Type assertion to ensure payload.new is treated as SyncLog
+          const newData = payload.new as SyncLog;
+
           const syncStatus: SyncStatus = {
-            progress: payload.new.progress ?? 0,
-            status: payload.new.status ?? 'unknown',
-            completed_at: payload.new.completed_at,
-            error_message: payload.new.error_message
+            progress: newData.progress ?? 0,
+            status: newData.status ?? 'unknown',
+            completed_at: newData.completed_at,
+            error_message: newData.error_message
           };
           
           setProgress(syncStatus.progress);

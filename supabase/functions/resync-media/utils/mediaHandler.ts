@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAndDownloadTelegramFile } from "../../_shared/telegram.ts";
 import { logMessage } from "./logging.ts";
 
 const supabase = createClient(
@@ -20,26 +21,13 @@ export const fetchMediaDetails = async (id: string) => {
 };
 
 export const downloadFromTelegram = async (fileId: string, botToken: string) => {
-  const fileInfoResponse = await fetch(
-    `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`
-  );
-  
-  if (!fileInfoResponse.ok) {
-    throw new Error(`Failed to get file info from Telegram: ${await fileInfoResponse.text()}`);
+  try {
+    const { buffer } = await getAndDownloadTelegramFile(fileId, botToken);
+    return buffer;
+  } catch (error) {
+    console.error('Error downloading from Telegram:', error);
+    throw new Error(`Failed to download from Telegram: ${error.message}`);
   }
-
-  const fileInfo = await fileInfoResponse.json();
-  const filePath = fileInfo.result.file_path;
-  
-  const fileResponse = await fetch(
-    `https://api.telegram.org/file/bot${botToken}/${filePath}`
-  );
-
-  if (!fileResponse.ok) {
-    throw new Error(`Failed to fetch file from Telegram: ${fileResponse.status}`);
-  }
-
-  return await fileResponse.arrayBuffer();
 };
 
 export const uploadToStorage = async (fileName: string, fileBuffer: ArrayBuffer, contentType: string) => {

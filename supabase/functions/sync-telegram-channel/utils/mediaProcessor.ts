@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAndDownloadTelegramFile } from "../../_shared/telegram.ts";
 import { getContentType, getBucketId, generateSafeFileName } from "../../telegram-media-webhook/utils/fileHandling.ts";
 
 export async function processMediaMessage(message: any, channelId: number, supabase: any, botToken: string) {
@@ -9,20 +10,17 @@ export async function processMediaMessage(message: any, channelId: number, supab
   if (!mediaItem) return null;
 
   try {
-    // Get file info from Telegram
-    const fileUrl = `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`;
-    const fileResponse = await fetch(fileUrl);
-    const fileData = await fileResponse.json();
+    console.log('Processing media item:', { mediaItem, message });
 
-    if (!fileData.ok) {
-      throw new Error(`Failed to get file path: ${JSON.stringify(fileData)}`);
-    }
+    // Download file from Telegram using the shared utility
+    const { buffer: fileContent, filePath } = await getAndDownloadTelegramFile(
+      mediaItem.file_id,
+      botToken
+    );
 
-    const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
-    const fileContent = await (await fetch(downloadUrl)).arrayBuffer();
-    
+    // Generate safe file name
     const timestamp = Date.now();
-    const fileExt = fileData.result.file_path.split('.').pop()?.toLowerCase() || 'unknown';
+    const fileExt = filePath.split('.').pop()?.toLowerCase() || 'unknown';
     const safeFileName = generateSafeFileName(
       `${mediaItem.file_unique_id}_${timestamp}`,
       fileExt
@@ -37,7 +35,10 @@ export async function processMediaMessage(message: any, channelId: number, supab
     }
 
     const bucketId = getBucketId();
+    console.log('Uploading to bucket:', bucketId);
+
     const contentType = getContentType(safeFileName, mediaType);
+    console.log('Using content type:', contentType);
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -49,59 +50,50 @@ export async function processMediaMessage(message: any, channelId: number, supab
       });
 
     if (uploadError) {
-      if (uploadError.message.includes('duplicate')) {
-        console.log(`File ${safeFileName} already exists, skipping upload`);
-      } else {
-        throw uploadError;
-      }
+      console.error('Error uploading file:', uploadError);
+      throw uploadError;
     }
 
+    // Generate public URL
     const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucketId}/${safeFileName}`;
+    console.log('Generated public URL:', publicUrl);
 
-    // Prepare metadata
     const metadata = {
       file_id: mediaItem.file_id,
       file_unique_id: mediaItem.file_unique_id,
       file_size: mediaItem.file_size,
       message_id: message.message_id,
+      media_group_id: message.media_group_id,
       content_type: contentType,
-      mime_type: mediaType
+      mime_type: mediaType,
+      file_path: filePath
     };
 
-    // Get user info from auth context
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      throw new Error('No authenticated user found');
-    }
-
     // Insert into media table
+    const mediaData = {
+      user_id: crypto.randomUUID(), // This should be replaced with actual user ID in production
+      chat_id: message.chat.id,
+      file_name: safeFileName,
+      file_url: publicUrl,
+      media_type: mediaType,
+      caption: message.caption,
+      metadata,
+      media_group_id: message.media_group_id,
+      public_url: publicUrl
+    };
+
     const { data: savedMedia, error: dbError } = await supabase
       .from('media')
-      .insert({
-        user_id: user.id,
-        chat_id: channelId,
-        file_name: safeFileName,
-        file_url: publicUrl,
-        media_type: mediaType,
-        caption: message.caption,
-        metadata,
-        media_group_id: message.media_group_id,
-        public_url: publicUrl
-      })
+      .insert([mediaData])
       .select()
       .single();
 
     if (dbError) {
-      // If it's a duplicate, we can ignore it
-      if (dbError.code === '23505') {
-        console.log(`Media record for ${safeFileName} already exists, skipping insert`);
-        return null;
-      }
+      console.error('Error saving media to database:', dbError);
       throw dbError;
     }
 
-    return savedMedia;
+    return { mediaData: savedMedia, publicUrl };
   } catch (error) {
     console.error('Error in processMediaMessage:', error);
     throw error;
