@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { logOperation } from "../_shared/database.ts";
-import { getAllChannelMessages, verifyChannelAccess } from "./utils/channelOperations.ts";
+import { getAllChannelMessages, verifyChannelAccess, getMessageHistory } from "./utils/channelOperations.ts";
 import { processMediaMessage } from "./utils/mediaProcessor.ts";
 import { logError, logSuccess, logInfo } from "./utils/errorHandler.ts";
 
@@ -51,9 +51,20 @@ serve(async (req) => {
       // Verify channel access
       await verifyChannelAccess(botToken, chatId);
 
-      // Fetch all messages
-      const messages = await getAllChannelMessages(botToken, chatId);
+      // Try to get message history first
+      let messages = await getMessageHistory(botToken, chatId);
       
+      // If message history fails, fall back to getting all messages
+      if (!messages) {
+        console.log('Falling back to getAllChannelMessages');
+        messages = await getAllChannelMessages(botToken, chatId);
+      }
+      
+      if (!messages || messages.length === 0) {
+        console.log('No messages found in channel');
+        throw new Error('No messages found in channel');
+      }
+
       for (const message of messages) {
         if (message.photo || message.video || message.document) {
           try {

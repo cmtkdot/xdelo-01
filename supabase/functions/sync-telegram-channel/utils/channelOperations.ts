@@ -1,6 +1,4 @@
 import { logOperation } from "../../_shared/database.ts";
-import { getAndDownloadTelegramFile } from "../../_shared/telegram.ts";
-import { uploadToStorage, generateSafeFileName } from "../../_shared/storage.ts";
 
 export async function verifyChannelAccess(botToken: string, channelId: number) {
   const response = await fetch(
@@ -16,37 +14,40 @@ export async function verifyChannelAccess(botToken: string, channelId: number) {
   return await response.json();
 }
 
-export async function getChannelHistory(botToken: string, channelId: number, offset = 0, limit = 100) {
-  console.log(`Fetching message history for channel ${channelId} from offset ${offset}`);
+export async function getChannelMessages(botToken: string, channelId: number, offset = 0) {
+  console.log(`Fetching messages from offset ${offset}`);
   
+  // First try getHistory
   const response = await fetch(
-    `https://api.telegram.org/bot${botToken}/getHistory?chat_id=${channelId}&offset=${offset}&limit=${limit}`
+    `https://api.telegram.org/bot${botToken}/getHistory?chat_id=${channelId}&offset=${offset}&limit=100`
   );
 
   if (!response.ok) {
-    // If getHistory fails, try getChatHistory
     console.log('getHistory failed, trying getChatHistory...');
-    const chatHistoryResponse = await fetch(
-      `https://api.telegram.org/bot${botToken}/getChatHistory?chat_id=${channelId}&offset=${offset}&limit=${limit}`
+    
+    // Try getChatHistory as fallback
+    const historyResponse = await fetch(
+      `https://api.telegram.org/bot${botToken}/getChatHistory?chat_id=${channelId}&offset=${offset}&limit=100`
     );
 
-    if (!chatHistoryResponse.ok) {
-      // If both fail, try getMessages as last resort
-      console.log('getChatHistory failed, trying getMessages...');
-      const messagesResponse = await fetch(
-        `https://api.telegram.org/bot${botToken}/getMessages?chat_id=${channelId}&offset_id=${offset}&limit=${limit}`
+    if (!historyResponse.ok) {
+      console.log('getChatHistory failed, trying getUpdates...');
+      
+      // Final fallback to getUpdates
+      const updatesResponse = await fetch(
+        `https://api.telegram.org/bot${botToken}/getUpdates?chat_id=${channelId}&offset=${offset}&limit=100`
       );
       
-      if (!messagesResponse.ok) {
-        const error = await messagesResponse.json();
+      if (!updatesResponse.ok) {
+        const error = await updatesResponse.json();
         console.error('Error fetching messages:', error);
         throw new Error(`Failed to fetch messages: ${error.description}`);
       }
       
-      return await messagesResponse.json();
+      return await updatesResponse.json();
     }
     
-    return await chatHistoryResponse.json();
+    return await historyResponse.json();
   }
   
   return await response.json();
@@ -57,13 +58,11 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
   
   const messages = [];
   let offset = 0;
-  const limit = 100;
   let hasMore = true;
 
   while (hasMore) {
     try {
-      console.log(`Fetching messages from offset ${offset}`);
-      const data = await getChannelHistory(botToken, channelId, offset, limit);
+      const data = await getChannelMessages(botToken, channelId, offset);
       
       if (!data.ok || !data.result || data.result.length === 0) {
         console.log('No more messages to fetch');
@@ -74,14 +73,14 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
       messages.push(...data.result);
       console.log(`Fetched ${data.result.length} messages`);
       
-      if (data.result.length < limit) {
+      if (data.result.length < 100) {
         hasMore = false;
       } else {
-        offset += limit;
+        offset += 100;
       }
 
       // Add a small delay to avoid hitting rate limits
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
       console.error(`Error fetching messages at offset ${offset}:`, error);
       throw error;
@@ -90,4 +89,43 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
 
   console.log(`Total messages fetched: ${messages.length}`);
   return messages;
+}
+
+export async function getMessageHistory(botToken: string, channelId: number) {
+  const url = `https://api.telegram.org/bot${botToken}/messages.getHistory`;
+  const params = {
+    peer: {
+      _: 'inputPeerChannel',
+      channel_id: channelId,
+      access_hash: '' // We'll need to get this from the channel info
+    },
+    offset_id: 0,
+    offset_date: 0,
+    add_offset: 0,
+    limit: 100,
+    max_id: 0,
+    min_id: 0,
+    hash: 0
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(params)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Error fetching message history:', error);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error in getMessageHistory:', error);
+    return null;
+  }
 }
