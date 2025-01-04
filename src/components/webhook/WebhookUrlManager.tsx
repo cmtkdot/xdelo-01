@@ -29,16 +29,25 @@ const WebhookUrlManager = ({ onUrlSelect }: WebhookUrlManagerProps) => {
   const [newUrl, setNewUrl] = useState("");
   const { toast } = useToast();
 
-  const { data: webhookUrls, refetch } = useQuery({
+  const { data: webhookUrls = [], refetch } = useQuery({
     queryKey: ['webhook-urls'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('webhook_urls')
-        .select('*')
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('webhook_urls')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data as WebhookUrl[];
+        if (error) {
+          console.error('Error fetching webhook URLs:', error);
+          throw error;
+        }
+
+        return (data || []) as WebhookUrl[];
+      } catch (error) {
+        console.error('Error in webhook URLs query:', error);
+        return [];
+      }
     },
   });
 
@@ -101,7 +110,7 @@ const WebhookUrlManager = ({ onUrlSelect }: WebhookUrlManagerProps) => {
             <SelectValue placeholder="Select a webhook URL" />
           </SelectTrigger>
           <SelectContent className="bg-gray-900 border-white/10">
-            {webhookUrls?.map((webhook) => (
+            {webhookUrls.map((webhook) => (
               <SelectItem 
                 key={webhook.id} 
                 value={webhook.url}

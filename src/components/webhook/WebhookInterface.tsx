@@ -35,6 +35,15 @@ const WebhookInterface = ({
     setWebhookData: state.setWebhookData,
   });
 
+  if (!state.webhookUrl) {
+    return (
+      <div className="space-y-4">
+        <WebhookUrlManager onUrlSelect={state.setWebhookUrl} />
+        <p className="text-gray-400 text-center">Select a webhook URL to continue</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <WebhookUrlManager onUrlSelect={state.setWebhookUrl} />
