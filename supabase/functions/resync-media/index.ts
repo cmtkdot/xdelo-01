@@ -66,7 +66,7 @@ serve(async (req) => {
     // Process media items
     for (const item of mediaItems || []) {
       try {
-        // Only attempt to delete if the file exists
+        // Check if the file exists in storage
         if (item.file_name) {
           const { data: fileExists } = await supabaseClient
             .storage
@@ -77,48 +77,50 @@ serve(async (req) => {
               search: item.file_name
             });
 
+          // Only proceed with URL updates if the file exists
           if (fileExists && fileExists.length > 0) {
-            await logToDatabase(supabaseClient, 'resync-media', 'info', `Attempting to delete file: ${item.file_name}`);
-            
-            const { error: deleteError } = await supabaseClient
-              .storage
-              .from('telegram-media')
-              .remove([item.file_name]);
+            // Generate new public URL using the bucket's public URL
+            const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${item.file_name}`;
 
-            if (deleteError) {
-              await logToDatabase(supabaseClient, 'resync-media', 'error', `Error deleting file ${item.file_name}: ${deleteError.message}`);
-              console.error(`Error deleting file ${item.file_name}:`, deleteError);
-            } else {
-              await logToDatabase(supabaseClient, 'resync-media', 'success', `Successfully deleted file: ${item.file_name}`);
+            // Verify the file is accessible
+            try {
+              const response = await fetch(publicUrl);
+              if (!response.ok) {
+                throw new Error(`File not accessible: ${response.status}`);
+              }
+
+              // Update media record with new URLs
+              const updateData = {
+                id: item.id,
+                public_url: publicUrl,
+                file_url: publicUrl,
+                updated_at: new Date().toISOString()
+              };
+
+              const { error: updateError } = await supabaseClient
+                .from('media')
+                .update(updateData)
+                .eq('id', item.id);
+
+              if (updateError) {
+                await logToDatabase(supabaseClient, 'resync-media', 'error', `Error updating media item ${item.id}: ${updateError.message}`);
+                throw updateError;
+              }
+
+              await logToDatabase(supabaseClient, 'resync-media', 'success', `Successfully processed media item: ${item.id} with new URL: ${publicUrl}`);
+              updates.push(updateData);
+            } catch (error) {
+              await logToDatabase(supabaseClient, 'resync-media', 'error', `Error verifying file accessibility for ${item.id}: ${error.message}`);
+              errors.push({ id: item.id, error: error.message });
             }
+          } else {
+            await logToDatabase(supabaseClient, 'resync-media', 'error', `File not found in storage: ${item.file_name}`);
+            errors.push({ id: item.id, error: 'File not found in storage' });
           }
+        } else {
+          await logToDatabase(supabaseClient, 'resync-media', 'error', `No file name for media item: ${item.id}`);
+          errors.push({ id: item.id, error: 'No file name' });
         }
-
-        // Generate new public URL using the bucket's public URL
-        const publicUrl = item.file_name 
-          ? `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${item.file_name}`
-          : null;
-
-        // Update media record with new URLs
-        const updateData = {
-          id: item.id,
-          public_url: publicUrl,
-          file_url: publicUrl, // Use the same public URL for file_url
-          updated_at: new Date().toISOString()
-        };
-
-        const { error: updateError } = await supabaseClient
-          .from('media')
-          .update(updateData)
-          .eq('id', item.id);
-
-        if (updateError) {
-          await logToDatabase(supabaseClient, 'resync-media', 'error', `Error updating media item ${item.id}: ${updateError.message}`);
-          throw updateError;
-        }
-
-        await logToDatabase(supabaseClient, 'resync-media', 'success', `Successfully processed media item: ${item.id} with new URL: ${publicUrl}`);
-        updates.push(updateData);
       } catch (error) {
         console.error(`Error processing media item ${item.id}:`, error);
         errors.push({ id: item.id, error: error.message });
