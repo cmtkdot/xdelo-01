@@ -7,64 +7,130 @@ const supabase = createClient(
 );
 
 export async function getChannelMessages(botToken: string, channelId: number, offset = 0) {
-  console.log(`Fetching messages from offset ${offset} for channel ${channelId}`);
+  console.log(`[getChannelMessages] Starting fetch for channel ${channelId} with offset ${offset}`);
   
-  const response = await fetch(
-    `https://api.telegram.org/bot${botToken}/getHistory`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chat_id: channelId,
-        offset: offset,
-        limit: 100
-      }),
+  try {
+    const url = `https://api.telegram.org/bot${botToken}/getHistory`;
+    console.log(`[getChannelMessages] Calling Telegram API: ${url}`);
+    console.log(`[getChannelMessages] Request payload:`, {
+      chat_id: channelId,
+      offset: offset,
+      limit: 100
+    });
+
+    const response = await fetch(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: channelId,
+          offset: offset,
+          limit: 100
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[getChannelMessages] API Error Response:`, {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+
+      // Log the error to the database
+      await logOperation(
+        supabase,
+        'sync-telegram-channel',
+        'error',
+        `Failed to fetch messages for channel ${channelId}. Status: ${response.status}. Error: ${errorText}`
+      );
+
+      throw new Error(`Failed to fetch messages: ${response.statusText} (${errorText})`);
     }
-  );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Failed to fetch messages: ${errorText}`);
-    throw new Error(`Failed to fetch messages: ${response.statusText}`);
+    const data = await response.json();
+    console.log(`[getChannelMessages] Successful response for channel ${channelId}:`, {
+      messageCount: data.result?.length || 0,
+      hasMore: data.result?.length === 100
+    });
+    
+    if (!data.ok) {
+      console.error('[getChannelMessages] Telegram API returned error:', data);
+      throw new Error(data.description || 'Failed to fetch messages');
+    }
+
+    // Log successful fetch
+    await logOperation(
+      supabase,
+      'sync-telegram-channel',
+      'info',
+      `Successfully fetched ${data.result?.length || 0} messages from channel ${channelId} at offset ${offset}`
+    );
+
+    return data.result;
+  } catch (error) {
+    console.error(`[getChannelMessages] Error details:`, {
+      channelId,
+      offset,
+      error: error.message,
+      stack: error.stack
+    });
+
+    // Log the error to the database
+    await logOperation(
+      supabase,
+      'sync-telegram-channel',
+      'error',
+      `Error in getChannelMessages: ${error.message}`
+    );
+
+    throw error;
   }
-
-  const data = await response.json();
-  
-  if (!data.ok) {
-    console.error('Telegram API error:', data);
-    throw new Error(data.description || 'Failed to fetch messages');
-  }
-
-  return data.result;
 }
 
 export async function getAllChannelMessages(botToken: string, channelId: number) {
+  console.log(`[getAllChannelMessages] Starting message fetch for channel ${channelId}`);
+  
   const messages = [];
   let offset = 0;
   let hasMore = true;
   
   while (hasMore) {
     try {
-      console.log(`Fetching messages at offset ${offset}`);
+      console.log(`[getAllChannelMessages] Fetching batch at offset ${offset}`);
       const batch = await getChannelMessages(botToken, channelId, offset);
       
       if (!batch || batch.length === 0) {
+        console.log(`[getAllChannelMessages] No more messages found at offset ${offset}`);
         hasMore = false;
         break;
       }
       
+      console.log(`[getAllChannelMessages] Received batch of ${batch.length} messages`);
       messages.push(...batch);
       offset += batch.length;
       
       // Add a small delay to avoid hitting rate limits
       await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
-      console.error(`Error fetching messages at offset ${offset}:`, error);
+      console.error(`[getAllChannelMessages] Error fetching messages at offset ${offset}:`, error);
+      
+      // Log the error to the database with detailed information
+      await logOperation(
+        supabase,
+        'sync-telegram-channel',
+        'error',
+        `Error fetching messages at offset ${offset}: ${error.message}\nStack: ${error.stack}`
+      );
+      
       throw error;
     }
   }
   
+  console.log(`[getAllChannelMessages] Completed fetch for channel ${channelId}. Total messages: ${messages.length}`);
   return messages;
 }
