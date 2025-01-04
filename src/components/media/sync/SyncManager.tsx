@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { RefreshCw, AlertCircle } from "lucide-react";
+import { SyncLog, SyncStatus } from "../types";
 
 interface SyncManagerProps {
   channelId: string;
@@ -43,18 +44,23 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
           table: 'sync_logs',
           filter: `channel_id=eq.${channelId}`
         },
-        (payload) => {
-          if (payload.new) {
-            setProgress(payload.new.progress || 0);
+        (payload: { new: SyncLog }) => {
+          const syncStatus: SyncStatus = {
+            progress: payload.new.progress,
+            status: payload.new.status,
+            completed_at: payload.new.completed_at,
+            error_message: payload.new.error_message
+          };
+          
+          setProgress(syncStatus.progress || 0);
             
-            if (payload.new.status === 'completed') {
-              setSyncing(false);
-              toast.success('Sync completed successfully');
-              setLastSync(payload.new.completed_at);
-            } else if (payload.new.status === 'failed') {
-              setSyncing(false);
-              toast.error(`Sync failed: ${payload.new.error_message}`);
-            }
+          if (syncStatus.status === 'completed') {
+            setSyncing(false);
+            toast.success('Sync completed successfully');
+            setLastSync(syncStatus.completed_at || null);
+          } else if (syncStatus.status === 'failed') {
+            setSyncing(false);
+            toast.error(`Sync failed: ${syncStatus.error_message}`);
           }
         }
       )
@@ -64,24 +70,6 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
       supabase.removeChannel(channel);
     };
   }, [channelId, supabase]);
-
-  const handleSync = async () => {
-    try {
-      setSyncing(true);
-      setProgress(0);
-
-      const { error } = await supabase.functions.invoke('telegram-channels', {
-        body: { action: 'sync', channel_id: channelId, sync_type: 'full' }
-      });
-
-      if (error) throw error;
-
-    } catch (error) {
-      console.error('Sync error:', error);
-      toast.error('Failed to start sync');
-      setSyncing(false);
-    }
-  };
 
   return (
     <Card>
@@ -105,14 +93,11 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
             <Progress value={progress} />
           </div>
         ) : (
-          <Button
-            onClick={handleSync}
-            className="w-full"
-            disabled={syncing}
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Sync Channel
-          </Button>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">
+              {lastSync ? `Last synced: ${new Date(lastSync).toLocaleString()}` : 'Never synced'}
+            </span>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import useMediaData from "./media/hooks/useMediaData";
 import useMediaSubscription from "./media/hooks/useMediaSubscription";
-import { MediaFilter } from "./types";
+import { MediaFilter } from "./media/types";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Channel } from "./types";
+import { Channel } from "./media/types";
 import MediaGalleryHeader from "./media/MediaGalleryHeader";
 import MediaFilters from "./media/MediaFilters";
 import MediaGalleryContent from "./media/MediaGalleryContent";
