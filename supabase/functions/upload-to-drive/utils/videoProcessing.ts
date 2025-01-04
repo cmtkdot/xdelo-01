@@ -1,7 +1,9 @@
 import { FFmpeg } from 'https://esm.sh/@ffmpeg/ffmpeg@0.12.7';
 
-export const isVideoFile = (mimeType: string): boolean => {
-  return mimeType.startsWith('video/');
+export const isVideoFile = (fileName: string): boolean => {
+  const videoExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.flv'];
+  const ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
+  return videoExtensions.includes(ext);
 };
 
 export const isMovFile = (fileName: string): boolean => {
