@@ -76,7 +76,9 @@ export const MediaTableToolbar = ({ selectedMedia, onDeleteSuccess }: MediaTable
   const handleBulkResync = async () => {
     try {
       setIsResyncing(true);
-      const { error } = await supabase.functions.invoke('resync-media', {
+      console.log('Resyncing media IDs:', selectedMedia.map(item => item.id));
+      
+      const { data, error } = await supabase.functions.invoke('resync-media', {
         body: { 
           mediaIds: selectedMedia.map(item => item.id)
         }
@@ -84,10 +86,20 @@ export const MediaTableToolbar = ({ selectedMedia, onDeleteSuccess }: MediaTable
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: `Successfully resynced ${selectedMedia.length} item${selectedMedia.length !== 1 ? 's' : ''}`,
-      });
+      if (data.errors?.length > 0) {
+        console.warn('Some items failed to resync:', data.errors);
+        toast({
+          title: "Partial Success",
+          description: `Resynced ${data.updatedCount} items, but ${data.errors.length} failed`,
+          variant: "warning",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `Successfully resynced ${data.updatedCount} item${data.updatedCount !== 1 ? 's' : ''}`,
+        });
+      }
+      
       onDeleteSuccess(); // Refresh the list
     } catch (error) {
       console.error('Error resyncing media:', error);

@@ -89,16 +89,27 @@ export const MediaTableActions = ({
   const handleResync = async () => {
     try {
       setIsResyncing(true);
-      const { error } = await supabase.functions.invoke('resync-media', {
+      console.log('Resyncing media ID:', id);
+      
+      const { data, error } = await supabase.functions.invoke('resync-media', {
         body: { mediaIds: [id] }
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Media resynced successfully",
-      });
+      if (data.errors?.length > 0) {
+        console.warn('Failed to resync media:', data.errors);
+        toast({
+          title: "Error",
+          description: "Failed to resync media",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Media resynced successfully",
+        });
+      }
 
       if (onUpdate) onUpdate();
     } catch (error) {
