@@ -13,8 +13,8 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
     let finalBlob = await response.blob();
     let finalFileName = fileName;
 
-    // Note: Video conversion is temporarily disabled
-    // We'll just upload the original file for now
+    // Note: Video conversion is now handled by a separate service
+    // We'll upload the original file for now
     if (isMovFile(fileName)) {
       console.log('MOV file detected - uploading original format');
       finalFileName = fileName;
@@ -55,4 +55,8 @@ export const uploadToDrive = async (fileUrl: string, fileName: string, accessTok
     console.error('Error in uploadToDrive:', error);
     throw new Error(`Failed to upload to Google Drive: ${fileName}. Error: ${error.message}`);
   }
+};
+
+const isMovFile = (fileName: string): boolean => {
+  return fileName.toLowerCase().endsWith('.mov');
 };

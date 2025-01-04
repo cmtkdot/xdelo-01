@@ -9,7 +9,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -17,8 +16,7 @@ serve(async (req) => {
   try {
     console.log('Starting upload-to-drive function...');
     
-    // Parse request body with size limit
-    const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB limit for request body
+    const MAX_BODY_SIZE = 10 * 1024 * 1024;
     const contentLength = parseInt(req.headers.get('content-length') || '0');
     
     if (contentLength > MAX_BODY_SIZE) {
@@ -34,34 +32,12 @@ serve(async (req) => {
       );
     }
 
-    let requestBody;
-    try {
-      const text = await req.text();
-      console.log('Raw request body length:', text.length);
-      requestBody = JSON.parse(text);
-      console.log('Processing request for:', requestBody.fileName || 'multiple files');
-    } catch (parseError) {
-      console.error('Error parsing request body:', parseError);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Invalid request body format',
-          details: parseError.message 
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
-          status: 400 
-        }
-      );
-    }
+    const requestBody = await req.json();
+    console.log('Processing request for:', requestBody.fileName || 'multiple files');
 
-    // Get and validate credentials
     const credentialsStr = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
     if (!credentialsStr) {
-      console.error('Missing Google service account credentials');
-      return new Response(
-        JSON.stringify({ error: 'Google service account credentials not configured' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
+      throw new Error('Google service account credentials not configured');
     }
 
     console.log('Parsing Google credentials...');
@@ -69,7 +45,6 @@ serve(async (req) => {
     console.log('Generating access token...');
     const accessToken = await generateServiceAccountToken(credentials);
 
-    // Handle single or multiple file uploads
     let results;
     if (requestBody.files && Array.isArray(requestBody.files)) {
       console.log(`Processing ${requestBody.files.length} files for upload`);
@@ -79,11 +54,45 @@ serve(async (req) => {
             throw new Error('Missing file information in files array');
           }
           console.log('Processing file:', file.fileName);
+          
+          // Trigger video conversion for MOV files
+          if (file.fileName.toLowerCase().endsWith('.mov')) {
+            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/video-converter`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                fileUrl: file.fileUrl,
+                fileName: file.fileName,
+                mediaId: file.mediaId
+              })
+            });
+          }
+          
           return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
         })
       );
     } else if (requestBody.fileUrl && requestBody.fileName) {
       console.log('Processing single file:', requestBody.fileName);
+      
+      // Trigger video conversion for single MOV file
+      if (requestBody.fileName.toLowerCase().endsWith('.mov')) {
+        await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/video-converter`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileUrl: requestBody.fileUrl,
+            fileName: requestBody.fileName,
+            mediaId: requestBody.mediaId
+          })
+        });
+      }
+      
       results = await uploadToDrive(requestBody.fileUrl, requestBody.fileName, accessToken);
     } else {
       throw new Error('Invalid request format: missing file information');
