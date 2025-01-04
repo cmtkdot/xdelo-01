@@ -1,4 +1,4 @@
-import { logOperation } from "../../_shared/database.ts";
+import { corsHeaders } from "../../_shared/cors.ts";
 
 export async function verifyChannelAccess(botToken: string, channelId: number) {
   const response = await fetch(
@@ -17,9 +17,19 @@ export async function verifyChannelAccess(botToken: string, channelId: number) {
 export async function getChannelMessages(botToken: string, channelId: number, offset = 0) {
   console.log(`Fetching messages from offset ${offset}`);
   
-  // First try getHistory
+  // Use getHistory method which works with webhooks
   const response = await fetch(
-    `https://api.telegram.org/bot${botToken}/getHistory?chat_id=${channelId}&offset=${offset}&limit=100`
+    `https://api.telegram.org/bot${botToken}/getHistory`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        chat_id: channelId,
+        offset_id: offset,
+        limit: 100
+      })
+    }
   );
 
   if (!response.ok) {
@@ -27,24 +37,48 @@ export async function getChannelMessages(botToken: string, channelId: number, of
     
     // Try getChatHistory as fallback
     const historyResponse = await fetch(
-      `https://api.telegram.org/bot${botToken}/getChatHistory?chat_id=${channelId}&offset=${offset}&limit=100`
+      `https://api.telegram.org/bot${botToken}/getChatHistory`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          chat_id: channelId,
+          offset_id: offset,
+          limit: 100
+        })
+      }
     );
 
     if (!historyResponse.ok) {
-      console.log('getChatHistory failed, trying getUpdates...');
+      console.log('getChatHistory failed, trying messages.getHistory...');
       
-      // Final fallback to getUpdates
-      const updatesResponse = await fetch(
-        `https://api.telegram.org/bot${botToken}/getUpdates?chat_id=${channelId}&offset=${offset}&limit=100`
+      // Final fallback to messages.getHistory
+      const messagesResponse = await fetch(
+        `https://api.telegram.org/bot${botToken}/messages.getHistory`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            peer: {
+              _: 'inputPeerChannel',
+              channel_id: Math.abs(channelId),
+              access_hash: '0' // We'll get this from channel info if needed
+            },
+            offset_id: offset,
+            limit: 100
+          })
+        }
       );
       
-      if (!updatesResponse.ok) {
-        const error = await updatesResponse.json();
+      if (!messagesResponse.ok) {
+        const error = await messagesResponse.json();
         console.error('Error fetching messages:', error);
         throw new Error(`Failed to fetch messages: ${error.description}`);
       }
       
-      return await updatesResponse.json();
+      return await messagesResponse.json();
     }
     
     return await historyResponse.json();
@@ -79,8 +113,8 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
         offset += 100;
       }
 
-      // Add a small delay to avoid hitting rate limits
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Add a delay to avoid hitting rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (error) {
       console.error(`Error fetching messages at offset ${offset}:`, error);
       throw error;
@@ -89,43 +123,4 @@ export async function getAllChannelMessages(botToken: string, channelId: number)
 
   console.log(`Total messages fetched: ${messages.length}`);
   return messages;
-}
-
-export async function getMessageHistory(botToken: string, channelId: number) {
-  const url = `https://api.telegram.org/bot${botToken}/messages.getHistory`;
-  const params = {
-    peer: {
-      _: 'inputPeerChannel',
-      channel_id: channelId,
-      access_hash: '' // We'll need to get this from the channel info
-    },
-    offset_id: 0,
-    offset_date: 0,
-    add_offset: 0,
-    limit: 100,
-    max_id: 0,
-    min_id: 0,
-    hash: 0
-  };
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(params)
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Error fetching message history:', error);
-      return null;
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error in getMessageHistory:', error);
-    return null;
-  }
 }
