@@ -18,12 +18,31 @@ serve(async (req) => {
   );
 
   try {
-    // Parse request body and validate
-    const requestData = await req.json();
+    let requestData;
+    try {
+      const text = await req.text();
+      requestData = text ? JSON.parse(text) : {};
+    } catch (e) {
+      console.error('Error parsing request body:', e);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON in request body' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      );
+    }
+
     const { mediaIds } = requestData;
 
     if (!mediaIds || !Array.isArray(mediaIds) || mediaIds.length === 0) {
-      throw new Error('Invalid or missing mediaIds array');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid or missing mediaIds array' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      );
     }
 
     console.log('Processing mediaIds:', mediaIds);
@@ -133,13 +152,14 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in resync-media function:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        stack: error.stack 
+      }),
       { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        },
-        status: 400
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
       }
     );
   }

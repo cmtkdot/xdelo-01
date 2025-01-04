@@ -21,11 +21,26 @@ serve(async (req) => {
       throw new Error('Google service account credentials not configured');
     }
 
-    const credentials = JSON.parse(credentialsStr);
+    let credentials;
+    try {
+      credentials = JSON.parse(credentialsStr);
+    } catch (e) {
+      console.error('Error parsing credentials:', e);
+      throw new Error('Invalid Google service account credentials format');
+    }
+
     console.log('Generating service account token...');
     const accessToken = await generateServiceAccountToken(credentials);
 
-    const requestBody = await req.json();
+    let requestBody;
+    try {
+      const text = await req.text();
+      requestBody = text ? JSON.parse(text) : {};
+    } catch (e) {
+      console.error('Error parsing request body:', e);
+      throw new Error('Invalid JSON in request body');
+    }
+
     console.log('Processing request for:', requestBody.fileName || 'multiple files');
 
     let results;
@@ -37,119 +52,11 @@ serve(async (req) => {
             throw new Error('Missing file information in files array');
           }
           console.log('Processing file:', file.fileName);
-          
-          // Check if video conversion is needed
-          if (file.fileName.match(/\.(mov|avi|wmv|flv|webm)$/i)) {
-            console.log('Converting video to MP4:', file.fileName);
-            
-            // Get Cloud Convert API key
-            const cloudConvertApiKey = Deno.env.get('CLOUD_CONVERTAPIKEY');
-            if (!cloudConvertApiKey) {
-              throw new Error('Cloud Convert API key not configured');
-            }
-
-            // Create conversion job
-            const createJobResponse = await fetch('https://api.cloudconvert.com/v2/jobs', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${cloudConvertApiKey}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                tasks: {
-                  'import-1': {
-                    operation: 'import/url',
-                    url: file.fileUrl
-                  },
-                  'convert-1': {
-                    operation: 'convert',
-                    input: 'import-1',
-                    output_format: 'mp4',
-                    engine: 'ffmpeg',
-                    input_format: file.fileName.split('.').pop()
-                  },
-                  'export-1': {
-                    operation: 'export/url',
-                    input: 'convert-1',
-                    inline: false,
-                    archive_multiple_files: false
-                  }
-                }
-              })
-            });
-
-            if (!createJobResponse.ok) {
-              throw new Error(`Failed to create conversion job: ${await createJobResponse.text()}`);
-            }
-
-            const jobData = await createJobResponse.json();
-            console.log('Video conversion job created:', jobData);
-
-            // Wait for the job to complete
-            const convertedFileUrl = jobData.data.tasks.find(task => task.name === 'export-1').result.files[0].url;
-            file.fileUrl = convertedFileUrl;
-            file.fileName = file.fileName.replace(/\.[^/.]+$/, '.mp4');
-          }
-          
           return await uploadToDrive(file.fileUrl, file.fileName, accessToken);
         })
       );
     } else if (requestBody.fileUrl && requestBody.fileName) {
       console.log('Processing single file:', requestBody.fileName);
-      
-      // Check if video conversion is needed
-      if (requestBody.fileName.match(/\.(mov|avi|wmv|flv|webm)$/i)) {
-        console.log('Converting video to MP4:', requestBody.fileName);
-        
-        // Get Cloud Convert API key
-        const cloudConvertApiKey = Deno.env.get('CLOUD_CONVERTAPIKEY');
-        if (!cloudConvertApiKey) {
-          throw new Error('Cloud Convert API key not configured');
-        }
-
-        // Create conversion job
-        const createJobResponse = await fetch('https://api.cloudconvert.com/v2/jobs', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${cloudConvertApiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            tasks: {
-              'import-1': {
-                operation: 'import/url',
-                url: requestBody.fileUrl
-              },
-              'convert-1': {
-                operation: 'convert',
-                input: 'import-1',
-                output_format: 'mp4',
-                engine: 'ffmpeg',
-                input_format: requestBody.fileName.split('.').pop()
-              },
-              'export-1': {
-                operation: 'export/url',
-                input: 'convert-1',
-                inline: false,
-                archive_multiple_files: false
-              }
-            }
-          })
-        });
-
-        if (!createJobResponse.ok) {
-          throw new Error(`Failed to create conversion job: ${await createJobResponse.text()}`);
-        }
-
-        const jobData = await createJobResponse.json();
-        console.log('Video conversion job created:', jobData);
-
-        // Wait for the job to complete
-        const convertedFileUrl = jobData.data.tasks.find(task => task.name === 'export-1').result.files[0].url;
-        requestBody.fileUrl = convertedFileUrl;
-        requestBody.fileName = requestBody.fileName.replace(/\.[^/.]+$/, '.mp4');
-      }
-      
       results = await uploadToDrive(requestBody.fileUrl, requestBody.fileName, accessToken);
     } else {
       throw new Error('Invalid request format: missing file information');
