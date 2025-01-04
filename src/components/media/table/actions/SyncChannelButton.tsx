@@ -1,20 +1,20 @@
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Loader2, RefreshCw } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SyncChannelButtonProps {
   channelIds: number[];
   onComplete?: () => void;
 }
 
-export const SyncChannelButton = ({ channelIds, onComplete }: SyncChannelButtonProps) => {
+export function SyncChannelButton({ channelIds, onComplete }: SyncChannelButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
 
   const handleSync = async () => {
-    if (!channelIds.length) {
+    if (channelIds.length === 0) {
       toast({
         title: "No channels selected",
         description: "Please select at least one channel to sync",
@@ -23,13 +23,30 @@ export const SyncChannelButton = ({ channelIds, onComplete }: SyncChannelButtonP
       return;
     }
 
-    setIsSyncing(true);
     try {
+      setIsSyncing(true);
+
+      await supabase
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-telegram-channel',
+          status: 'info',
+          message: `Starting sync for channels: ${channelIds.join(', ')}`
+        });
+
       const { data, error } = await supabase.functions.invoke('sync-telegram-channel', {
-        body: { channelIds }
+        body: { chatIds: channelIds }
       });
 
       if (error) throw error;
+
+      await supabase
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-telegram-channel',
+          status: 'success',
+          message: `Successfully synced channels: ${channelIds.join(', ')}`
+        });
 
       toast({
         title: "Sync Complete",
@@ -39,10 +56,19 @@ export const SyncChannelButton = ({ channelIds, onComplete }: SyncChannelButtonP
 
       if (onComplete) onComplete();
     } catch (error) {
-      console.error('Error syncing channels:', error);
+      console.error('Error syncing channel:', error);
+
+      await supabase
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'sync-telegram-channel',
+          status: 'error',
+          message: `Error syncing channels: ${error.message}`
+        });
+
       toast({
         title: "Error",
-        description: "Failed to sync channels. Please try again.",
+        description: "Failed to sync channel",
         variant: "destructive",
       });
     } finally {
@@ -66,4 +92,4 @@ export const SyncChannelButton = ({ channelIds, onComplete }: SyncChannelButtonP
       Sync Channel
     </Button>
   );
-};
+}
