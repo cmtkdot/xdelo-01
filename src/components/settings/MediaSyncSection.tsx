@@ -19,7 +19,7 @@ const MediaSyncSection = () => {
   const [isSyncing, setSyncing] = useState(false);
   const [selectedChannels, setSelectedChannels] = useState<Set<number>>(new Set());
 
-  const { data: channels } = useQuery({
+  const { data: channels, isError: isChannelsError } = useQuery({
     queryKey: ['channels'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -27,7 +27,10 @@ const MediaSyncSection = () => {
         .select('*')
         .order('title');
       
-      if (error) throw error;
+      if (error) {
+        toast.error("Failed to load channels");
+        throw error;
+      }
       return data as Channel[];
     },
   });
@@ -40,6 +43,8 @@ const MediaSyncSection = () => {
 
     try {
       setSyncing(true);
+      toast.loading("Syncing media...");
+      
       const { error } = await supabase.functions.invoke('sync-media-captions', {
         body: { 
           chatIds: Array.from(selectedChannels),
@@ -49,10 +54,16 @@ const MediaSyncSection = () => {
 
       if (error) throw error;
 
-      toast.success("Media sync completed successfully");
+      toast.dismiss();
+      toast.success("Media sync completed successfully", {
+        description: `Successfully synced ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''}`
+      });
     } catch (error) {
       console.error('Error syncing media:', error);
-      toast.error("Failed to sync media");
+      toast.dismiss();
+      toast.error("Failed to sync media", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred"
+      });
     } finally {
       setSyncing(false);
     }
@@ -79,6 +90,19 @@ const MediaSyncSection = () => {
       setSelectedChannels(new Set(channels.map(c => c.chat_id)));
     }
   };
+
+  if (isChannelsError) {
+    return (
+      <Card className="backdrop-blur-xl bg-white/90 dark:bg-black/40 border-gray-200/50 dark:border-white/10">
+        <CardHeader>
+          <CardTitle className="text-gray-800 dark:text-white">Media Sync</CardTitle>
+          <CardDescription className="text-red-500">
+            Failed to load channels. Please try refreshing the page.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="backdrop-blur-xl bg-white/90 dark:bg-black/40 border-gray-200/50 dark:border-white/10">
