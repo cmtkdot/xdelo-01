@@ -15,17 +15,17 @@ serve(async (req) => {
   );
 
   try {
-    const { chatIds } = await req.json();
+    const { chatIds, mediaGroupId } = await req.json();
     
-    if (!chatIds || !Array.isArray(chatIds) || chatIds.length === 0) {
-      throw new Error('Please provide an array of chat IDs to sync');
+    if (!chatIds?.length && !mediaGroupId) {
+      throw new Error('Please provide either chatIds array or mediaGroupId');
     }
 
     await logOperation(
       supabase,
       'sync-media-captions',
       'info',
-      `Starting caption sync for channels: ${chatIds.join(', ')}`
+      `Starting caption sync for ${mediaGroupId ? 'media group: ' + mediaGroupId : 'channels: ' + chatIds.join(', ')}`
     );
 
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
@@ -36,55 +36,87 @@ serve(async (req) => {
     const results = [];
     const errors = [];
 
-    for (const chatId of chatIds) {
+    // Query to get media records based on input parameters
+    let mediaQuery = supabase
+      .from('media')
+      .select('*')
+      .not('metadata', 'is', null);
+
+    if (mediaGroupId) {
+      mediaQuery = mediaQuery.eq('media_group_id', mediaGroupId);
+      console.log(`Fetching media records for group ${mediaGroupId}`);
+    } else {
+      mediaQuery = mediaQuery.in('chat_id', chatIds);
+      console.log(`Fetching media records for channels:`, chatIds);
+    }
+
+    const { data: mediaRecords, error: fetchError } = await mediaQuery;
+
+    if (fetchError) throw fetchError;
+
+    console.log(`Processing ${mediaRecords?.length || 0} media records`);
+
+    // Group media records by chat_id for efficient processing
+    const mediaByChat = mediaRecords?.reduce((acc, media) => {
+      if (!media.chat_id) return acc;
+      if (!acc[media.chat_id]) acc[media.chat_id] = [];
+      acc[media.chat_id].push(media);
+      return acc;
+    }, {} as Record<number, typeof mediaRecords>);
+
+    // Process each chat's media
+    for (const [chatId, chatMedia] of Object.entries(mediaByChat || {})) {
       try {
-        // Get media records for this channel that have message_id in metadata
-        const { data: mediaRecords, error: fetchError } = await supabase
-          .from('media')
-          .select('*')
-          .eq('chat_id', chatId)
-          .not('metadata', 'is', null);
+        // Get unique message IDs for this chat
+        const messageIds = [...new Set(chatMedia.map(m => 
+          m.metadata?.message_id).filter(Boolean))];
 
-        if (fetchError) throw fetchError;
+        if (messageIds.length === 0) continue;
 
-        console.log(`Processing ${mediaRecords?.length || 0} media records for channel ${chatId}`);
+        console.log(`Fetching ${messageIds.length} messages for chat ${chatId}`);
 
-        // Process each media record
-        for (const media of mediaRecords || []) {
+        const response = await fetch(
+          `https://api.telegram.org/bot${botToken}/getMessages`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chat_id: chatId,
+              message_ids: messageIds,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch messages: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        if (!data.ok || !data.result) continue;
+
+        // Create a map of message_id to caption for efficient lookup
+        const captionMap = data.result.reduce((acc: Record<number, string>, msg: any) => {
+          if (msg.caption) acc[msg.message_id] = msg.caption;
+          return acc;
+        }, {});
+
+        // Update captions for all media in this chat
+        for (const media of chatMedia) {
           try {
             const messageId = media.metadata?.message_id;
             if (!messageId) continue;
 
-            const response = await fetch(
-              `https://api.telegram.org/bot${botToken}/getMessages`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  chat_id: chatId,
-                  message_ids: [messageId],
-                }),
-              }
-            );
+            const newCaption = captionMap[messageId];
+            if (newCaption === undefined) continue;
 
-            if (!response.ok) {
-              throw new Error(`Failed to fetch message: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            if (!data.ok || !data.result || !data.result[0]) continue;
-
-            const message = data.result[0];
-            const caption = message.caption || null;
-
-            // Update caption if different
-            if (caption !== media.caption) {
+            // Only update if caption is different
+            if (newCaption !== media.caption) {
               const { error: updateError } = await supabase
                 .from('media')
                 .update({ 
-                  caption,
+                  caption: newCaption,
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', media.id);
@@ -98,8 +130,8 @@ serve(async (req) => {
           }
         }
       } catch (error) {
-        console.error(`Error processing channel ${chatId}:`, error);
-        errors.push({ channelId: chatId, error: error.message });
+        console.error(`Error processing chat ${chatId}:`, error);
+        errors.push({ chatId, error: error.message });
       }
     }
 

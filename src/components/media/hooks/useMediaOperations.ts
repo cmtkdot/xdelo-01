@@ -102,7 +102,7 @@ export const useMediaOperations = (refetch: () => void) => {
         toast({
           title: "Partial Success",
           description: `Synced ${data.processed} items with ${data.errors} errors`,
-          variant: "warning",
+          variant: "destructive",
         });
       } else {
         toast({
