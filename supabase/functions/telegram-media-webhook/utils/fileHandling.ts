@@ -1,67 +1,52 @@
-export const generateSafeFileName = (name: string, extension: string): string => {
-  const safeName = name.replace(/[^a-zA-Z0-9-_]/g, '_');
-  return `${safeName}.${extension}`;
+import { Json } from "https://esm.sh/@supabase/supabase-js@2";
+
+export const generateSafeFileName = (baseName: string, extension: string) => {
+  const timestamp = Date.now();
+  return `${baseName}_${timestamp}.${extension}`;
 };
 
-export const determineMediaType = (message: any): string => {
+export const determineMediaType = (message: any) => {
   if (message.photo) return 'photo';
+  if (message.document) return message.document.mime_type || 'document';
   if (message.video) return 'video';
   if (message.audio) return 'audio';
-  if (message.document) return 'document';
+  if (message.voice) return 'voice';
+  if (message.animation) return 'animation';
+  if (message.sticker) return 'sticker';
   return 'unknown';
 };
 
-export const getMediaItem = (message: any): any => {
-  return message.photo || message.video || message.audio || message.document;
+export const getMediaItem = (message: any) => {
+  return message.photo 
+    ? message.photo[message.photo.length - 1] 
+    : message.document || message.video || message.audio || 
+      message.voice || message.animation || message.sticker;
 };
 
-export const formatMediaMetadata = (mediaItem: any, message: any): any => {
+export const formatMediaMetadata = (mediaItem: any, message: any) => {
+  // Ensure we're returning a valid object structure
   return {
-    file_id: mediaItem.file_id,
-    caption: message.caption || message.text || null,
-    media_type: determineMediaType(message),
+    file_id: mediaItem.file_id || null,
+    file_unique_id: mediaItem.file_unique_id || null,
+    file_size: mediaItem.file_size || null,
+    message_id: message.message_id || null,
+    media_group_id: message.media_group_id || null,
+    // Add any additional metadata fields with null fallbacks
+    width: mediaItem.width || null,
+    height: mediaItem.height || null,
+    duration: mediaItem.duration || null,
+    mime_type: mediaItem.mime_type || null
   };
 };
 
-export const generatePublicUrl = (fileName: string): string => {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  if (!supabaseUrl) {
-    throw new Error('SUPABASE_URL environment variable is not set');
-  }
-  return `${supabaseUrl}/storage/v1/object/public/telegram-media/${fileName}`;
+export const getContentType = (fileName: string, mediaType: string) => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  if (mediaType === 'photo') return 'image/jpeg';
+  if (mediaType === 'video') return 'video/mp4';
+  if (mediaType === 'audio') return 'audio/mpeg';
+  return 'application/octet-stream';
 };
 
-export const getContentType = (fileName: string, mediaType: string): string => {
-  const extension = fileName.split('.').pop()?.toLowerCase();
-  
-  switch (extension) {
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'png':
-      return 'image/png';
-    case 'gif':
-      return 'image/gif';
-    case 'mp4':
-      return 'video/mp4';
-    case 'mov':
-      return 'video/quicktime';
-    case 'mp3':
-      return 'audio/mpeg';
-    case 'wav':
-      return 'audio/wav';
-    case 'pdf':
-      return 'application/pdf';
-    default:
-      switch (mediaType) {
-        case 'photo':
-          return 'image/jpeg';
-        case 'video':
-          return 'video/mp4';
-        case 'audio':
-          return 'audio/mpeg';
-        default:
-          return 'application/octet-stream';
-      }
-  }
+export const generatePublicUrl = (bucketId: string, fileName: string) => {
+  return `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucketId}/${fileName}`;
 };
