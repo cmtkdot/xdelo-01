@@ -38,8 +38,7 @@ serve(async (req) => {
     const { data: mediaItems, error: fetchError } = await supabaseClient
       .from('media')
       .select('*')
-      .in('id', mediaIds)
-      .eq('user_id', user.id);
+      .in('id', mediaIds);
 
     if (fetchError) {
       throw fetchError;
@@ -66,17 +65,16 @@ serve(async (req) => {
           }
         }
 
-        // Generate new public URL
-        let publicUrl = null;
-        if (item.file_name) {
-          publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${item.file_name}`;
-        }
+        // Generate new public URL using the bucket's public URL
+        const publicUrl = item.file_name 
+          ? `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${item.file_name}`
+          : null;
 
-        // Update media record with new URLs and metadata
+        // Update media record with new URLs
         const updateData = {
           id: item.id,
           public_url: publicUrl,
-          file_url: item.file_name ? `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${item.file_name}` : null,
+          file_url: publicUrl, // Use the same public URL for file_url
           updated_at: new Date().toISOString()
         };
 

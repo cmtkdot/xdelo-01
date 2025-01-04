@@ -1,10 +1,9 @@
-import { ExternalLink, Upload, Check, Trash2, RefreshCw } from "lucide-react";
+import { ExternalLink, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
@@ -18,7 +17,8 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import GoogleDriveUploader from "../GoogleDriveUploader";
+import { ResyncButton } from "./actions/ResyncButton";
+import { DriveUploadButton } from "./actions/DriveUploadButton";
 
 interface MediaTableActionsProps {
   id: string;
@@ -44,8 +44,6 @@ export const MediaTableActions = ({
   onUpdate
 }: MediaTableActionsProps) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [isResyncing, setIsResyncing] = useState(false);
   const { toast } = useToast();
 
   const handleDelete = async () => {
@@ -86,83 +84,16 @@ export const MediaTableActions = ({
     }
   };
 
-  const handleResync = async () => {
-    try {
-      setIsResyncing(true);
-      console.log('Resyncing media ID:', id);
-      
-      const { data, error } = await supabase.functions.invoke('resync-media', {
-        body: { mediaIds: [id] }
-      });
-
-      if (error) throw error;
-
-      if (data.errors?.length > 0) {
-        console.warn('Failed to resync media:', data.errors);
-        toast({
-          title: "Error",
-          description: "Failed to resync media",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Media resynced successfully",
-        });
-      }
-
-      if (onUpdate) onUpdate();
-    } catch (error) {
-      console.error('Error resyncing media:', error);
-      toast({
-        title: "Error",
-        description: "Failed to resync media",
-        variant: "destructive",
-      });
-    } finally {
-      setIsResyncing(false);
-    }
-  };
-
   return (
     <div className="text-right space-x-2 whitespace-nowrap">
-      <button
-        onClick={handleResync}
-        disabled={isResyncing}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 hover:text-purple-300 transition-all duration-200 font-medium disabled:opacity-50"
-      >
-        <RefreshCw className={`w-4 h-4 ${isResyncing ? 'animate-spin' : ''}`} />
-      </button>
+      <ResyncButton id={id} onUpdate={onUpdate} />
 
-      {!hasGoogleDrive ? (
-        <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-          <DialogTrigger asChild>
-            <button
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-green-500/20 text-green-400 hover:bg-green-500/30 hover:text-green-300 transition-all duration-200 font-medium"
-            >
-              Drive <Upload className="w-4 h-4" />
-            </button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Upload to Google Drive</DialogTitle>
-            </DialogHeader>
-            <GoogleDriveUploader
-              fileUrl={fileUrl}
-              fileName={fileName}
-              onSuccess={onUpdate}
-              onClose={() => setIsUploadDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      ) : (
-        <button
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-green-500/20 text-green-400 cursor-default"
-          disabled
-        >
-          Uploaded <Check className="w-4 h-4" />
-        </button>
-      )}
+      <DriveUploadButton
+        fileUrl={fileUrl}
+        fileName={fileName}
+        hasGoogleDrive={hasGoogleDrive}
+        onUpdate={onUpdate}
+      />
 
       <TooltipProvider>
         <Tooltip>
