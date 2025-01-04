@@ -31,10 +31,11 @@ const MediaMigrationSection = () => {
     try {
       setResetting(true);
       
-      // Update all rows by not specifying any condition
+      // Update all rows by using a filter that will match all records
       const { error: resetError } = await supabase
         .from('media')
-        .update({ public_url: null });
+        .update({ public_url: null })
+        .filter('id', 'not.is', null);
 
       if (resetError) throw resetError;
 
