@@ -26,6 +26,12 @@ export const useHeaderMapping = ({
         setError(null);
         setIsLoading(true);
 
+        // Check if user is authenticated with Google
+        const accessToken = localStorage.getItem('google_access_token');
+        if (!accessToken) {
+          throw new Error('Please authenticate with Google first');
+        }
+
         // Initialize Google Sheets API with proper auth
         await initGoogleSheetsAPI();
 
