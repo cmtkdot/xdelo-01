@@ -15,6 +15,7 @@ const MediaMigrationSection = () => {
   const { data: channels, isError: isChannelsError } = useQuery({
     queryKey: ['channels'],
     queryFn: async () => {
+      console.log('Fetching channels...');
       const { data, error } = await supabase
         .from('channels')
         .select('*');
@@ -22,20 +23,26 @@ const MediaMigrationSection = () => {
       if (error) {
         console.error('Error fetching channels:', error);
         toast.error("Failed to load channels", {
-          description: error.message
+          description: `Error: ${error.message}`
         });
         throw error;
       }
+      console.log('Channels fetched successfully:', data);
       return data as Channel[];
     }
   });
 
   const handleMigration = async () => {
-    const loadingToast = toast.loading("Starting media migration...");
+    const loadingToast = toast.loading("Starting media migration...", {
+      description: `Preparing to migrate ${selectedChannel === "all" ? "all media" : "media for selected channel"}`
+    });
+    
     console.log('Starting migration for channel:', selectedChannel);
     
     try {
       setMigrating(true);
+      console.log('Invoking migrate-media-files function...');
+      
       const { data, error } = await supabase.functions.invoke('migrate-media-files', {
         body: { 
           channelId: selectedChannel === "all" ? null : selectedChannel
@@ -46,6 +53,10 @@ const MediaMigrationSection = () => {
 
       if (error) {
         console.error('Migration error:', error);
+        toast.dismiss(loadingToast);
+        toast.error("Migration failed", {
+          description: `Error: ${error.message}`
+        });
         throw error;
       }
 
@@ -53,11 +64,15 @@ const MediaMigrationSection = () => {
       toast.success("Media migration completed", {
         description: `Successfully migrated media files${selectedChannel !== "all" ? " for selected channel" : ""}`
       });
+      
+      console.log('Migration completed successfully:', data);
     } catch (error) {
       console.error('Error during migration:', error);
       toast.dismiss(loadingToast);
       toast.error("Migration failed", {
-        description: error instanceof Error ? error.message : "An unexpected error occurred"
+        description: error instanceof Error 
+          ? `Error: ${error.message}` 
+          : "An unexpected error occurred during migration"
       });
     } finally {
       setMigrating(false);
