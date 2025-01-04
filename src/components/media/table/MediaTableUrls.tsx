@@ -13,17 +13,28 @@ export const MediaTableUrls = ({
   fileUrl, 
   onOpenFile 
 }: MediaTableUrlsProps) => {
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const getFormattedDriveUrl = (url: string) => {
+    if (!url) return '';
+    return url.includes('/view') ? url : `https://drive.google.com/file/d/${url}/view`;
+  };
+
+  const getFormattedSupabaseUrl = (url: string) => {
+    if (!url) return '';
+    // Ensure URL starts with http/https
+    return url.startsWith('http') ? url : `https://${url}`;
+  };
+
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {googleDriveUrl && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            // Ensure we're using the correct view URL format
-            const driveViewUrl = googleDriveUrl.includes('/view') 
-              ? googleDriveUrl 
-              : `https://drive.google.com/file/d/${googleDriveUrl}/view`;
-            window.open(driveViewUrl, '_blank');
+            window.open(getFormattedDriveUrl(googleDriveUrl), '_blank');
           }}
           className="flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors group w-full"
         >
@@ -37,9 +48,7 @@ export const MediaTableUrls = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            // Ensure the URL is properly formatted for direct viewing
-            const formattedUrl = publicUrl.startsWith('http') ? publicUrl : `https://${publicUrl}`;
-            window.open(formattedUrl, '_blank');
+            window.open(getFormattedSupabaseUrl(publicUrl), '_blank');
           }}
           className="flex items-center gap-2 text-sky-400 hover:text-sky-300 transition-colors group w-full"
         >
