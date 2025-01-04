@@ -43,14 +43,19 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
           filter: `channel_id=eq.${channelId}`
         },
         (payload: RealtimePostgresChangesPayload<SyncLog>) => {
+          if (!payload.new || typeof payload.new !== 'object') {
+            console.error('Invalid payload received:', payload);
+            return;
+          }
+
           const syncStatus: SyncStatus = {
-            progress: payload.new.progress,
-            status: payload.new.status,
+            progress: payload.new.progress ?? 0,
+            status: payload.new.status ?? 'unknown',
             completed_at: payload.new.completed_at,
             error_message: payload.new.error_message
           };
           
-          setProgress(syncStatus.progress || 0);
+          setProgress(syncStatus.progress);
             
           if (syncStatus.status === 'completed') {
             setSyncing(false);
