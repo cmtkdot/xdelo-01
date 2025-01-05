@@ -6,6 +6,7 @@ import { uploadToStorage } from "../_shared/storage.ts";
 import { getAndDownloadTelegramFile } from "../_shared/telegram.ts";
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

@@ -29,12 +29,12 @@ export async function verifyChannelAccess(botToken: string, chatId: number): Pro
   }
 }
 
-export async function getChannelMessages(botToken: string, chatId: number): Promise<any[]> {
-  console.log(`[getChannelMessages] Getting messages for channel ${chatId}`);
+export async function getChannelMessages(botToken: string, chatId: number, offset = 0): Promise<any[]> {
+  console.log(`[getChannelMessages] Getting messages for channel ${chatId} from offset ${offset}`);
   
   try {
     const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/getUpdates`,
+      `https://api.telegram.org/bot${botToken}/getChannelHistory`,
       {
         method: 'POST',
         headers: {
@@ -42,8 +42,8 @@ export async function getChannelMessages(botToken: string, chatId: number): Prom
         },
         body: JSON.stringify({
           chat_id: chatId,
-          limit: 100,
-          allowed_updates: ["channel_post", "message"]
+          offset: offset,
+          limit: 100
         }),
       }
     );
@@ -55,6 +55,13 @@ export async function getChannelMessages(botToken: string, chatId: number): Prom
         statusText: response.statusText,
         body: errorText
       });
+      
+      // If method not found, try alternative method
+      if (response.status === 404) {
+        console.log('Falling back to getChatHistory method...');
+        return getChannelHistoryAlternative(botToken, chatId, offset);
+      }
+      
       return [];
     }
 
@@ -63,5 +70,36 @@ export async function getChannelMessages(botToken: string, chatId: number): Prom
   } catch (error) {
     console.error('Error getting channel messages:', error);
     throw error;
+  }
+}
+
+async function getChannelHistoryAlternative(botToken: string, chatId: number, offset = 0): Promise<any[]> {
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/getChatHistory`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          offset: offset,
+          limit: 100
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Alternative method also failed:', errorText);
+      return [];
+    }
+
+    const data = await response.json();
+    return data.result || [];
+  } catch (error) {
+    console.error('Error in alternative method:', error);
+    return [];
   }
 }
