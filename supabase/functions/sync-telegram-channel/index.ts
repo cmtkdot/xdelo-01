@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { verifyChannelAccess, getAllChannelMessages } from "./utils/channelOperations.ts";
-import { processMediaMessage } from "./utils/mediaProcessor.ts";
+import { verifyChannelAccess } from "./utils/telegramApi.ts";
+import { getAllChannelMessages, processMessage } from "./utils/messageRetrieval.ts";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -61,7 +61,7 @@ serve(async (req) => {
     for (const message of messages) {
       if (message.photo || message.video || message.document) {
         try {
-          const result = await processMediaMessage(message, chatId, supabase, botToken);
+          const result = await processMessage(message, chatId, supabase, botToken);
           if (result) {
             totalProcessed++;
           }
