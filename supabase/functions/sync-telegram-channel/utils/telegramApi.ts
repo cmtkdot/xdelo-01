@@ -31,12 +31,12 @@ export async function verifyChannelAccess(botToken: string, chatId: number) {
   }
 }
 
-export async function getChannelMessages(botToken: string, chatId: number, offset = 0): Promise<any[]> {
-  console.log(`[getChannelMessages] Getting messages for channel ${chatId} from offset ${offset}`);
+export async function getChannelMessages(botToken: string, chatId: number, offset = 0) {
+  console.log(`[getChannelMessages] Getting messages for channel ${chatId}, offset: ${offset}`);
   
   try {
     const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/getHistory`,
+      `https://api.telegram.org/bot${botToken}/getMessages`,
       {
         method: 'POST',
         headers: {
@@ -53,6 +53,15 @@ export async function getChannelMessages(botToken: string, chatId: number, offse
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Error getting channel messages:', errorText);
+      
+      // If webhook is active, try to delete it first
+      if (response.status === 409) {
+        console.log('Webhook conflict detected, attempting to delete webhook...');
+        await deleteWebhook(botToken);
+        // Retry the original request
+        return getChannelMessages(botToken, chatId, offset);
+      }
+      
       throw new Error({
         status: response.status,
         statusText: response.statusText,
@@ -63,7 +72,33 @@ export async function getChannelMessages(botToken: string, chatId: number, offse
     const data = await response.json();
     return data.result || [];
   } catch (error) {
-    console.error('Error getting channel messages:', error);
+    console.error('Error in getChannelMessages:', error);
+    throw error;
+  }
+}
+
+async function deleteWebhook(botToken: string) {
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/deleteWebhook`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error deleting webhook:', errorText);
+      throw new Error(`Failed to delete webhook: ${response.statusText}`);
+    }
+
+    console.log('Successfully deleted webhook');
+    return true;
+  } catch (error) {
+    console.error('Error in deleteWebhook:', error);
     throw error;
   }
 }

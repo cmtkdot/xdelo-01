@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { verifyChannelAccess, forwardMessage } from "../sync-telegram-channel/utils/telegramApi.ts";
 
@@ -10,73 +9,60 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const { sourceChatId, destinationChatId } = await req.json();
     
     if (!sourceChatId || !destinationChatId) {
-      return new Response(
-        JSON.stringify({ error: 'Source and destination chat IDs are required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      throw new Error('Source and destination chat IDs are required');
     }
 
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
     if (!botToken) {
-      throw new Error('Telegram bot token not configured');
+      throw new Error('Bot token not configured');
     }
 
     // Verify access to both channels
-    await verifyChannelAccess(botToken, sourceChatId);
-    await verifyChannelAccess(botToken, destinationChatId);
+    await Promise.all([
+      verifyChannelAccess(botToken, sourceChatId),
+      verifyChannelAccess(botToken, destinationChatId)
+    ]);
 
     // Get messages from source channel
-    const { data: messages, error: fetchError } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('chat_id', sourceChatId)
-      .order('created_at', { ascending: true });
-
-    if (fetchError) throw fetchError;
-
-    const results = [];
-    for (const message of messages) {
-      try {
-        const forwardedMessage = await forwardMessage(
-          botToken,
-          sourceChatId,
-          destinationChatId,
-          message.message_id
-        );
-        
-        results.push({
-          original_message_id: message.message_id,
-          forwarded_message_id: forwardedMessage.message_id,
-          status: 'success'
-        });
-      } catch (error) {
-        console.error(`Failed to forward message ${message.message_id}:`, error);
-        results.push({
-          original_message_id: message.message_id,
-          error: error.message,
-          status: 'error'
-        });
-      }
-    }
+    const messages = await getChannelMessages(botToken, sourceChatId);
+    
+    // Forward each message
+    const results = await Promise.all(
+      messages.map(msg => 
+        forwardMessage(botToken, sourceChatId, destinationChatId, msg.message_id)
+      )
+    );
 
     return new Response(
-      JSON.stringify({ success: true, results }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        success: true, 
+        results 
+      }),
+      { 
+        headers: { 
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        } 
+      }
     );
 
   } catch (error) {
     console.error('Error in forward-channel-messages:', error);
+    
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      JSON.stringify({ 
+        error: error.message 
+      }),
+      { 
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
     );
   }
 });
