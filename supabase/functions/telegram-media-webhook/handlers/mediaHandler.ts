@@ -6,21 +6,24 @@ export const handleMediaUpload = async (
   userId: string,
   botToken: string
 ) => {
+  if (!message) return null;
+
+  const mediaItem = message.photo 
+    ? message.photo[message.photo.length - 1] 
+    : message.document || message.video;
+  
+  if (!mediaItem) {
+    console.log('No media item found in message');
+    return null;
+  }
+
+  console.log('Processing media item:', { mediaItem, message });
+
   try {
-    const mediaItem = message.photo 
-      ? message.photo[message.photo.length - 1] 
-      : message.document || message.video;
-    
-    if (!mediaItem) {
-      console.error('No media item found in message');
-      return null;
-    }
-
-    console.log('Processing media item:', { mediaItem, message });
-
     // Get file information from Telegram
-    const fileUrl = `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`;
-    const fileResponse = await fetch(fileUrl);
+    const fileResponse = await fetch(
+      `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`
+    );
     const fileData = await fileResponse.json();
 
     if (!fileData.ok) {
@@ -30,7 +33,7 @@ export const handleMediaUpload = async (
     const filePath = fileData.result.file_path;
     const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`;
     
-    // Check for existing media
+    // Check for existing media in a single query
     const { data: existingMedia } = await supabase
       .from('media')
       .select('id')
@@ -51,19 +54,15 @@ export const handleMediaUpload = async (
       fileExt || 'unknown'
     );
 
-    let mediaType = message.document?.mime_type || 'application/octet-stream';
-    if (message.photo) {
-      mediaType = 'image/jpeg';
-    } else if (message.video) {
-      mediaType = 'video/mp4';
-    }
+    const mediaType = message.document?.mime_type || 
+      (message.photo ? 'image/jpeg' : message.video ? 'video/mp4' : 'application/octet-stream');
 
-    // Upload file to Supabase Storage
+    // Download and upload file in a single operation
+    const fileContent = await (await fetch(downloadUrl)).arrayBuffer();
     const bucketId = getBucketId();
     const contentType = getContentType(safeFileName, mediaType);
-    const fileContent = await (await fetch(downloadUrl)).arrayBuffer();
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from(bucketId)
       .upload(safeFileName, fileContent, {
         contentType,
@@ -104,6 +103,15 @@ export const handleMediaUpload = async (
       .single();
 
     if (dbError) throw dbError;
+
+    // Update message with media URLs
+    await supabase
+      .from('messages')
+      .update({
+        media_url: downloadUrl,
+        public_url: publicUrl
+      })
+      .match({ chat_id: message.chat.id, message_id: message.message_id });
 
     return { mediaData: savedMedia, publicUrl };
   } catch (error) {

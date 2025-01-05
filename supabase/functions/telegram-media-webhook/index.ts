@@ -39,35 +39,21 @@ serve(async (req) => {
     // Generate a random UUID for the user_id if not available
     const userId = crypto.randomUUID();
 
-    // Save channel information first
-    if (message.chat) {
-      await saveChannel(supabase, message.chat, userId);
-    }
+    // Process operations in parallel to reduce stack depth
+    const [channelResult, messageResult, mediaResult] = await Promise.all([
+      // Save channel information
+      message.chat ? saveChannel(supabase, message.chat, userId) : Promise.resolve(null),
+      
+      // Save the message
+      saveMessage(supabase, message.chat, message, userId),
+      
+      // Handle media content if present
+      (message.photo || message.video || message.document) ? 
+        handleMediaUpload(supabase, message, userId, botToken) : 
+        Promise.resolve(null)
+    ]);
 
-    // Save the message
-    await saveMessage(supabase, message.chat, message, userId);
-
-    // Handle media content if present
-    let mediaResult = null;
-    if (message.photo || message.video || message.document) {
-      console.log('Processing media message:', message);
-      try {
-        mediaResult = await handleMediaUpload(supabase, message, userId, botToken);
-        console.log('Media processed successfully:', mediaResult);
-      } catch (error) {
-        console.error('Error processing media:', error);
-        // Log the error but don't throw it to prevent stack overflow
-        await supabase
-          .from('edge_function_logs')
-          .insert({
-            function_name: 'telegram-media-webhook',
-            status: 'error',
-            message: `Error processing media: ${error.message}`
-          });
-      }
-    }
-
-    // Log success
+    // Log success without nesting
     await supabase
       .from('edge_function_logs')
       .insert({
@@ -88,7 +74,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error processing webhook:', error);
 
-    // Log error
+    // Log error without nesting
     await supabase
       .from('edge_function_logs')
       .insert({
