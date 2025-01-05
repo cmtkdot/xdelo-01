@@ -1,12 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleMediaUpload } from "./handlers/mediaHandler.ts";
-import { saveChannel, saveMessage } from "./utils/database.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { processMessage } from "./utils/messageProcessor.ts";
+import { logOperation } from "../_shared/database.ts";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -31,67 +27,27 @@ serve(async (req) => {
       );
     }
 
-    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
-    if (!botToken) {
-      throw new Error('Telegram bot token not configured');
-    }
-
-    // Generate a random UUID for the user_id if not available
-    const userId = crypto.randomUUID();
-
-    // Log the start of processing
-    await supabase
-      .from('edge_function_logs')
-      .insert({
-        function_name: 'telegram-media-webhook',
-        status: 'info',
-        message: `Processing message ${message.message_id} from chat ${message.chat.id}`
-      });
-
-    // Process channel first
-    const channelResult = await saveChannel(supabase, message.chat, userId);
-    console.log('Channel processed:', channelResult);
-
-    // Then process message
-    const messageResult = await saveMessage(supabase, message.chat, message, userId);
-    console.log('Message processed:', messageResult);
-
-    // Finally process media if present
-    let mediaResult = null;
-    if (message.photo || message.video || message.document) {
-      mediaResult = await handleMediaUpload(supabase, message, userId, botToken);
-      console.log('Media processed:', mediaResult);
-    }
-
-    // Log success
-    await supabase
-      .from('edge_function_logs')
-      .insert({
-        function_name: 'telegram-media-webhook',
-        status: 'success',
-        message: `Successfully processed message ${message.message_id}`
-      });
+    // Process message in a controlled way
+    const result = await processMessage(message, supabase);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        data: mediaResult?.mediaData,
-        message: mediaResult ? "Media processed successfully" : "Message processed successfully"
+        data: result,
+        message: "Message processed successfully"
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error processing webhook:', error);
-
-    // Log error
-    await supabase
-      .from('edge_function_logs')
-      .insert({
-        function_name: 'telegram-media-webhook',
-        status: 'error',
-        message: `Error: ${error.message}`
-      });
+    
+    await logOperation(
+      supabase,
+      'telegram-media-webhook',
+      'error',
+      `Error: ${error.message}`
+    );
 
     return new Response(
       JSON.stringify({ 

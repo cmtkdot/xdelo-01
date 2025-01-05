@@ -17,8 +17,6 @@ export const handleMediaUpload = async (
     return null;
   }
 
-  console.log('Processing media item:', { mediaItem, message });
-
   try {
     // Get file information from Telegram
     const fileResponse = await fetch(
@@ -32,8 +30,8 @@ export const handleMediaUpload = async (
 
     const filePath = fileData.result.file_path;
     const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`;
-    
-    // Check for existing media in a single query
+
+    // Check for existing media
     const { data: existingMedia } = await supabase
       .from('media')
       .select('id')
@@ -43,7 +41,7 @@ export const handleMediaUpload = async (
 
     if (existingMedia) {
       console.log('Media already exists:', existingMedia);
-      return null;
+      return { mediaData: existingMedia, exists: true };
     }
 
     // Prepare file metadata
@@ -57,8 +55,10 @@ export const handleMediaUpload = async (
     const mediaType = message.document?.mime_type || 
       (message.photo ? 'image/jpeg' : message.video ? 'video/mp4' : 'application/octet-stream');
 
-    // Download and upload file in a single operation
+    // Download file
     const fileContent = await (await fetch(downloadUrl)).arrayBuffer();
+    
+    // Upload to storage
     const bucketId = getBucketId();
     const contentType = getContentType(safeFileName, mediaType);
 
