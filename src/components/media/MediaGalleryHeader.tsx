@@ -1,5 +1,5 @@
 import { Image, Trash2, RefreshCw, RotateCw } from "lucide-react";
-import { useState } from "react";
+import { useState } from "react"; // Add this import
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,18 +23,7 @@ const MediaGalleryHeader = ({
   const handleResync = async () => {
     try {
       setResyncing(true);
-      
-      // Log the start of the operation
-      console.log('Starting media resync operation...');
-      
-      const { data, error } = await supabase.functions.invoke('resync-media', {
-        body: { mediaIds: [] }, // Empty array to resync all media
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      console.log('Resync response:', data, error);
+      const { error } = await supabase.functions.invoke('resync-media');
 
       if (error) throw error;
 

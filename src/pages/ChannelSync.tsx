@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import MediaGallery from "@/components/MediaGallery";
 import { Channel } from "@/components/media/types";
-import ChannelForwardSection from "@/components/channel/ChannelForwardSection";
 
 const ChannelSync = () => {
   const [isSyncing, setSyncing] = useState(false);
@@ -139,8 +138,6 @@ const ChannelSync = () => {
           </Button>
         </CardContent>
       </Card>
-
-      <ChannelForwardSection />
 
       <div className="mt-8">
         <MediaGallery />
