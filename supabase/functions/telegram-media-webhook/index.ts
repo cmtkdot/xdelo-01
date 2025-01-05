@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase_supabase-js@2";
 import { handleMediaUpload } from "./handlers/mediaHandler.ts";
 import { saveChannel, saveMessage } from "./utils/database.ts";
 
@@ -39,36 +39,33 @@ serve(async (req) => {
     // Generate a random UUID for the user_id if not available
     const userId = crypto.randomUUID();
 
-    // Process messages in batches to avoid stack overflow
-    const processMessages = async () => {
+    // Save channel information first
+    if (message.chat) {
+      await saveChannel(supabase, message.chat, userId);
+    }
+
+    // Save the message
+    await saveMessage(supabase, message.chat, message, userId);
+
+    // Handle media content if present
+    let mediaResult = null;
+    if (message.photo || message.video || message.document) {
+      console.log('Processing media message:', message);
       try {
-        // Save channel information first
-        if (message.chat) {
-          await saveChannel(supabase, message.chat, userId);
-        }
-
-        // Save the message
-        await saveMessage(supabase, message.chat, message, userId);
-
-        // Handle media content if present
-        if (message.photo || message.video || message.document) {
-          console.log('Processing media message:', message);
-          const result = await handleMediaUpload(supabase, message, userId, botToken);
-          
-          if (result) {
-            console.log('Media processed successfully:', result);
-            return result;
-          }
-        }
-
-        return null;
+        mediaResult = await handleMediaUpload(supabase, message, userId, botToken);
+        console.log('Media processed successfully:', mediaResult);
       } catch (error) {
-        console.error('Error processing message:', error);
-        throw error;
+        console.error('Error processing media:', error);
+        // Log the error but don't throw it to prevent stack overflow
+        await supabase
+          .from('edge_function_logs')
+          .insert({
+            function_name: 'telegram-media-webhook',
+            status: 'error',
+            message: `Error processing media: ${error.message}`
+          });
       }
-    };
-
-    const result = await processMessages();
+    }
 
     // Log success
     await supabase
@@ -82,8 +79,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        data: result?.mediaData,
-        message: result ? "Media processed successfully" : "Message processed successfully"
+        data: mediaResult?.mediaData,
+        message: mediaResult ? "Media processed successfully" : "Message processed successfully"
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
