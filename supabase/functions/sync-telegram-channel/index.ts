@@ -5,20 +5,30 @@ import { verifyChannelAccess } from "./utils/telegramApi.ts";
 import { getAllChannelMessages, processMessage } from "./utils/messageRetrieval.ts";
 
 serve(async (req) => {
+  // Always handle CORS preflight requests first
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
-
   try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     const { chatId } = await req.json();
     
     if (!chatId) {
-      throw new Error('Invalid or missing chatId');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid or missing chatId'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
     }
 
     console.log(`Starting sync for channel ${chatId}`);
@@ -43,17 +53,45 @@ serve(async (req) => {
       throw new Error('Telegram bot token not configured');
     }
 
-    // Verify channel access
-    await verifyChannelAccess(botToken, chatId);
+    // Verify channel access with timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    try {
+      await verifyChannelAccess(botToken, chatId);
+      clearTimeout(timeout);
+    } catch (error) {
+      clearTimeout(timeout);
+      console.error('Channel access verification failed:', error);
+      
+      await supabase
+        .from('sync_sessions')
+        .update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          progress: { error: 'Channel access verification failed' }
+        })
+        .eq('id', syncSession.id);
 
-    // Get all messages
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to verify channel access'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 403
+        }
+      );
+    }
+
+    // Get all messages with timeout
     const messages = await getAllChannelMessages(botToken, chatId);
     
-    // Handle case where no messages are found - this is not an error
+    // Handle case where no messages are found
     if (!messages || messages.length === 0) {
       console.log('No messages found in channel');
       
-      // Update sync session to completed with 0 messages
       await supabase
         .from('sync_sessions')
         .update({
@@ -110,7 +148,6 @@ serve(async (req) => {
             error: error.message
           });
 
-          // Log error
           await supabase
             .from('sync_logs')
             .insert({
