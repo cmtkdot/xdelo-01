@@ -1,11 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { verifyChannelAccess } from "./utils/telegramApi.ts";
-import { getAllChannelMessages, processMessage } from "./utils/messageRetrieval.ts";
+import { verifyChannelAccess, getChannelMessages } from "./utils/telegramApi.ts";
+import { uploadToStorage } from "../_shared/storage.ts";
+import { getAndDownloadTelegramFile } from "../_shared/telegram.ts";
 
 serve(async (req) => {
-  // Always handle CORS preflight requests first
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -20,14 +20,8 @@ serve(async (req) => {
     
     if (!chatId) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Invalid or missing chatId'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400
-        }
+        JSON.stringify({ success: false, error: 'Invalid or missing chatId' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
@@ -53,69 +47,23 @@ serve(async (req) => {
       throw new Error('Telegram bot token not configured');
     }
 
-    // Verify channel access with timeout
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    await verifyChannelAccess(botToken, chatId);
+    const messages = await getChannelMessages(botToken, chatId);
     
-    try {
-      await verifyChannelAccess(botToken, chatId);
-      clearTimeout(timeout);
-    } catch (error) {
-      clearTimeout(timeout);
-      console.error('Channel access verification failed:', error);
-      
-      await supabase
-        .from('sync_sessions')
-        .update({
-          status: 'failed',
-          completed_at: new Date().toISOString(),
-          progress: { error: 'Channel access verification failed' }
-        })
-        .eq('id', syncSession.id);
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Failed to verify channel access'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 403
-        }
-      );
-    }
-
-    // Get all messages with timeout
-    const messages = await getAllChannelMessages(botToken, chatId);
-    
-    // Handle case where no messages are found
     if (!messages || messages.length === 0) {
-      console.log('No messages found in channel');
-      
       await supabase
         .from('sync_sessions')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
           final_count: 0,
-          progress: {
-            processed: 0,
-            total: 0,
-            errors: 0
-          }
+          progress: { processed: 0, total: 0 }
         })
         .eq('id', syncSession.id);
 
       return new Response(
-        JSON.stringify({
-          success: true,
-          processed: 0,
-          message: 'No messages found in channel'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        }
+        JSON.stringify({ success: true, processed: 0, message: 'No messages found in channel' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -126,12 +74,41 @@ serve(async (req) => {
     for (const message of messages) {
       if (message.photo || message.video || message.document) {
         try {
-          const result = await processMessage(message, chatId, supabase, botToken);
-          if (result) {
-            totalProcessed++;
-          }
+          const mediaItem = message.photo 
+            ? message.photo[message.photo.length - 1] 
+            : message.video || message.document;
+
+          const { buffer, filePath } = await getAndDownloadTelegramFile(
+            mediaItem.file_id,
+            botToken
+          );
+
+          const fileName = `${mediaItem.file_unique_id}_${Date.now()}.${filePath.split('.').pop() || 'unknown'}`;
+          const mediaType = message.photo ? 'image/jpeg' : (message.video ? 'video/mp4' : 'application/octet-stream');
+
+          const publicUrl = await uploadToStorage(supabase, fileName, buffer, mediaType);
+
+          const { error: mediaError } = await supabase
+            .from('media')
+            .insert({
+              user_id: crypto.randomUUID(),
+              chat_id: chatId,
+              file_name: fileName,
+              file_url: publicUrl,
+              media_type: mediaType,
+              caption: message.caption,
+              metadata: {
+                file_id: mediaItem.file_id,
+                file_unique_id: mediaItem.file_unique_id,
+                message_id: message.message_id,
+                media_group_id: message.media_group_id
+              },
+              public_url: publicUrl
+            });
+
+          if (mediaError) throw mediaError;
+          totalProcessed++;
           
-          // Update sync progress
           await supabase
             .from('sync_sessions')
             .update({
@@ -143,39 +120,18 @@ serve(async (req) => {
         } catch (error) {
           console.error(`Error processing message ${message.message_id}:`, error);
           totalErrors++;
-          errors.push({
-            messageId: message.message_id,
-            error: error.message
-          });
-
-          await supabase
-            .from('sync_logs')
-            .insert({
-              session_id: syncSession.id,
-              type: 'error',
-              message: `Error processing message ${message.message_id}: ${error.message}`,
-              metadata: {
-                messageId: message.message_id,
-                error: error.message,
-                stack: error.stack
-              }
-            });
+          errors.push({ messageId: message.message_id, error: error.message });
         }
       }
     }
 
-    // Update final sync status
     await supabase
       .from('sync_sessions')
       .update({
         status: totalErrors > 0 ? 'completed_with_errors' : 'completed',
         completed_at: new Date().toISOString(),
         final_count: totalProcessed,
-        progress: {
-          processed: totalProcessed,
-          total: messages.length,
-          errors: totalErrors
-        }
+        progress: { processed: totalProcessed, total: messages.length, errors: totalErrors }
       })
       .eq('id', syncSession.id);
 
@@ -187,24 +143,14 @@ serve(async (req) => {
         details: errors,
         sessionId: syncSession.id
       }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: totalErrors > 0 ? 207 : 200
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in sync-telegram-channel function:', error);
-    
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500
-      }
+      JSON.stringify({ success: false, error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
