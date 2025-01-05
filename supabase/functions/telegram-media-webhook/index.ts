@@ -19,15 +19,6 @@ serve(async (req) => {
   );
 
   try {
-    // Log start of webhook processing
-    await supabase
-      .from('edge_function_logs')
-      .insert({
-        function_name: 'telegram-media-webhook',
-        status: 'info',
-        message: 'Starting webhook processing'
-      });
-
     const payload = await req.json();
     console.log('Received webhook payload:', payload);
 
@@ -48,50 +39,52 @@ serve(async (req) => {
     // Generate a random UUID for the user_id if not available
     const userId = crypto.randomUUID();
 
-    // Save channel information
-    if (message.chat) {
-      await saveChannel(supabase, message.chat, userId);
-    }
-
-    // Save message
-    await saveMessage(supabase, message.chat, message, userId);
-
-    // Handle media content
-    if (message.photo || message.video || message.document) {
-      console.log('Processing media message:', message);
-      
+    // Process messages in batches to avoid stack overflow
+    const processMessages = async () => {
       try {
-        const result = await handleMediaUpload(supabase, message, userId, botToken);
-        
-        if (result) {
-          console.log('Media processed successfully:', result);
-          
-          // Log success
-          await supabase
-            .from('edge_function_logs')
-            .insert({
-              function_name: 'telegram-media-webhook',
-              status: 'success',
-              message: `Successfully processed media from message ${message.message_id}`
-            });
-
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              data: result.mediaData,
-              message: "Media processed successfully" 
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+        // Save channel information first
+        if (message.chat) {
+          await saveChannel(supabase, message.chat, userId);
         }
+
+        // Save the message
+        await saveMessage(supabase, message.chat, message, userId);
+
+        // Handle media content if present
+        if (message.photo || message.video || message.document) {
+          console.log('Processing media message:', message);
+          const result = await handleMediaUpload(supabase, message, userId, botToken);
+          
+          if (result) {
+            console.log('Media processed successfully:', result);
+            return result;
+          }
+        }
+
+        return null;
       } catch (error) {
-        console.error('Error processing media:', error);
+        console.error('Error processing message:', error);
         throw error;
       }
-    }
+    };
+
+    const result = await processMessages();
+
+    // Log success
+    await supabase
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'telegram-media-webhook',
+        status: 'success',
+        message: `Successfully processed message ${message.message_id}`
+      });
 
     return new Response(
-      JSON.stringify({ success: true, message: "Message processed successfully" }),
+      JSON.stringify({ 
+        success: true, 
+        data: result?.mediaData,
+        message: result ? "Media processed successfully" : "Message processed successfully"
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
