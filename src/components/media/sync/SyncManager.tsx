@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -31,7 +30,7 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
 
     getChannelInfo();
 
-    // Subscribe to sync progress updates using a realtime channel
+    // Subscribe to sync progress updates
     const channel = supabase
       .channel('sync_progress')
       .on(
@@ -42,23 +41,14 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
           table: 'sync_logs',
           filter: `channel_id=eq.${channelId}`
         },
-        (payload: RealtimePostgresChangesPayload<SyncLog>) => {
+        (payload) => {
           if (!payload.new || typeof payload.new !== 'object') {
             console.error('Invalid payload received:', payload);
             return;
           }
 
-          // Type assertion to ensure payload.new is treated as SyncLog
-          const newData = payload.new as SyncLog;
-
-          const syncStatus: SyncStatus = {
-            progress: newData.progress ?? 0,
-            status: newData.status ?? 'unknown',
-            completed_at: newData.completed_at,
-            error_message: newData.error_message
-          };
-          
-          setProgress(syncStatus.progress);
+          const syncStatus = payload.new as SyncLog;
+          setProgress(syncStatus.progress || 0);
             
           if (syncStatus.status === 'completed') {
             setSyncing(false);
@@ -81,7 +71,7 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Channel Sync</span>
+          <span>Channel Sync Status</span>
           {lastSync && (
             <span className="text-sm text-gray-500">
               Last sync: {new Date(lastSync).toLocaleString()}

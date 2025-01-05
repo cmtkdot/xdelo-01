@@ -39,21 +39,31 @@ serve(async (req) => {
     // Generate a random UUID for the user_id if not available
     const userId = crypto.randomUUID();
 
-    // Process operations in parallel to reduce stack depth
-    const [channelResult, messageResult, mediaResult] = await Promise.all([
-      // Save channel information
-      message.chat ? saveChannel(supabase, message.chat, userId) : Promise.resolve(null),
-      
-      // Save the message
-      saveMessage(supabase, message.chat, message, userId),
-      
-      // Handle media content if present
-      (message.photo || message.video || message.document) ? 
-        handleMediaUpload(supabase, message, userId, botToken) : 
-        Promise.resolve(null)
-    ]);
+    // Log the start of processing
+    await supabase
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'telegram-media-webhook',
+        status: 'info',
+        message: `Processing message ${message.message_id} from chat ${message.chat.id}`
+      });
 
-    // Log success without nesting
+    // Process channel first
+    const channelResult = await saveChannel(supabase, message.chat, userId);
+    console.log('Channel processed:', channelResult);
+
+    // Then process message
+    const messageResult = await saveMessage(supabase, message.chat, message, userId);
+    console.log('Message processed:', messageResult);
+
+    // Finally process media if present
+    let mediaResult = null;
+    if (message.photo || message.video || message.document) {
+      mediaResult = await handleMediaUpload(supabase, message, userId, botToken);
+      console.log('Media processed:', mediaResult);
+    }
+
+    // Log success
     await supabase
       .from('edge_function_logs')
       .insert({
@@ -74,7 +84,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error processing webhook:', error);
 
-    // Log error without nesting
+    // Log error
     await supabase
       .from('edge_function_logs')
       .insert({

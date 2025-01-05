@@ -10,13 +10,6 @@ interface SyncChannelButtonProps {
   onComplete?: () => void;
 }
 
-interface SyncPayload {
-  progress: number;
-  status: string;
-  error_message?: string;
-  completed_at?: string;
-}
-
 const SyncChannelButton = ({ channelId, onComplete }: SyncChannelButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -54,7 +47,7 @@ const SyncChannelButton = ({ channelId, onComplete }: SyncChannelButtonProps) =>
             filter: `channel_id=eq.${channelId}`
           },
           (payload) => {
-            const newData = payload.new as SyncPayload;
+            const newData = payload.new as any;
             if (newData) {
               setProgress(newData.progress || 0);
               setStatus(newData.status || 'Processing...');
