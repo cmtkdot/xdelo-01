@@ -49,9 +49,36 @@ serve(async (req) => {
     // Get all messages
     const messages = await getAllChannelMessages(botToken, chatId);
     
+    // Handle case where no messages are found - this is not an error
     if (!messages || messages.length === 0) {
       console.log('No messages found in channel');
-      throw new Error('No messages found in channel');
+      
+      // Update sync session to completed with 0 messages
+      await supabase
+        .from('sync_sessions')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          final_count: 0,
+          progress: {
+            processed: 0,
+            total: 0,
+            errors: 0
+          }
+        })
+        .eq('id', syncSession.id);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          processed: 0,
+          message: 'No messages found in channel'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
     }
 
     let totalProcessed = 0;
