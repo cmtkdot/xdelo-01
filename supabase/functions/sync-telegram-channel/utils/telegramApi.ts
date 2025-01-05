@@ -1,6 +1,6 @@
 import { corsHeaders } from "../../_shared/cors.ts";
 
-export async function verifyChannelAccess(botToken: string, chatId: number): Promise<boolean> {
+export async function verifyChannelAccess(botToken: string, chatId: number) {
   console.log(`[verifyChannelAccess] Verifying access for channel ${chatId}`);
   
   try {
@@ -11,20 +11,22 @@ export async function verifyChannelAccess(botToken: string, chatId: number): Pro
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ chat_id: chatId }),
+        body: JSON.stringify({
+          chat_id: chatId
+        }),
       }
     );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Failed to verify channel access:', errorText);
-      throw new Error(`Failed to verify channel access: ${errorText}`);
+      console.error('Error verifying channel access:', errorText);
+      throw new Error(`Failed to verify channel access: ${response.statusText}`);
     }
 
-    console.log(`[verifyChannelAccess] Successfully verified access for channel ${chatId}`);
-    return true;
+    const data = await response.json();
+    return data.result;
   } catch (error) {
-    console.error(`[verifyChannelAccess] Error verifying channel access:`, error);
+    console.error('Error in verifyChannelAccess:', error);
     throw error;
   }
 }
@@ -34,7 +36,7 @@ export async function getChannelMessages(botToken: string, chatId: number, offse
   
   try {
     const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/getChannelHistory`,
+      `https://api.telegram.org/bot${botToken}/getHistory`,
       {
         method: 'POST',
         headers: {
@@ -50,19 +52,12 @@ export async function getChannelMessages(botToken: string, chatId: number, offse
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Telegram API Error:', {
+      console.error('Error getting channel messages:', errorText);
+      throw new Error({
         status: response.status,
         statusText: response.statusText,
         body: errorText
       });
-      
-      // If method not found, try alternative method
-      if (response.status === 404) {
-        console.log('Falling back to getChatHistory method...');
-        return getChannelHistoryAlternative(botToken, chatId, offset);
-      }
-      
-      return [];
     }
 
     const data = await response.json();
@@ -73,33 +68,36 @@ export async function getChannelMessages(botToken: string, chatId: number, offse
   }
 }
 
-async function getChannelHistoryAlternative(botToken: string, chatId: number, offset = 0): Promise<any[]> {
+export async function forwardMessage(botToken: string, fromChatId: number, toChatId: number, messageId: number) {
+  console.log(`[forwardMessage] Forwarding message ${messageId} from ${fromChatId} to ${toChatId}`);
+  
   try {
     const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/getChatHistory`,
+      `https://api.telegram.org/bot${botToken}/forwardMessage`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          chat_id: chatId,
-          offset: offset,
-          limit: 100
+          chat_id: toChatId,
+          from_chat_id: fromChatId,
+          message_id: messageId,
+          disable_notification: true
         }),
       }
     );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Alternative method also failed:', errorText);
-      return [];
+      console.error('Error forwarding message:', errorText);
+      throw new Error(`Failed to forward message: ${response.statusText}`);
     }
 
     const data = await response.json();
-    return data.result || [];
+    return data.result;
   } catch (error) {
-    console.error('Error in alternative method:', error);
-    return [];
+    console.error('Error in forwardMessage:', error);
+    throw error;
   }
 }

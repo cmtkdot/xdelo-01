@@ -4,6 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { verifyChannelAccess, forwardMessage } from "../sync-telegram-channel/utils/telegramApi.ts";
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
