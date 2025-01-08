@@ -50,7 +50,7 @@ const MediaSyncSection = () => {
     }
 
     const loadingToast = toast.loading("Starting media sync...", {
-      description: `Preparing to sync ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''} and organize files into content-specific buckets (telegram-pictures/telegram-video)`
+      description: `Preparing to sync ${selectedChannels.size} channel${selectedChannels.size > 1 ? 's' : ''}`
     });
     
     console.log('Starting sync for channels:', Array.from(selectedChannels));
@@ -62,19 +62,15 @@ const MediaSyncSection = () => {
       const { data, error } = await supabase.functions.invoke('sync-media-captions', {
         body: { 
           chatIds: Array.from(selectedChannels)
+        },
+        headers: {
+          'Content-Type': 'application/json'
         }
       });
 
       console.log('Sync response:', data, error);
 
-      if (error) {
-        console.error('Sync error:', error);
-        toast.dismiss(loadingToast);
-        toast.error("Sync failed", {
-          description: `Error: ${error.message}`
-        });
-        throw error;
-      }
+      if (error) throw error;
 
       // Validate URLs after sync
       const { data: mediaData, error: mediaError } = await supabase

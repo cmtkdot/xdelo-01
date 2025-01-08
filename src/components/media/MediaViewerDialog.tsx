@@ -61,6 +61,9 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
         body: { 
           chatId: item.chat_id,
           messageId: messageId
+        },
+        headers: {
+          'Content-Type': 'application/json'
         }
       });
 
