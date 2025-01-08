@@ -61,34 +61,47 @@ serve(async (req) => {
       throw new Error('Telegram bot token not configured');
     }
 
-    const mediaByChat = mediaRecords.reduce((acc, media) => {
-      if (!media.chat_id) return acc;
-      if (!acc[media.chat_id]) acc[media.chat_id] = [];
-      acc[media.chat_id].push(media);
+    // Group media by media_group_id
+    const mediaGroups = mediaRecords.reduce((acc, media) => {
+      if (media.media_group_id) {
+        if (!acc[media.media_group_id]) {
+          acc[media.media_group_id] = [];
+        }
+        acc[media.media_group_id].push(media);
+      } else {
+        // For single media items, use their ID as key
+        acc[media.id] = [media];
+      }
       return acc;
-    }, {} as Record<number, typeof mediaRecords>);
+    }, {} as Record<string, typeof mediaRecords>);
 
     const results = [];
     const errors = [];
 
-    for (const [chatId, chatMedia] of Object.entries(mediaByChat)) {
+    for (const [groupId, groupMedia] of Object.entries(mediaGroups)) {
       try {
-        const messageIds = [...new Set(chatMedia
+        const chatId = groupMedia[0].chat_id;
+        if (!chatId) continue;
+
+        const messageIds = [...new Set(groupMedia
           .map(m => m.metadata?.message_id)
           .filter(Boolean))];
 
         if (messageIds.length === 0) continue;
 
-        console.log(`Fetching ${messageIds.length} messages for chat ${chatId}`);
+        console.log(`Fetching ${messageIds.length} messages for chat ${chatId} in group ${groupId}`);
         const messages = await fetchTelegramMessages(botToken, chatId, messageIds);
         const captionMap = createCaptionMap(messages);
 
-        for (const media of chatMedia) {
+        // For media groups, we want to use the same caption across all items
+        const groupCaption = Object.values(captionMap)[0];
+
+        for (const media of groupMedia) {
           try {
             const messageId = media.metadata?.message_id;
             if (!messageId) continue;
 
-            const newCaption = captionMap[messageId];
+            const newCaption = media.media_group_id ? groupCaption : captionMap[messageId];
             if (newCaption === undefined) continue;
 
             if (newCaption !== media.caption) {
@@ -109,8 +122,8 @@ serve(async (req) => {
           }
         }
       } catch (error) {
-        console.error(`Error processing chat ${chatId}:`, error);
-        errors.push({ chatId, error: error.message });
+        console.error(`Error processing media group ${groupId}:`, error);
+        errors.push({ groupId, error: error.message });
       }
     }
 

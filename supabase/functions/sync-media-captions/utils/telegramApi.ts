@@ -1,4 +1,4 @@
-export const fetchTelegramMessages = async (botToken: string, chatId: string, messageIds: number[]) => {
+export const fetchTelegramMessages = async (botToken: string, chatId: string | number, messageIds: number[]) => {
   const response = await fetch(
     `https://api.telegram.org/bot${botToken}/getMessages`,
     {
@@ -28,7 +28,13 @@ export const fetchTelegramMessages = async (botToken: string, chatId: string, me
 
 export const createCaptionMap = (messages: any[]) => {
   return messages.reduce((acc: Record<number, string>, msg: any) => {
-    if (msg.caption) acc[msg.message_id] = msg.caption;
+    if (msg.caption) {
+      // For media groups, we want to use the first caption we find
+      if (msg.media_group_id && !acc[msg.media_group_id]) {
+        acc[msg.media_group_id] = msg.caption;
+      }
+      acc[msg.message_id] = msg.caption;
+    }
     return acc;
   }, {});
 };
