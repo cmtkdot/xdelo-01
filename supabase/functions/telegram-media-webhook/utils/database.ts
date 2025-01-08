@@ -44,8 +44,7 @@ export async function saveMessage(supabase: any, chat: any, message: any, userId
       sender_name: message.from?.username || message.from?.first_name || 'Unknown',
       text: message.text || message.caption,
       media_type: message.photo ? 'photo' : message.video ? 'video' : message.document ? 'document' : null,
-      created_at: new Date(message.date * 1000).toISOString(),
-      updated_at: new Date().toISOString()
+      created_at: new Date(message.date * 1000).toISOString()
     };
 
     const { data, error } = await supabase
