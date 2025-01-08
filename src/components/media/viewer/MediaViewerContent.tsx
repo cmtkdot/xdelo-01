@@ -16,7 +16,7 @@ export const MediaViewerContent = ({
   onMediaError
 }: MediaViewerContentProps) => {
   const isVideo = item.media_type === "video" || item.media_type?.includes('video');
-  const displayUrl = item.public_url || item.file_url; // Fallback to file_url if public_url is not available
+  const displayUrl = item.public_url || item.file_url;
 
   return (
     <div className="relative w-full h-full min-h-[200px] flex items-center justify-center p-4 bg-gray-50/50 dark:bg-black/60">
