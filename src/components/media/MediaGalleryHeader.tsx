@@ -1,5 +1,5 @@
 import { Image, Trash2, RefreshCw, RotateCw } from "lucide-react";
-import { useState } from "react"; // Add this import
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +23,11 @@ const MediaGalleryHeader = ({
   const handleResync = async () => {
     try {
       setResyncing(true);
-      const { error } = await supabase.functions.invoke('resync-media');
+      const { error } = await supabase.functions.invoke('resync-media', {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
       if (error) throw error;
 
@@ -68,9 +72,10 @@ const MediaGalleryHeader = ({
           onClick={onSyncCaptions}
           disabled={isSyncingCaptions}
           className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
+          title="Sync captions across media groups"
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaptions ? 'animate-spin' : ''}`} />
-          Sync Captions
+          Sync Group Captions
         </Button>
         
         <Button
@@ -79,9 +84,10 @@ const MediaGalleryHeader = ({
           onClick={onDeleteDuplicates}
           disabled={isDeletingDuplicates}
           className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
+          title="Delete duplicates based on Telegram file IDs"
         >
           <Trash2 className="w-4 h-4 mr-2" />
-          Delete Duplicates
+          Delete File Duplicates
         </Button>
       </div>
     </div>
