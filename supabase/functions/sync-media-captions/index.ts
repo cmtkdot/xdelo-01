@@ -11,29 +11,32 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Validate content type
-  const contentType = req.headers.get('content-type');
-  if (!contentType || !contentType.includes('application/json')) {
-    console.error('Invalid content type:', contentType);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'Content-Type must be application/json'
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
-      }
-    );
-  }
-
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
-
   try {
     console.log('Starting caption sync process');
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+    
+    const contentType = req.headers.get('content-type')?.toLowerCase() || '';
+    console.log('Content-Type header:', contentType);
+    
+    if (!contentType.includes('application/json')) {
+      console.error('Invalid content type:', contentType);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Content-Type must be application/json'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     const { chatIds, mediaGroupId } = await validateRequest(req);
 
     await logOperation(

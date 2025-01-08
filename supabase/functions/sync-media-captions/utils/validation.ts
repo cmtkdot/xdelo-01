@@ -8,7 +8,7 @@ export const validateRequest = async (req: Request) => {
     console.log('Validating request...');
     
     const contentType = req.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
+    if (!contentType || !contentType.toLowerCase().includes('application/json')) {
       throw new Error('Content-Type must be application/json');
     }
 
