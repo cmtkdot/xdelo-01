@@ -46,12 +46,21 @@ export async function processMediaMessage(message: any, channelId: number, supab
       : (message.video ? 'video/mp4' : 'application/octet-stream');
 
     console.log(`[processMediaMessage] Uploading to storage: ${fileName}`);
-    const publicUrl = await uploadToStorage(
-      supabase,
-      fileName,
-      buffer,
-      mediaType
-    );
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('telegram-media')
+      .upload(fileName, buffer, {
+        contentType: mediaType,
+        upsert: false,
+        cacheControl: '3600'
+      });
+
+    if (uploadError) {
+      console.error('[processMediaMessage] Upload error:', uploadError);
+      throw uploadError;
+    }
+
+    // Generate public URL
+    const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${fileName}`;
 
     const metadata = {
       file_id: mediaItem.file_id,

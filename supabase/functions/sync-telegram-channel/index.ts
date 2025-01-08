@@ -9,17 +9,31 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
-
   try {
+    // Validate request content type
+    if (req.headers.get("content-type") !== "application/json") {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Content-Type must be application/json" 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
     const { chatId } = await req.json();
     
     if (!chatId) {
       throw new Error('Invalid or missing chatId');
     }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
     console.log(`Starting sync for channel ${chatId}`);
     
