@@ -1,12 +1,30 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "./utils/corsHeaders.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 import { validateRequest, validateMediaRecords } from "./utils/validation.ts";
 import { fetchTelegramMessages, createCaptionMap } from "./utils/telegramApi.ts";
+import { logOperation } from "../_shared/database.ts";
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Validate content type
+  const contentType = req.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    console.error('Invalid content type:', contentType);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Content-Type must be application/json'
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400
+      }
+    );
   }
 
   const supabase = createClient(
@@ -15,15 +33,15 @@ serve(async (req) => {
   );
 
   try {
+    console.log('Starting caption sync process');
     const { chatIds, mediaGroupId } = await validateRequest(req);
 
-    await supabase
-      .from('edge_function_logs')
-      .insert({
-        function_name: 'sync-media-captions',
-        status: 'info',
-        message: `Starting caption sync for ${mediaGroupId ? `media group: ${mediaGroupId}` : `channels: ${chatIds.join(', ')}`}`
-      });
+    await logOperation(
+      supabase,
+      'sync-media-captions',
+      'info',
+      `Starting caption sync for ${mediaGroupId ? `media group: ${mediaGroupId}` : `channels: ${chatIds.join(', ')}`}`
+    );
 
     const mediaRecords = await validateMediaRecords(supabase, mediaGroupId, chatIds);
     
@@ -96,13 +114,12 @@ serve(async (req) => {
       }
     }
 
-    await supabase
-      .from('edge_function_logs')
-      .insert({
-        function_name: 'sync-media-captions',
-        status: errors.length ? 'error' : 'success',
-        message: `Sync completed with ${results.length} updates and ${errors.length} errors`
-      });
+    await logOperation(
+      supabase,
+      'sync-media-captions',
+      errors.length ? 'error' : 'success',
+      `Sync completed with ${results.length} updates and ${errors.length} errors`
+    );
 
     return new Response(
       JSON.stringify({
@@ -117,13 +134,12 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in sync-media-captions function:', error);
 
-    await supabase
-      .from('edge_function_logs')
-      .insert({
-        function_name: 'sync-media-captions',
-        status: 'error',
-        message: `Error: ${error.message}`
-      });
+    await logOperation(
+      supabase,
+      'sync-media-captions',
+      'error',
+      `Error: ${error.message}`
+    );
 
     return new Response(
       JSON.stringify({ 
