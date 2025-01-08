@@ -30,14 +30,6 @@ export const useMediaOperations = (refetch: () => void) => {
       const chatIds = channelsData.map(channel => channel.chat_id);
       console.log('Syncing captions for channels:', chatIds);
 
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'sync-media-captions',
-          status: 'info',
-          message: `Starting caption sync for channels: ${chatIds.join(', ')}`
-        });
-
       const { data, error } = await supabase.functions.invoke('sync-media-captions', {
         body: { chatIds },
         headers: {
@@ -61,26 +53,9 @@ export const useMediaOperations = (refetch: () => void) => {
         });
       }
 
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'sync-media-captions',
-          status: 'success',
-          message: 'Successfully synchronized media captions'
-        });
-
       refetch();
     } catch (error) {
       console.error('Error syncing captions:', error);
-
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'sync-media-captions',
-          status: 'error',
-          message: `Error syncing captions: ${error.message}`
-        });
-
       toast({
         title: "Error",
         description: "Failed to sync media captions",
@@ -95,14 +70,6 @@ export const useMediaOperations = (refetch: () => void) => {
     try {
       setDeletingDuplicates(true);
       
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'delete-duplicates',
-          status: 'info',
-          message: 'Starting duplicate media cleanup'
-        });
-
       const { error } = await supabase.functions.invoke('delete-duplicates', {
         body: { keepNewest: true },
         headers: {
@@ -112,14 +79,6 @@ export const useMediaOperations = (refetch: () => void) => {
 
       if (error) throw error;
 
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'delete-duplicates',
-          status: 'success',
-          message: 'Successfully cleaned up duplicate media files'
-        });
-
       toast({
         title: "Success",
         description: "Duplicate media files have been cleaned up",
@@ -128,15 +87,6 @@ export const useMediaOperations = (refetch: () => void) => {
       refetch();
     } catch (error) {
       console.error('Error deleting duplicates:', error);
-
-      await supabase
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'delete-duplicates',
-          status: 'error',
-          message: `Error cleaning up duplicates: ${error.message}`
-        });
-
       toast({
         title: "Error",
         description: "Failed to delete duplicate media files",
