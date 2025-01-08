@@ -4,7 +4,7 @@ import { updateCaption } from "../handlers/captionHandler.ts";
 import { logOperation } from "../../_shared/database.ts";
 
 const validateMessage = (message: any) => {
-  if (!message || !message.chat) {
+  if (!message?.chat?.id) {
     console.log('Invalid message format:', message);
     return false;
   }
@@ -12,21 +12,19 @@ const validateMessage = (message: any) => {
 };
 
 export const processMessage = async (message: any, supabase: any) => {
-  const userId = crypto.randomUUID();
-  console.log('Processing message:', { messageId: message?.message_id, chatId: message?.chat?.id });
-
   if (!validateMessage(message)) {
-    return { channelData: null, messageData: null, mediaData: null };
+    throw new Error('Invalid message format');
   }
+
+  const userId = crypto.randomUUID();
+  console.log('Processing message:', { messageId: message.message_id, chatId: message.chat.id });
 
   try {
     // Process channel
     const channelData = await saveChannel(supabase, message.chat, userId);
-    console.log('Channel processed:', channelData?.id);
-
+    
     // Process message
     const messageData = await saveMessage(supabase, message.chat, message, userId);
-    console.log('Message processed:', messageData?.id);
 
     // Handle media if present
     let mediaData = null;
@@ -37,12 +35,10 @@ export const processMessage = async (message: any, supabase: any) => {
       }
 
       mediaData = await handleMediaUpload(supabase, message, userId, botToken);
-      console.log('Media processed:', mediaData?.id);
 
       // Update captions if needed
       if (message.caption && mediaData?.id) {
         await updateCaption(supabase, message);
-        console.log('Caption updated for media:', mediaData.id);
       }
     }
 

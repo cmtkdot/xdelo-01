@@ -16,9 +16,8 @@ serve(async (req) => {
 
   try {
     const payload = await req.json();
-    console.log('Received webhook payload for message:', payload?.message?.message_id);
-
     const message = payload.message || payload.channel_post;
+
     if (!message) {
       console.log('No message content found in payload');
       return new Response(
@@ -27,21 +26,11 @@ serve(async (req) => {
       );
     }
 
+    console.log('Processing message:', message.message_id);
     const result = await processMessage(message, supabase);
 
-    await logOperation(
-      supabase,
-      'telegram-media-webhook',
-      'success',
-      `Successfully processed message ${message.message_id}`
-    );
-
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        data: result,
-        message: "Message processed successfully"
-      }),
+      JSON.stringify({ success: true, data: result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
@@ -56,10 +45,7 @@ serve(async (req) => {
     );
 
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
-      }),
+      JSON.stringify({ success: false, error: error.message }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500

@@ -58,7 +58,7 @@ export const handleMediaUpload = async (supabase: any, message: any, userId: str
       file_path: filePath
     };
 
-    const mediaData = await createMediaRecord(
+    return await createMediaRecord(
       supabase,
       userId,
       message.chat.id,
@@ -71,7 +71,6 @@ export const handleMediaUpload = async (supabase: any, message: any, userId: str
       publicUrl
     );
 
-    return mediaData;
   } catch (error) {
     console.error('Error in handleMediaUpload:', error);
     await logOperation(
