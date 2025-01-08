@@ -8,18 +8,24 @@ import { logOperation } from "../_shared/database.ts";
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      }
+    });
   }
 
   try {
     console.log('Starting caption sync process');
-    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
     
-    const contentType = req.headers.get('content-type')?.toLowerCase() || '';
-    console.log('Content-Type header:', contentType);
+    // Validate Content-Type header
+    const contentType = req.headers.get('content-type');
+    console.log('Content-Type:', contentType);
     
-    if (!contentType.includes('application/json')) {
-      console.error('Invalid content type:', contentType);
+    if (!contentType || !contentType.toLowerCase().includes('application/json')) {
+      console.error('Invalid Content-Type:', contentType);
       return new Response(
         JSON.stringify({
           success: false,
@@ -32,13 +38,15 @@ serve(async (req) => {
       );
     }
 
+    // Initialize Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Parse and validate request
     const { chatIds, mediaGroupId } = await validateRequest(req);
-
+    
     await logOperation(
       supabase,
       'sync-media-captions',
@@ -46,6 +54,7 @@ serve(async (req) => {
       `Starting caption sync for ${mediaGroupId ? `media group: ${mediaGroupId}` : `channels: ${chatIds.join(', ')}`}`
     );
 
+    // Validate media records
     const mediaRecords = await validateMediaRecords(supabase, mediaGroupId, chatIds);
     
     if ('message' in mediaRecords) {
@@ -59,11 +68,13 @@ serve(async (req) => {
       );
     }
 
+    // Get bot token
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
     if (!botToken) {
       throw new Error('Telegram bot token not configured');
     }
 
+    // Group media by chat
     const mediaByChat = mediaRecords.reduce((acc, media) => {
       if (!media.chat_id) return acc;
       if (!acc[media.chat_id]) acc[media.chat_id] = [];
@@ -74,6 +85,7 @@ serve(async (req) => {
     const results = [];
     const errors = [];
 
+    // Process each chat's media
     for (const [chatId, chatMedia] of Object.entries(mediaByChat)) {
       try {
         const messageIds = [...new Set(chatMedia
@@ -86,6 +98,7 @@ serve(async (req) => {
         const messages = await fetchTelegramMessages(botToken, chatId, messageIds);
         const captionMap = createCaptionMap(messages);
 
+        // Update captions for each media item
         for (const media of chatMedia) {
           try {
             const messageId = media.metadata?.message_id;
@@ -117,6 +130,7 @@ serve(async (req) => {
       }
     }
 
+    // Log operation result
     await logOperation(
       supabase,
       'sync-media-captions',
@@ -124,6 +138,7 @@ serve(async (req) => {
       `Sync completed with ${results.length} updates and ${errors.length} errors`
     );
 
+    // Return response
     return new Response(
       JSON.stringify({
         success: true,
