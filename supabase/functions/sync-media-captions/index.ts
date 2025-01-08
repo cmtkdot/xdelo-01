@@ -63,15 +63,11 @@ serve(async (req) => {
 
     // Group media by media_group_id
     const mediaGroups = mediaRecords.reduce((acc, media) => {
-      if (media.media_group_id) {
-        if (!acc[media.media_group_id]) {
-          acc[media.media_group_id] = [];
-        }
-        acc[media.media_group_id].push(media);
-      } else {
-        // For single media items, use their ID as key
-        acc[media.id] = [media];
+      const groupId = media.media_group_id || media.id;
+      if (!acc[groupId]) {
+        acc[groupId] = [];
       }
+      acc[groupId].push(media);
       return acc;
     }, {} as Record<string, typeof mediaRecords>);
 
@@ -93,15 +89,18 @@ serve(async (req) => {
         const messages = await fetchTelegramMessages(botToken, chatId, messageIds);
         const captionMap = createCaptionMap(messages);
 
-        // For media groups, we want to use the same caption across all items
-        const groupCaption = Object.values(captionMap)[0];
+        // For media groups, use the first non-empty caption as the group caption
+        const groupCaption = groupMedia.length > 1 
+          ? Object.values(captionMap).find(caption => caption && caption.trim() !== '') || null
+          : captionMap[messageIds[0]];
 
+        // Update all media items in the group with the same caption
         for (const media of groupMedia) {
           try {
             const messageId = media.metadata?.message_id;
             if (!messageId) continue;
 
-            const newCaption = media.media_group_id ? groupCaption : captionMap[messageId];
+            const newCaption = groupMedia.length > 1 ? groupCaption : captionMap[messageId];
             if (newCaption === undefined) continue;
 
             if (newCaption !== media.caption) {
@@ -114,7 +113,9 @@ serve(async (req) => {
                 .eq('id', media.id);
 
               if (updateError) throw updateError;
-              results.push({ id: media.id, status: 'updated' });
+              
+              console.log(`Updated caption for media ${media.id} in group ${groupId}`);
+              results.push({ id: media.id, status: 'updated', groupId });
             }
           } catch (error) {
             console.error(`Error processing media ${media.id}:`, error);
