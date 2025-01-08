@@ -1,13 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getAndDownloadTelegramFile } from "../../_shared/telegram.ts";
 import { uploadToStorage, generateSafeFileName } from "../../_shared/storage.ts";
+import { logOperation } from "../../_shared/database.ts";
 
 export async function processMediaMessage(message: any, channelId: number, supabase: any, botToken: string) {
+  console.log(`[processMediaMessage] Processing message ${message.message_id} from channel ${channelId}`);
+  
   const mediaItem = message.photo 
     ? message.photo[message.photo.length - 1] 
     : message.video || message.document;
 
-  if (!mediaItem) return null;
+  if (!mediaItem) {
+    console.log(`[processMediaMessage] No media found in message ${message.message_id}`);
+    return null;
+  }
 
   try {
     // Check if media already exists
@@ -18,11 +24,12 @@ export async function processMediaMessage(message: any, channelId: number, supab
       .single();
 
     if (existingMedia) {
-      console.log(`Media item already exists: ${existingMedia.id}`);
+      console.log(`[processMediaMessage] Media already exists: ${existingMedia.id}`);
       return null;
     }
 
     // Download and process new media
+    console.log(`[processMediaMessage] Downloading media file: ${mediaItem.file_id}`);
     const { buffer, filePath } = await getAndDownloadTelegramFile(
       mediaItem.file_id,
       botToken
@@ -38,6 +45,7 @@ export async function processMediaMessage(message: any, channelId: number, supab
       ? 'image/jpeg' 
       : (message.video ? 'video/mp4' : 'application/octet-stream');
 
+    console.log(`[processMediaMessage] Uploading to storage: ${fileName}`);
     const publicUrl = await uploadToStorage(
       supabase,
       fileName,
@@ -53,9 +61,11 @@ export async function processMediaMessage(message: any, channelId: number, supab
       content_type: mediaType,
       mime_type: mediaType,
       file_size: mediaItem.file_size,
-      file_path: filePath
+      file_path: filePath,
+      original_message: message
     };
 
+    console.log(`[processMediaMessage] Saving to database with public URL: ${publicUrl}`);
     const { data: mediaData, error: mediaError } = await supabase
       .from('media')
       .insert({
@@ -67,16 +77,34 @@ export async function processMediaMessage(message: any, channelId: number, supab
         caption: message.caption,
         metadata,
         media_group_id: message.media_group_id,
-        public_url: publicUrl
+        public_url: publicUrl,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .select()
       .single();
 
-    if (mediaError) throw mediaError;
+    if (mediaError) {
+      console.error('[processMediaMessage] Error saving media:', mediaError);
+      await logOperation(
+        supabase,
+        'sync-telegram-channel',
+        'error',
+        `Error saving media for message ${message.message_id}: ${mediaError.message}`
+      );
+      throw mediaError;
+    }
 
+    console.log(`[processMediaMessage] Successfully processed media: ${mediaData.id}`);
     return { mediaData, publicUrl };
   } catch (error) {
-    console.error('Error processing media message:', error);
+    console.error('[processMediaMessage] Error processing media message:', error);
+    await logOperation(
+      supabase,
+      'sync-telegram-channel',
+      'error',
+      `Error processing media message ${message.message_id}: ${error.message}`
+    );
     throw error;
   }
 }

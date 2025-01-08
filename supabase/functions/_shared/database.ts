@@ -13,28 +13,38 @@ export const createMediaRecord = async (
   mediaGroupId?: string,
   publicUrl?: string
 ) => {
-  const { data: mediaData, error: mediaError } = await supabase
-    .from('media')
-    .insert({
-      user_id: userId,
-      chat_id: chatId,
-      file_name: fileName,
-      file_url: fileUrl,
-      media_type: mediaType,
-      caption: caption,
-      metadata,
-      media_group_id: mediaGroupId,
-      public_url: publicUrl
-    })
-    .select()
-    .single();
+  console.log(`[createMediaRecord] Creating media record for file: ${fileName}`);
+  
+  try {
+    const { data: mediaData, error: mediaError } = await supabase
+      .from('media')
+      .insert({
+        user_id: userId,
+        chat_id: chatId,
+        file_name: fileName,
+        file_url: fileUrl,
+        media_type: mediaType,
+        caption: caption,
+        metadata,
+        media_group_id: mediaGroupId,
+        public_url: publicUrl,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
-  if (mediaError) {
-    console.error('Error creating media record:', mediaError);
-    throw mediaError;
+    if (mediaError) {
+      console.error('[createMediaRecord] Error creating media record:', mediaError);
+      throw mediaError;
+    }
+
+    console.log(`[createMediaRecord] Successfully created media record: ${mediaData.id}`);
+    return mediaData;
+  } catch (error) {
+    console.error('[createMediaRecord] Error in createMediaRecord:', error);
+    throw error;
   }
-
-  return mediaData;
 };
 
 export const logOperation = async (
@@ -49,9 +59,10 @@ export const logOperation = async (
       .insert({
         function_name: functionName,
         status,
-        message
+        message,
+        timestamp: new Date().toISOString()
       });
   } catch (error) {
-    console.error('Error logging operation:', error);
+    console.error('[logOperation] Error logging operation:', error);
   }
 };
