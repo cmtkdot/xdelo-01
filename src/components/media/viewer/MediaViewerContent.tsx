@@ -16,6 +16,7 @@ export const MediaViewerContent = ({
   onMediaError
 }: MediaViewerContentProps) => {
   const isVideo = item.media_type === "video" || item.media_type?.includes('video');
+  const displayUrl = item.public_url || item.file_url; // Fallback to file_url if public_url is not available
 
   return (
     <div className="relative w-full h-full min-h-[200px] flex items-center justify-center p-4 bg-gray-50/50 dark:bg-black/60">
@@ -33,7 +34,7 @@ export const MediaViewerContent = ({
 
       {isVideo ? (
         <video
-          src={item.file_url}
+          src={displayUrl}
           className="max-w-full max-h-[50vh] rounded-lg shadow-md"
           controls
           autoPlay
@@ -43,7 +44,7 @@ export const MediaViewerContent = ({
         />
       ) : (
         <img
-          src={item.file_url}
+          src={displayUrl}
           alt={item.caption || "Media"}
           className="max-w-full max-h-[50vh] rounded-lg object-contain shadow-md"
           onLoad={onMediaLoad}
