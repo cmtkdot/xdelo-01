@@ -1,119 +1,69 @@
-import { getContentType, getBucketId, generateSafeFileName } from "../utils/fileHandling.ts";
+import { getAndDownloadTelegramFile } from "../../_shared/telegram.ts";
+import { uploadToStorage } from "../../_shared/storage.ts";
+import { createMediaRecord } from "../../_shared/database.ts";
 
-export const handleMediaUpload = async (
-  supabase: any,
-  message: any,
-  userId: string,
-  botToken: string
-) => {
-  if (!message) return null;
-
-  const mediaItem = message.photo 
-    ? message.photo[message.photo.length - 1] 
-    : message.document || message.video;
-  
-  if (!mediaItem) {
-    console.log('No media item found in message');
-    return null;
-  }
-
+export const handleMediaUpload = async (supabase: any, message: any, userId: string, botToken: string) => {
   try {
-    // Get file information from Telegram
-    const fileResponse = await fetch(
-      `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`
-    );
-    const fileData = await fileResponse.json();
+    // Get the media item (photo, video, or document)
+    const mediaItem = message.photo 
+      ? message.photo[message.photo.length - 1] 
+      : message.video || message.document;
 
-    if (!fileData.ok) {
-      throw new Error(`Failed to get file path: ${JSON.stringify(fileData)}`);
+    if (!mediaItem?.file_id) {
+      console.log('No valid media found in message:', message);
+      return null;
     }
 
-    const filePath = fileData.result.file_path;
-    const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`;
-
-    // Check for existing media
+    // Check if media already exists
     const { data: existingMedia } = await supabase
       .from('media')
       .select('id')
-      .eq('chat_id', message.chat.id)
-      .eq('file_url', downloadUrl)
+      .eq('metadata->file_unique_id', mediaItem.file_unique_id)
       .single();
 
     if (existingMedia) {
-      console.log('Media already exists:', existingMedia);
-      return { mediaData: existingMedia, exists: true };
+      console.log('Media already exists:', existingMedia.id);
+      return existingMedia;
     }
 
-    // Prepare file metadata
-    const fileExt = filePath.split('.').pop()?.toLowerCase();
-    const timestamp = Date.now();
-    const safeFileName = generateSafeFileName(
-      `${mediaItem.file_unique_id}_${timestamp}`,
-      fileExt || 'unknown'
-    );
-
-    const mediaType = message.document?.mime_type || 
-      (message.photo ? 'image/jpeg' : message.video ? 'video/mp4' : 'application/octet-stream');
-
-    // Download file
-    const fileContent = await (await fetch(downloadUrl)).arrayBuffer();
+    // Download and process new media
+    const { buffer, filePath } = await getAndDownloadTelegramFile(mediaItem.file_id, botToken);
     
+    const timestamp = Date.now();
+    const fileName = `${mediaItem.file_unique_id}_${timestamp}.${filePath.split('.').pop() || 'unknown'}`;
+    
+    const mediaType = message.photo 
+      ? 'image/jpeg' 
+      : (message.video ? 'video/mp4' : 'application/octet-stream');
+
     // Upload to storage
-    const bucketId = getBucketId();
-    const contentType = getContentType(safeFileName, mediaType);
+    const publicUrl = await uploadToStorage(supabase, fileName, buffer, mediaType);
 
-    const { error: uploadError } = await supabase.storage
-      .from(bucketId)
-      .upload(safeFileName, fileContent, {
-        contentType,
-        upsert: false,
-        cacheControl: '3600'
-      });
-
-    if (uploadError) throw uploadError;
-
-    // Generate public URL and metadata
-    const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/${bucketId}/${safeFileName}`;
+    // Create media record
     const metadata = {
       file_id: mediaItem.file_id,
       file_unique_id: mediaItem.file_unique_id,
-      file_size: mediaItem.file_size,
       message_id: message.message_id,
       media_group_id: message.media_group_id,
-      content_type: contentType,
-      mime_type: mediaType,
-      original_file_path: filePath
+      content_type: mediaType,
+      file_size: mediaItem.file_size,
+      file_path: filePath
     };
 
-    // Save media record
-    const { data: savedMedia, error: dbError } = await supabase
-      .from('media')
-      .insert([{
-        user_id: userId,
-        chat_id: message.chat.id,
-        file_name: safeFileName,
-        file_url: downloadUrl,
-        media_type: mediaType,
-        caption: message.caption,
-        metadata,
-        media_group_id: message.media_group_id,
-        public_url: publicUrl
-      }])
-      .select()
-      .single();
+    const mediaData = await createMediaRecord(
+      supabase,
+      userId,
+      message.chat.id,
+      fileName,
+      publicUrl,
+      mediaType,
+      message.caption,
+      metadata,
+      message.media_group_id,
+      publicUrl
+    );
 
-    if (dbError) throw dbError;
-
-    // Update message with media URLs
-    await supabase
-      .from('messages')
-      .update({
-        media_url: downloadUrl,
-        public_url: publicUrl
-      })
-      .match({ chat_id: message.chat.id, message_id: message.message_id });
-
-    return { mediaData: savedMedia, publicUrl };
+    return mediaData;
   } catch (error) {
     console.error('Error in handleMediaUpload:', error);
     throw error;

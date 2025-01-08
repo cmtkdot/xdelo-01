@@ -1,5 +1,8 @@
 export const saveChannel = async (supabase: any, chat: any, userId: string) => {
-  if (!chat) return null;
+  if (!chat?.id) {
+    console.log('Invalid chat data:', chat);
+    return null;
+  }
   
   try {
     const channelData = {
@@ -16,7 +19,7 @@ export const saveChannel = async (supabase: any, chat: any, userId: string) => {
         onConflict: 'chat_id',
         ignoreDuplicates: false,
       })
-      .select()
+      .select('id, chat_id, title')
       .single();
 
     if (error) throw error;
@@ -28,7 +31,10 @@ export const saveChannel = async (supabase: any, chat: any, userId: string) => {
 };
 
 export const saveMessage = async (supabase: any, chat: any, message: any, userId: string) => {
-  if (!chat || !message) return null;
+  if (!chat?.id || !message?.message_id) {
+    console.log('Invalid message data:', { chat, message });
+    return null;
+  }
 
   try {
     const messageData = {
@@ -38,8 +44,7 @@ export const saveMessage = async (supabase: any, chat: any, message: any, userId
       sender_name: message.from?.username || message.from?.first_name || 'Unknown',
       text: message.text || message.caption,
       media_type: message.photo ? 'photo' : message.video ? 'video' : message.document ? 'document' : null,
-      media_url: null, // Will be updated after media processing
-      public_url: null // Will be updated after media processing
+      media_url: null // Will be updated after media processing
     };
 
     const { data, error } = await supabase
@@ -48,7 +53,7 @@ export const saveMessage = async (supabase: any, chat: any, message: any, userId
         onConflict: 'chat_id,message_id',
         ignoreDuplicates: false,
       })
-      .select()
+      .select('id, message_id')
       .single();
 
     if (error) throw error;
