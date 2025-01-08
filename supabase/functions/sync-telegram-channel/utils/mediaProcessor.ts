@@ -1,6 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getAndDownloadTelegramFile } from "../../_shared/telegram.ts";
-import { uploadToStorage, generateSafeFileName } from "../../_shared/storage.ts";
 import { logOperation } from "../../_shared/database.ts";
 
 export async function processMediaMessage(message: any, channelId: number, supabase: any, botToken: string) {
@@ -36,16 +35,28 @@ export async function processMediaMessage(message: any, channelId: number, supab
     );
 
     const timestamp = Date.now();
-    const fileName = generateSafeFileName(
-      `${mediaItem.file_unique_id}_${timestamp}`,
-      filePath.split('.').pop() || 'unknown'
-    );
+    const fileName = `${mediaItem.file_unique_id}_${timestamp}.${filePath.split('.').pop() || 'unknown'}`;
 
     const mediaType = message.photo 
       ? 'image/jpeg' 
       : (message.video ? 'video/mp4' : 'application/octet-stream');
 
     console.log(`[processMediaMessage] Uploading to storage: ${fileName}`);
+    
+    // First, check if file exists in storage
+    const { data: existingFile } = await supabase.storage
+      .from('telegram-media')
+      .list('', {
+        limit: 1,
+        search: fileName
+      });
+
+    if (existingFile && existingFile.length > 0) {
+      console.log(`[processMediaMessage] File already exists in storage: ${fileName}`);
+      return null;
+    }
+
+    // Upload file to storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('telegram-media')
       .upload(fileName, buffer, {
@@ -75,6 +86,8 @@ export async function processMediaMessage(message: any, channelId: number, supab
     };
 
     console.log(`[processMediaMessage] Saving to database with public URL: ${publicUrl}`);
+    
+    // Create media record
     const { data: mediaData, error: mediaError } = await supabase
       .from('media')
       .insert({
@@ -102,6 +115,32 @@ export async function processMediaMessage(message: any, channelId: number, supab
         `Error saving media for message ${message.message_id}: ${mediaError.message}`
       );
       throw mediaError;
+    }
+
+    // Also create a message record
+    const { error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        user_id: mediaData.user_id,
+        chat_id: channelId,
+        message_id: message.message_id,
+        sender_name: message.from?.first_name || 'Unknown',
+        text: message.caption,
+        media_type: mediaType,
+        media_url: publicUrl,
+        public_url: publicUrl,
+        created_at: new Date(message.date * 1000).toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (messageError) {
+      console.error('[processMediaMessage] Error saving message:', messageError);
+      await logOperation(
+        supabase,
+        'sync-telegram-channel',
+        'error',
+        `Error saving message ${message.message_id}: ${messageError.message}`
+      );
     }
 
     console.log(`[processMediaMessage] Successfully processed media: ${mediaData.id}`);
