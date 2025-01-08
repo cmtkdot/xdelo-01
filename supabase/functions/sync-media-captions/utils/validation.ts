@@ -5,7 +5,6 @@ export interface SyncRequest {
 
 export const validateRequest = async (req: Request) => {
   try {
-    // Log the raw request for debugging
     console.log('Validating request...');
     
     const contentType = req.headers.get('content-type');

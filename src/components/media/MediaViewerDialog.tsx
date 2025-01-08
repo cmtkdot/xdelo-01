@@ -1,5 +1,5 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { MediaItem } from "./types";
+import { MediaItem } from "../types";
 import { X, Link2, Calendar, FileVideo, Image as ImageIcon, Upload, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { DialogTitle } from "@radix-ui/react-dialog";
@@ -7,17 +7,15 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MediaViewerContent } from "./viewer/MediaViewerContent";
-import { MediaViewerUrls } from "./viewer/MediaViewerUrls";
-import { MediaViewerDetails } from "./viewer/MediaViewerDetails";
-import { MediaViewerMetadata } from "./viewer/MediaViewerMetadata";
+import { MediaViewerContent } from "./MediaViewerContent";
+import { MediaViewerUrls } from "./MediaViewerUrls";
+import { MediaViewerDetails } from "./MediaViewerDetails";
+import { MediaViewerMetadata } from "./MediaViewerMetadata";
 import { Button } from "@/components/ui/button";
-import GoogleDriveUploader from "./GoogleDriveUploader";
+import GoogleDriveUploader from "../GoogleDriveUploader";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-import { Json } from "@/integrations/supabase/types";
 
 interface MediaViewerDialogProps {
   item: MediaItem | null;
@@ -45,22 +43,13 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
     setHasError(true);
   };
 
-  const getMessageId = () => {
-    if (!item?.metadata) return null;
-    const metadata = item.metadata as { message_id?: number };
-    return metadata.message_id || null;
-  };
-
   const handleSyncCaption = async () => {
-    const messageId = getMessageId();
-    if (!item.chat_id || !messageId) return;
-    
     setSyncingCaption(true);
     try {
       const { error } = await supabase.functions.invoke('sync-media-captions', {
         body: { 
-          chatId: item.chat_id,
-          messageId: messageId
+          mediaGroupId: item.media_group_id || undefined,
+          chatIds: item.chat_id ? [item.chat_id] : undefined
         },
         headers: {
           'Content-Type': 'application/json'
@@ -126,7 +115,7 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
                   variant="outline"
                   size="sm"
                   onClick={handleSyncCaption}
-                  disabled={isSyncingCaption || !item.chat_id || !getMessageId()}
+                  disabled={isSyncingCaption || !item.chat_id}
                   className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10"
                 >
                   <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaption ? 'animate-spin' : ''}`} />

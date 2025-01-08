@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 export const useMediaOperations = (refetch: () => void) => {
   const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
   const [isSyncingCaptions, setSyncingCaptions] = useState(false);
   const { toast } = useToast();
 
-  const handleSyncCaptions = async () => {
+  const handleSyncCaptions = async (mediaGroupId?: string) => {
     try {
       setSyncingCaptions(true);
       
@@ -39,7 +39,7 @@ export const useMediaOperations = (refetch: () => void) => {
         });
 
       const { data, error } = await supabase.functions.invoke('sync-media-captions', {
-        body: { chatIds },
+        body: mediaGroupId ? { mediaGroupId } : { chatIds },
         headers: {
           'Content-Type': 'application/json'
         }
