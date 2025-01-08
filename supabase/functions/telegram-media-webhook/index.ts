@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAndDownloadTelegramFile } from "../_shared/telegram.ts";
+import { uploadToStorage } from "../_shared/storage.ts";
+import { createMediaRecord, logOperation } from "../_shared/database.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,13 +36,21 @@ serve(async (req) => {
     }
 
     // Save channel info
+    const userId = crypto.randomUUID(); // This should be replaced with actual user ID in production
     const channelData = {
-      user_id: crypto.randomUUID(), // This should be replaced with actual user ID in production
+      user_id: userId,
       chat_id: message.chat.id,
       title: message.chat.title || `Chat ${message.chat.id}`,
       username: message.chat.username,
       is_active: true
     };
+
+    await logOperation(
+      supabase,
+      'telegram-media-webhook',
+      'info',
+      `Processing message from channel: ${channelData.title}`
+    );
 
     const { error: channelError } = await supabase
       .from('channels')
@@ -50,11 +61,12 @@ serve(async (req) => {
 
     if (channelError) {
       console.error('Error saving channel:', channelError);
+      throw channelError;
     }
 
     // Save message
     const messageData = {
-      user_id: channelData.user_id,
+      user_id: userId,
       chat_id: message.chat.id,
       message_id: message.message_id,
       sender_name: message.from?.username || message.from?.first_name || 'Unknown',
@@ -63,15 +75,23 @@ serve(async (req) => {
       created_at: new Date(message.date * 1000).toISOString()
     };
 
-    const { error: messageError } = await supabase
+    // Check for existing message to avoid duplicates
+    const { data: existingMessage } = await supabase
       .from('messages')
-      .upsert(messageData, {
-        onConflict: 'chat_id,message_id',
-        ignoreDuplicates: false,
-      });
+      .select('id')
+      .eq('chat_id', messageData.chat_id)
+      .eq('message_id', messageData.message_id)
+      .single();
 
-    if (messageError) {
-      console.error('Error saving message:', messageError);
+    if (!existingMessage) {
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert(messageData);
+
+      if (messageError) {
+        console.error('Error saving message:', messageError);
+        throw messageError;
+      }
     }
 
     // Process media if present
@@ -85,75 +105,65 @@ serve(async (req) => {
         ? message.photo[message.photo.length - 1] 
         : message.video || message.document;
 
-      // Get file info from Telegram
-      const fileResponse = await fetch(
-        `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`
-      );
+      // Check for existing media to avoid duplicates
+      const { data: existingMedia } = await supabase
+        .from('media')
+        .select('id')
+        .eq('metadata->file_unique_id', mediaItem.file_unique_id)
+        .single();
 
-      if (!fileResponse.ok) {
-        throw new Error('Failed to get file info from Telegram');
+      if (existingMedia) {
+        console.log('Media already exists, skipping upload');
+        return new Response(
+          JSON.stringify({ success: true, message: "Media already exists" }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
-      const fileData = await fileResponse.json();
-      if (!fileData.ok || !fileData.result.file_path) {
-        throw new Error('Invalid file data received from Telegram');
-      }
-
-      // Download file from Telegram
-      const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
-      const fileDownloadResponse = await fetch(downloadUrl);
+      // Download and process new media
+      const { buffer, filePath } = await getAndDownloadTelegramFile(mediaItem.file_id, botToken);
       
-      if (!fileDownloadResponse.ok) {
-        throw new Error('Failed to download file from Telegram');
-      }
-
-      const fileBuffer = await fileDownloadResponse.arrayBuffer();
+      // Generate safe filename
       const timestamp = Date.now();
-      const fileName = `${mediaItem.file_unique_id}_${timestamp}.${fileData.result.file_path.split('.').pop()}`;
+      const fileName = `${mediaItem.file_unique_id}_${timestamp}.${filePath.split('.').pop() || 'unknown'}`;
+      
+      // Determine media type
+      const mediaType = message.photo 
+        ? 'image/jpeg' 
+        : (message.video ? 'video/mp4' : 'application/octet-stream');
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('telegram-media')
-        .upload(fileName, fileBuffer, {
-          contentType: message.photo ? 'image/jpeg' : message.video ? 'video/mp4' : 'application/octet-stream',
-          upsert: false
-        });
+      // Upload to Supabase storage
+      const publicUrl = await uploadToStorage(supabase, fileName, buffer, mediaType);
 
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        throw uploadError;
-      }
-
-      // Generate public URL
-      const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${fileName}`;
-
-      // Create media record
-      const mediaData = {
-        user_id: channelData.user_id,
-        chat_id: message.chat.id,
-        file_name: fileName,
-        file_url: publicUrl,
-        media_type: message.photo ? 'image/jpeg' : message.video ? 'video/mp4' : 'application/octet-stream',
-        caption: message.caption,
-        metadata: {
-          file_id: mediaItem.file_id,
-          file_unique_id: mediaItem.file_unique_id,
-          message_id: message.message_id,
-          media_group_id: message.media_group_id,
-          file_size: mediaItem.file_size
-        },
+      // Create media record with metadata
+      const metadata = {
+        file_id: mediaItem.file_id,
+        file_unique_id: mediaItem.file_unique_id,
+        message_id: message.message_id,
         media_group_id: message.media_group_id,
-        public_url: publicUrl
+        content_type: mediaType,
+        file_size: mediaItem.file_size,
+        file_path: filePath
       };
 
-      const { error: mediaError } = await supabase
-        .from('media')
-        .insert(mediaData);
+      await createMediaRecord(
+        supabase,
+        userId,
+        message.chat.id,
+        fileName,
+        publicUrl,
+        mediaType,
+        message.caption,
+        metadata,
+        message.media_group_id
+      );
 
-      if (mediaError) {
-        console.error('Error saving media:', mediaError);
-        throw mediaError;
-      }
+      await logOperation(
+        supabase,
+        'telegram-media-webhook',
+        'success',
+        `Successfully processed media from message ${message.message_id}`
+      );
     }
 
     return new Response(
@@ -164,13 +174,12 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in webhook handler:', error);
     
-    await supabase
-      .from('edge_function_logs')
-      .insert({
-        function_name: 'telegram-media-webhook',
-        status: 'error',
-        message: `Error: ${error.message}`
-      });
+    await logOperation(
+      supabase,
+      'telegram-media-webhook',
+      'error',
+      `Error: ${error.message}`
+    );
 
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
