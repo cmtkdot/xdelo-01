@@ -82,7 +82,10 @@ const MediaGallery = () => {
     try {
       setDeletingDuplicates(true);
       const { error } = await supabase.functions.invoke('delete-duplicates', {
-        body: { keepNewest: true }
+        body: { keepNewest: true },
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (error) throw error;
@@ -108,7 +111,12 @@ const MediaGallery = () => {
   const handleSyncCaptions = async () => {
     try {
       setSyncingCaptions(true);
-      const { error } = await supabase.functions.invoke('sync-media-captions');
+      const { error } = await supabase.functions.invoke('sync-media-captions', {
+        body: { action: "sync" }, // Provide a non-empty body
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
       if (error) throw error;
 

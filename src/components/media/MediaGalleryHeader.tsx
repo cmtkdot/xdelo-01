@@ -5,8 +5,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 interface MediaGalleryHeaderProps {
-  onSyncCaptions: () => void;
-  onDeleteDuplicates: () => void;
+  onSyncCaptions: () => Promise<void>;
+  onDeleteDuplicates: () => Promise<void>;
   isSyncingCaptions: boolean;
   isDeletingDuplicates: boolean;
 }
@@ -15,15 +15,16 @@ const MediaGalleryHeader = ({
   onSyncCaptions,
   onDeleteDuplicates,
   isSyncingCaptions,
-  isDeletingDuplicates
+  isDeletingDuplicates,
 }: MediaGalleryHeaderProps) => {
-  const { toast } = useToast();
   const [isResyncing, setResyncing] = useState(false);
+  const { toast } = useToast();
 
   const handleResync = async () => {
     try {
       setResyncing(true);
       const { error } = await supabase.functions.invoke('resync-media', {
+        body: { action: "resync" }, // Provide a non-empty body
         headers: {
           'Content-Type': 'application/json'
         }
@@ -33,13 +34,13 @@ const MediaGalleryHeader = ({
 
       toast({
         title: "Success",
-        description: "Media files have been resynced",
+        description: "Media resynced successfully",
       });
     } catch (error) {
       console.error('Error resyncing media:', error);
       toast({
         title: "Error",
-        description: "Failed to resync media files",
+        description: "Failed to resync media",
         variant: "destructive",
       });
     } finally {
@@ -48,13 +49,18 @@ const MediaGalleryHeader = ({
   };
 
   return (
-    <div className="flex items-center justify-between gap-4 mb-4">
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
       <div className="flex items-center gap-2">
-        <Image className="w-6 h-6 text-blue-500 dark:text-[#0088cc]" />
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Media Gallery</h2>
+        <div className="p-2 rounded-md bg-[#0088cc]/10 text-[#0088cc]">
+          <Image className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold">Media Gallery</h2>
+          <p className="text-sm text-gray-500">Manage your media files</p>
+        </div>
       </div>
-      
-      <div className="flex items-center gap-2">
+
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
           size="sm"
