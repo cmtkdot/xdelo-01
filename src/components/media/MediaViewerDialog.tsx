@@ -17,6 +17,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+import { Json } from "@/integrations/supabase/types";
+
 interface MediaViewerDialogProps {
   item: MediaItem | null;
   isOpen: boolean;
@@ -43,16 +45,22 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
     setHasError(true);
   };
 
+  const getMessageId = () => {
+    if (!item?.metadata) return null;
+    const metadata = item.metadata as { message_id?: number };
+    return metadata.message_id || null;
+  };
+
   const handleSyncCaption = async () => {
+    const messageId = getMessageId();
+    if (!item.chat_id || !messageId) return;
+    
     setSyncingCaption(true);
     try {
       const { error } = await supabase.functions.invoke('sync-media-captions', {
         body: { 
-          mediaGroupId: item.media_group_id || undefined,
-          chatIds: item.chat_id ? [item.chat_id] : undefined
-        },
-        headers: {
-          'Content-Type': 'application/json'
+          chatId: item.chat_id,
+          messageId: messageId
         }
       });
 
@@ -115,7 +123,7 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
                   variant="outline"
                   size="sm"
                   onClick={handleSyncCaption}
-                  disabled={isSyncingCaption || !item.chat_id}
+                  disabled={isSyncingCaption || !item.chat_id || !getMessageId()}
                   className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10"
                 >
                   <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaption ? 'animate-spin' : ''}`} />

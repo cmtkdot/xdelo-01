@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -17,6 +18,8 @@ serve(async (req) => {
   );
 
   try {
+    console.log('Processing webhook request...');
+    
     if (req.headers.get("content-type") !== "application/json") {
       throw new Error("Content-Type must be application/json");
     }
@@ -24,6 +27,7 @@ serve(async (req) => {
     const payload = await req.json();
     console.log('Received webhook payload:', JSON.stringify(payload, null, 2));
 
+    // Extract message data
     const message = payload.message || payload.channel_post;
     if (!message) {
       return new Response(
@@ -32,7 +36,7 @@ serve(async (req) => {
       );
     }
 
-    // Save channel info
+    // Process channel information
     const channelData = {
       user_id: crypto.randomUUID(), // This should be replaced with actual user ID in production
       chat_id: message.chat.id,
@@ -41,6 +45,7 @@ serve(async (req) => {
       is_active: true
     };
 
+    // Update channel information
     const { error: channelError } = await supabase
       .from('channels')
       .upsert(channelData, {
@@ -50,28 +55,7 @@ serve(async (req) => {
 
     if (channelError) {
       console.error('Error saving channel:', channelError);
-    }
-
-    // Save message
-    const messageData = {
-      user_id: channelData.user_id,
-      chat_id: message.chat.id,
-      message_id: message.message_id,
-      sender_name: message.from?.username || message.from?.first_name || 'Unknown',
-      text: message.text || message.caption,
-      media_type: message.photo ? 'photo' : message.video ? 'video' : message.document ? 'document' : null,
-      created_at: new Date(message.date * 1000).toISOString()
-    };
-
-    const { error: messageError } = await supabase
-      .from('messages')
-      .upsert(messageData, {
-        onConflict: 'chat_id,message_id',
-        ignoreDuplicates: false,
-      });
-
-    if (messageError) {
-      console.error('Error saving message:', messageError);
+      throw channelError;
     }
 
     // Process media if present
@@ -156,6 +140,15 @@ serve(async (req) => {
       }
     }
 
+    // Log successful operation
+    await supabase
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'telegram-channel-webhook',
+        status: 'success',
+        message: `Successfully processed message ${message.message_id} from chat ${message.chat.id}`
+      });
+
     return new Response(
       JSON.stringify({ success: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -164,10 +157,11 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in webhook handler:', error);
     
+    // Log error
     await supabase
       .from('edge_function_logs')
       .insert({
-        function_name: 'telegram-media-webhook',
+        function_name: 'telegram-channel-webhook',
         status: 'error',
         message: `Error: ${error.message}`
       });

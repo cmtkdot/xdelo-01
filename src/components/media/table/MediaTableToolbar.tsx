@@ -35,10 +35,6 @@ export function MediaTableToolbar({
     handleSyncCaptions 
   } = useMediaOperations(onRefetch);
 
-  const handleSyncCaptionsClick = () => {
-    handleSyncCaptions();
-  };
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -54,7 +50,7 @@ export function MediaTableToolbar({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleSyncCaptionsClick}
+            onClick={handleSyncCaptions}
             disabled={isSyncingCaptions}
             className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
           >

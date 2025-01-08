@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 export const useMediaOperations = (refetch: () => void) => {
   const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
   const [isSyncingCaptions, setSyncingCaptions] = useState(false);
   const { toast } = useToast();
 
-  const handleSyncCaptions = async (mediaGroupId?: string) => {
+  const handleSyncCaptions = async () => {
     try {
       setSyncingCaptions(true);
       
@@ -38,11 +38,8 @@ export const useMediaOperations = (refetch: () => void) => {
           message: `Starting caption sync for channels: ${chatIds.join(', ')}`
         });
 
-      const requestBody = mediaGroupId ? { mediaGroupId } : { chatIds };
-      console.log('Sending request with body:', requestBody);
-
       const { data, error } = await supabase.functions.invoke('sync-media-captions', {
-        body: requestBody,
+        body: { chatIds },
         headers: {
           'Content-Type': 'application/json'
         }
@@ -107,10 +104,7 @@ export const useMediaOperations = (refetch: () => void) => {
         });
 
       const { error } = await supabase.functions.invoke('delete-duplicates', {
-        body: { keepNewest: true },
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        body: { keepNewest: true }
       });
 
       if (error) throw error;

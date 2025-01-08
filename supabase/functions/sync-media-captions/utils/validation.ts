@@ -5,10 +5,11 @@ export interface SyncRequest {
 
 export const validateRequest = async (req: Request) => {
   try {
+    // Log the raw request for debugging
     console.log('Validating request...');
     
     const contentType = req.headers.get('content-type');
-    if (!contentType || !contentType.toLowerCase().includes('application/json')) {
+    if (!contentType || !contentType.includes('application/json')) {
       throw new Error('Content-Type must be application/json');
     }
 
