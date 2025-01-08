@@ -1,40 +1,31 @@
 import { getAndDownloadTelegramFile } from "../../_shared/telegram.ts";
-import { uploadToStorage } from "../../_shared/storage.ts";
-import { createMediaRecord, logOperation } from "../../_shared/database.ts";
 
-const getMediaItem = (message: any) => {
-  if (message.photo) {
-    return message.photo[message.photo.length - 1];
-  }
-  return message.video || message.document;
-};
-
-const checkExistingMedia = async (supabase: any, fileUniqueId: string) => {
-  const { data: existingMedia } = await supabase
-    .from('media')
-    .select('id')
-    .eq('metadata->file_unique_id', fileUniqueId)
-    .single();
-  
-  return existingMedia;
-};
-
-export const handleMediaUpload = async (supabase: any, message: any, userId: string, botToken: string) => {
+export async function handleMediaUpload(supabase: any, message: any, userId: string, botToken: string) {
   try {
-    const mediaItem = getMediaItem(message);
+    // Get the media item
+    const mediaItem = message.photo 
+      ? message.photo[message.photo.length - 1] 
+      : message.video || message.document;
+
     if (!mediaItem?.file_id) {
       console.log('No valid media found in message:', message);
       return null;
     }
 
     // Check for existing media
-    const existingMedia = await checkExistingMedia(supabase, mediaItem.file_unique_id);
+    const { data: existingMedia } = await supabase
+      .from('media')
+      .select('id')
+      .eq('metadata->file_unique_id', mediaItem.file_unique_id)
+      .single();
+
     if (existingMedia) {
       console.log('Media already exists:', existingMedia.id);
       return existingMedia;
     }
 
     // Download and process new media
+    console.log('Downloading media:', mediaItem.file_id);
     const { buffer, filePath } = await getAndDownloadTelegramFile(mediaItem.file_id, botToken);
     
     const timestamp = Date.now();
@@ -44,8 +35,34 @@ export const handleMediaUpload = async (supabase: any, message: any, userId: str
       ? 'image/jpeg' 
       : (message.video ? 'video/mp4' : 'application/octet-stream');
 
+    // Check if file exists in storage
+    const { data: existingFile } = await supabase.storage
+      .from('telegram-media')
+      .list('', {
+        limit: 1,
+        search: fileName
+      });
+
+    if (existingFile && existingFile.length > 0) {
+      console.log('File already exists in storage:', fileName);
+      return null;
+    }
+
     // Upload to storage
-    const publicUrl = await uploadToStorage(supabase, fileName, buffer, mediaType);
+    console.log('Uploading to storage:', fileName);
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('telegram-media')
+      .upload(fileName, buffer, {
+        contentType: mediaType,
+        upsert: false
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    // Generate public URL
+    const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${fileName}`;
 
     // Create media record
     const metadata = {
@@ -58,27 +75,31 @@ export const handleMediaUpload = async (supabase: any, message: any, userId: str
       file_path: filePath
     };
 
-    return await createMediaRecord(
-      supabase,
-      userId,
-      message.chat.id,
-      fileName,
-      publicUrl,
-      mediaType,
-      message.caption,
-      metadata,
-      message.media_group_id,
-      publicUrl
-    );
+    const { data: mediaData, error: mediaError } = await supabase
+      .from('media')
+      .insert({
+        user_id: userId,
+        chat_id: message.chat.id,
+        file_name: fileName,
+        file_url: publicUrl,
+        media_type: mediaType,
+        caption: message.caption,
+        metadata,
+        media_group_id: message.media_group_id,
+        public_url: publicUrl,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
+    if (mediaError) {
+      throw mediaError;
+    }
+
+    return mediaData;
   } catch (error) {
     console.error('Error in handleMediaUpload:', error);
-    await logOperation(
-      supabase,
-      'telegram-media-webhook',
-      'error',
-      `Error uploading media: ${error.message}`
-    );
     throw error;
   }
-};
+}

@@ -1,30 +1,24 @@
 import { saveChannel, saveMessage } from "./database.ts";
 import { handleMediaUpload } from "../handlers/mediaHandler.ts";
-import { updateCaption } from "../handlers/captionHandler.ts";
-import { logOperation } from "../../_shared/database.ts";
 
-const validateMessage = (message: any) => {
+export async function processMessage(message: any, supabase: any) {
+  console.log('Processing message:', { messageId: message.message_id, chatId: message.chat.id });
+
   if (!message?.chat?.id) {
     console.log('Invalid message format:', message);
-    return false;
-  }
-  return true;
-};
-
-export const processMessage = async (message: any, supabase: any) => {
-  if (!validateMessage(message)) {
     throw new Error('Invalid message format');
   }
 
   const userId = crypto.randomUUID();
-  console.log('Processing message:', { messageId: message.message_id, chatId: message.chat.id });
 
   try {
-    // Process channel
+    // Process channel first
     const channelData = await saveChannel(supabase, message.chat, userId);
-    
+    console.log('Channel processed:', channelData);
+
     // Process message
     const messageData = await saveMessage(supabase, message.chat, message, userId);
+    console.log('Message processed:', messageData);
 
     // Handle media if present
     let mediaData = null;
@@ -35,22 +29,19 @@ export const processMessage = async (message: any, supabase: any) => {
       }
 
       mediaData = await handleMediaUpload(supabase, message, userId, botToken);
-
-      // Update captions if needed
-      if (message.caption && mediaData?.id) {
-        await updateCaption(supabase, message);
-      }
+      console.log('Media processed:', mediaData);
     }
 
     return { channelData, messageData, mediaData };
   } catch (error) {
     console.error('Error in processMessage:', error);
-    await logOperation(
-      supabase,
-      'telegram-media-webhook',
-      'error',
-      `Error processing message: ${error.message}`
-    );
+    await supabase
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'telegram-media-webhook',
+        status: 'error',
+        message: `Error processing message: ${error.message}`
+      });
     throw error;
   }
-};
+}
