@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 export const useMediaOperations = (refetch: () => void) => {
   const [isDeletingDuplicates, setDeletingDuplicates] = useState(false);
@@ -104,7 +104,10 @@ export const useMediaOperations = (refetch: () => void) => {
         });
 
       const { error } = await supabase.functions.invoke('delete-duplicates', {
-        body: { keepNewest: true }
+        body: { keepNewest: true },
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (error) throw error;
