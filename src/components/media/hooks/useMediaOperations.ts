@@ -38,8 +38,11 @@ export const useMediaOperations = (refetch: () => void) => {
           message: `Starting caption sync for channels: ${chatIds.join(', ')}`
         });
 
+      const requestBody = mediaGroupId ? { mediaGroupId } : { chatIds };
+      console.log('Sending request with body:', requestBody);
+
       const { data, error } = await supabase.functions.invoke('sync-media-captions', {
-        body: mediaGroupId ? { mediaGroupId } : { chatIds },
+        body: requestBody,
         headers: {
           'Content-Type': 'application/json'
         }
@@ -104,7 +107,10 @@ export const useMediaOperations = (refetch: () => void) => {
         });
 
       const { error } = await supabase.functions.invoke('delete-duplicates', {
-        body: { keepNewest: true }
+        body: { keepNewest: true },
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (error) throw error;
