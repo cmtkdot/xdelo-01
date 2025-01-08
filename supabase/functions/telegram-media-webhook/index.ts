@@ -16,7 +16,7 @@ serve(async (req) => {
 
   try {
     const payload = await req.json();
-    console.log('Received webhook payload:', payload);
+    console.log('Received webhook payload for message:', payload?.message?.message_id);
 
     const message = payload.message || payload.channel_post;
     if (!message) {
@@ -27,8 +27,14 @@ serve(async (req) => {
       );
     }
 
-    // Process message in a controlled way
     const result = await processMessage(message, supabase);
+
+    await logOperation(
+      supabase,
+      'telegram-media-webhook',
+      'success',
+      `Successfully processed message ${message.message_id}`
+    );
 
     return new Response(
       JSON.stringify({ 

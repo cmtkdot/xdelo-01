@@ -1,26 +1,34 @@
 import { getAndDownloadTelegramFile } from "../../_shared/telegram.ts";
 import { uploadToStorage } from "../../_shared/storage.ts";
-import { createMediaRecord } from "../../_shared/database.ts";
+import { createMediaRecord, logOperation } from "../../_shared/database.ts";
+
+const getMediaItem = (message: any) => {
+  if (message.photo) {
+    return message.photo[message.photo.length - 1];
+  }
+  return message.video || message.document;
+};
+
+const checkExistingMedia = async (supabase: any, fileUniqueId: string) => {
+  const { data: existingMedia } = await supabase
+    .from('media')
+    .select('id')
+    .eq('metadata->file_unique_id', fileUniqueId)
+    .single();
+  
+  return existingMedia;
+};
 
 export const handleMediaUpload = async (supabase: any, message: any, userId: string, botToken: string) => {
   try {
-    // Get the media item (photo, video, or document)
-    const mediaItem = message.photo 
-      ? message.photo[message.photo.length - 1] 
-      : message.video || message.document;
-
+    const mediaItem = getMediaItem(message);
     if (!mediaItem?.file_id) {
       console.log('No valid media found in message:', message);
       return null;
     }
 
-    // Check if media already exists
-    const { data: existingMedia } = await supabase
-      .from('media')
-      .select('id')
-      .eq('metadata->file_unique_id', mediaItem.file_unique_id)
-      .single();
-
+    // Check for existing media
+    const existingMedia = await checkExistingMedia(supabase, mediaItem.file_unique_id);
     if (existingMedia) {
       console.log('Media already exists:', existingMedia.id);
       return existingMedia;
@@ -66,6 +74,12 @@ export const handleMediaUpload = async (supabase: any, message: any, userId: str
     return mediaData;
   } catch (error) {
     console.error('Error in handleMediaUpload:', error);
+    await logOperation(
+      supabase,
+      'telegram-media-webhook',
+      'error',
+      `Error uploading media: ${error.message}`
+    );
     throw error;
   }
 };
