@@ -10,6 +10,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -20,8 +21,20 @@ serve(async (req) => {
   );
 
   try {
-    if (req.headers.get("content-type") !== "application/json") {
-      throw new Error("Content-Type must be application/json");
+    // Check content type case-insensitively
+    const contentType = req.headers.get("content-type")?.toLowerCase();
+    if (!contentType?.includes("application/json")) {
+      console.error("Invalid content type:", contentType);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Content-Type must be application/json" 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     const payload = await req.json();
@@ -29,6 +42,7 @@ serve(async (req) => {
 
     const message = payload.message || payload.channel_post;
     if (!message) {
+      console.log('No message content found in payload');
       return new Response(
         JSON.stringify({ success: true, message: "No content to process" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -36,7 +50,7 @@ serve(async (req) => {
     }
 
     // Save channel info
-    const userId = crypto.randomUUID(); // This should be replaced with actual user ID in production
+    const userId = crypto.randomUUID();
     const channelData = {
       user_id: userId,
       chat_id: message.chat.id,
@@ -75,7 +89,7 @@ serve(async (req) => {
       created_at: new Date(message.date * 1000).toISOString()
     };
 
-    // Check for existing message to avoid duplicates
+    // Check for existing message
     const { data: existingMessage } = await supabase
       .from('messages')
       .select('id')
@@ -105,7 +119,7 @@ serve(async (req) => {
         ? message.photo[message.photo.length - 1] 
         : message.video || message.document;
 
-      // Check for existing media to avoid duplicates
+      // Check for existing media
       const { data: existingMedia } = await supabase
         .from('media')
         .select('id')
