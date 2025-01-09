@@ -1,6 +1,6 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { MediaItem } from "./types";
-import { X, Link2, Calendar, FileVideo, Image as ImageIcon, Upload, RefreshCw } from "lucide-react";
+import { X, Link2, Calendar, FileVideo, Image as ImageIcon, Upload, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -16,7 +16,6 @@ import GoogleDriveUploader from "./GoogleDriveUploader";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
 import { Json } from "@/integrations/supabase/types";
 
 interface MediaViewerDialogProps {
@@ -29,6 +28,7 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isSyncingCaption, setSyncingCaption] = useState(false);
+  const [isDeletingMedia, setDeletingMedia] = useState(false);
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -49,6 +49,55 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
     if (!item?.metadata) return null;
     const metadata = item.metadata as { message_id?: number };
     return metadata.message_id || null;
+  };
+
+  const handleDeleteMedia = async () => {
+    if (!item.id || isDeletingMedia) return;
+    
+    try {
+      setDeletingMedia(true);
+      
+      // Delete the file from storage if it exists
+      if (item.file_name) {
+        const { error: storageError } = await supabase.storage
+          .from('telegram-media')
+          .remove([item.file_name]);
+
+        if (storageError) {
+          console.error('Error deleting file from storage:', storageError);
+          // Continue with database deletion even if storage deletion fails
+        }
+      }
+
+      // Delete the media entry from the database
+      const { error: dbError } = await supabase
+        .from('media')
+        .delete()
+        .eq('id', item.id);
+
+      if (dbError) throw dbError;
+
+      // Invalidate queries to refresh the media list
+      await queryClient.invalidateQueries({ queryKey: ['media-table'] });
+      
+      toast({
+        title: "Success",
+        description: "Media deleted successfully",
+      });
+
+      // Close the dialog
+      onClose();
+
+    } catch (error) {
+      console.error('Error deleting media:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete media",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingMedia(false);
+    }
   };
 
   const handleSyncCaption = async () => {
@@ -140,6 +189,16 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
                     Upload to Drive
                   </Button>
                 )}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteMedia}
+                  disabled={isDeletingMedia}
+                  className="text-xs"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {isDeletingMedia ? 'Deleting...' : 'Delete'}
+                </Button>
               </div>
             </div>
 
