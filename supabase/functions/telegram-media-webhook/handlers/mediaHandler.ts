@@ -14,15 +14,15 @@ export async function handleMediaUpload(supabase: any, message: any, userId: str
       return null;
     }
 
-    // Check for existing media with same file_unique_id
+    // Double-check for existing media with same file_unique_id
     const { data: existingMedia } = await supabase
       .from('media')
-      .select('id')
+      .select('id, file_name, metadata')
       .eq('metadata->file_unique_id', mediaItem.file_unique_id)
       .single();
 
     if (existingMedia) {
-      console.log('Media already exists:', existingMedia.id);
+      console.log('Duplicate media found:', existingMedia.id);
       return existingMedia;
     }
 
@@ -42,7 +42,7 @@ export async function handleMediaUpload(supabase: any, message: any, userId: str
     // Upload to Supabase storage
     const publicUrl = await uploadToStorage(supabase, fileName, buffer, mediaType);
 
-    // Create media record with metadata including file_unique_id
+    // Create media record with complete metadata
     const metadata = {
       file_id: mediaItem.file_id,
       file_unique_id: mediaItem.file_unique_id,
@@ -50,7 +50,8 @@ export async function handleMediaUpload(supabase: any, message: any, userId: str
       media_group_id: message.media_group_id,
       content_type: mediaType,
       file_size: mediaItem.file_size,
-      file_path: filePath
+      file_path: filePath,
+      original_message: message
     };
 
     return await createMediaRecord(

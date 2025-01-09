@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { processMessage } from "./utils/messageProcessor.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,114 +51,26 @@ serve(async (req) => {
 
     if (channelError) {
       console.error('Error saving channel:', channelError);
+      throw channelError;
     }
 
-    // Save message
-    const messageData = {
-      user_id: channelData.user_id,
-      chat_id: message.chat.id,
-      message_id: message.message_id,
-      sender_name: message.from?.username || message.from?.first_name || 'Unknown',
-      text: message.text || message.caption,
-      media_type: message.photo ? 'photo' : message.video ? 'video' : message.document ? 'document' : null,
-      created_at: new Date(message.date * 1000).toISOString()
-    };
+    // Process message and handle duplicates
+    const result = await processMessage(message, supabase);
 
-    const { error: messageError } = await supabase
-      .from('messages')
-      .upsert(messageData, {
-        onConflict: 'chat_id,message_id',
-        ignoreDuplicates: false,
-      });
-
-    if (messageError) {
-      console.error('Error saving message:', messageError);
-    }
-
-    // Process media if present
-    if (message.photo?.length > 0 || message.video || message.document) {
-      const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
-      if (!botToken) {
-        throw new Error('Telegram bot token not configured');
-      }
-
-      const mediaItem = message.photo 
-        ? message.photo[message.photo.length - 1] 
-        : message.video || message.document;
-
-      // Get file info from Telegram
-      const fileResponse = await fetch(
-        `https://api.telegram.org/bot${botToken}/getFile?file_id=${mediaItem.file_id}`
+    if (result.isDuplicate) {
+      console.log('Duplicate media detected, skipping upload');
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Duplicate media skipped",
+          existingMedia: result.media 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-
-      if (!fileResponse.ok) {
-        throw new Error('Failed to get file info from Telegram');
-      }
-
-      const fileData = await fileResponse.json();
-      if (!fileData.ok || !fileData.result.file_path) {
-        throw new Error('Invalid file data received from Telegram');
-      }
-
-      // Download file from Telegram
-      const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
-      const fileDownloadResponse = await fetch(downloadUrl);
-      
-      if (!fileDownloadResponse.ok) {
-        throw new Error('Failed to download file from Telegram');
-      }
-
-      const fileBuffer = await fileDownloadResponse.arrayBuffer();
-      const timestamp = Date.now();
-      const fileName = `${mediaItem.file_unique_id}_${timestamp}.${fileData.result.file_path.split('.').pop()}`;
-
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('telegram-media')
-        .upload(fileName, fileBuffer, {
-          contentType: message.photo ? 'image/jpeg' : message.video ? 'video/mp4' : 'application/octet-stream',
-          upsert: false
-        });
-
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        throw uploadError;
-      }
-
-      // Generate public URL
-      const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${fileName}`;
-
-      // Create media record
-      const mediaData = {
-        user_id: channelData.user_id,
-        chat_id: message.chat.id,
-        file_name: fileName,
-        file_url: publicUrl,
-        media_type: message.photo ? 'image/jpeg' : message.video ? 'video/mp4' : 'application/octet-stream',
-        caption: message.caption,
-        metadata: {
-          file_id: mediaItem.file_id,
-          file_unique_id: mediaItem.file_unique_id,
-          message_id: message.message_id,
-          media_group_id: message.media_group_id,
-          file_size: mediaItem.file_size
-        },
-        media_group_id: message.media_group_id,
-        public_url: publicUrl
-      };
-
-      const { error: mediaError } = await supabase
-        .from('media')
-        .insert(mediaData);
-
-      if (mediaError) {
-        console.error('Error saving media:', mediaError);
-        throw mediaError;
-      }
     }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

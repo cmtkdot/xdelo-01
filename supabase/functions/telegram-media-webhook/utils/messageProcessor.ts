@@ -11,7 +11,8 @@ export async function processMessage(message: any, supabase: any) {
   const results = {
     channel: null,
     message: null,
-    media: null
+    media: null,
+    isDuplicate: false
   };
 
   try {
@@ -32,7 +33,7 @@ export async function processMessage(message: any, supabase: any) {
       // Check for existing media with same file_unique_id
       const { data: existingMedia } = await supabase
         .from('media')
-        .select('id, file_name')
+        .select('id, file_name, metadata')
         .eq('metadata->file_unique_id', mediaItem.file_unique_id)
         .single();
 
