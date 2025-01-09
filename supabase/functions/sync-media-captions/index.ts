@@ -28,7 +28,7 @@ serve(async (req) => {
     // Get all media groups
     const { data: mediaGroups, error: groupsError } = await supabase
       .from('media')
-      .select('*')
+      .select('media_group_id')
       .not('media_group_id', 'is', null)
       .order('media_group_id');
 
@@ -36,53 +36,63 @@ serve(async (req) => {
       throw new Error(`Failed to fetch media groups: ${groupsError.message}`);
     }
 
-    // Group media by media_group_id
-    const groupedMedia = mediaGroups.reduce((acc: Record<string, any[]>, media: any) => {
-      const groupId = media.media_group_id;
-      if (!acc[groupId]) {
-        acc[groupId] = [];
-      }
-      acc[groupId].push(media);
-      return acc;
-    }, {});
+    // Get unique media group IDs
+    const uniqueGroupIds = [...new Set(mediaGroups.map(m => m.media_group_id))];
+    console.log(`Found ${uniqueGroupIds.length} unique media groups to process`);
 
     const results = [];
     const errors = [];
 
     // Process each media group
-    for (const [groupId, mediaItems] of Object.entries(groupedMedia)) {
+    for (const groupId of uniqueGroupIds) {
       try {
-        console.log(`Processing media group ${groupId} with ${mediaItems.length} items`);
+        console.log(`Processing media group ${groupId}`);
         
-        // Get the first item's caption (assuming it's the main caption for the group)
-        const mainCaption = mediaItems[0]?.caption || '';
-
-        // Update all items in the group with the same caption
-        const { error: updateError } = await supabase
+        // Get all media items in this group
+        const { data: groupMedia, error: mediaError } = await supabase
           .from('media')
-          .update({ 
-            caption: mainCaption,
-            updated_at: new Date().toISOString()
-          })
-          .eq('media_group_id', groupId);
+          .select('*')
+          .eq('media_group_id', groupId)
+          .order('created_at');
 
-        if (updateError) {
-          throw new Error(`Failed to update group ${groupId}: ${updateError.message}`);
+        if (mediaError) throw mediaError;
+
+        // Find the first media item with a caption
+        const mediaWithCaption = groupMedia.find(m => m.caption && m.caption.trim() !== '');
+        
+        if (mediaWithCaption) {
+          console.log(`Found caption "${mediaWithCaption.caption}" in group ${groupId}`);
+          
+          // Update all items in the group that don't have captions
+          const { error: updateError } = await supabase
+            .from('media')
+            .update({ 
+              caption: mediaWithCaption.caption,
+              updated_at: new Date().toISOString()
+            })
+            .eq('media_group_id', groupId)
+            .is('caption', null);
+
+          if (updateError) {
+            throw new Error(`Failed to update group ${groupId}: ${updateError.message}`);
+          }
+
+          results.push({
+            groupId,
+            status: 'updated',
+            mediaCount: groupMedia.length,
+            caption: mediaWithCaption.caption
+          });
+
+          // Log successful update
+          await supabase.from('edge_function_logs').insert({
+            function_name: 'sync-media-captions',
+            status: 'success',
+            message: `Updated captions for media group ${groupId} (${groupMedia.length} items) with caption: ${mediaWithCaption.caption}`
+          });
+        } else {
+          console.log(`No caption found in group ${groupId}`);
         }
-
-        results.push({
-          groupId,
-          status: 'updated',
-          mediaCount: mediaItems.length,
-          caption: mainCaption
-        });
-
-        // Log successful update
-        await supabase.from('edge_function_logs').insert({
-          function_name: 'sync-media-captions',
-          status: 'success',
-          message: `Updated captions for media group ${groupId} (${mediaItems.length} items)`
-        });
 
       } catch (error) {
         console.error(`Error processing group ${groupId}:`, error);
