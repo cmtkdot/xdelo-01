@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Loader2, XCircle, Save, Maximize2, Minimize2 } from "lucide-react";
+import { Database, Loader2, XCircle, Save, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface SheetRow {
   [key: string]: string;
@@ -15,9 +16,16 @@ interface SheetRow {
 interface SheetDataDisplayProps {
   isLoading: boolean;
   sheetData: SheetRow[];
+  onRefresh?: () => void;
+  lastSynced?: string;
 }
 
-export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps) => {
+export const SheetDataDisplay = ({ 
+  isLoading, 
+  sheetData,
+  onRefresh,
+  lastSynced 
+}: SheetDataDisplayProps) => {
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; header: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
@@ -71,22 +79,41 @@ export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps
     <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-6 w-6" />
-            Sheet Data
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleExpand}
-            className="h-8 w-8"
-          >
-            {isExpanded ? (
-              <Minimize2 className="h-4 w-4" />
-            ) : (
-              <Maximize2 className="h-4 w-4" />
+          <div className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-6 w-6" />
+              Sheet Data
+            </CardTitle>
+            {lastSynced && (
+              <span className="text-sm text-muted-foreground">
+                Last synced: {new Date(lastSynced).toLocaleString()}
+              </span>
             )}
-          </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onRefresh}
+                className="h-8 w-8"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleExpand}
+              className="h-8 w-8"
+            >
+              {isExpanded ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -160,10 +187,12 @@ export const SheetDataDisplay = ({ isLoading, sheetData }: SheetDataDisplayProps
             <ScrollBar orientation="horizontal" className="h-2.5" />
           </ScrollArea>
         ) : (
-          <div className="flex items-center gap-2 text-white/60 p-4">
-            <XCircle className="h-5 w-5" />
-            <span>No data available in the sheet</span>
-          </div>
+          <Alert>
+            <AlertDescription className="flex items-center gap-2">
+              <XCircle className="h-5 w-5" />
+              <span>No data available in the sheet</span>
+            </AlertDescription>
+          </Alert>
         )}
       </CardContent>
     </Card>

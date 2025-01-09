@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { SheetDataDisplay } from "./SheetDataDisplay";
 
 interface SheetConfigurationProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -17,7 +18,7 @@ export const SheetConfiguration = ({
   googleSheetId, 
   parsedMapping 
 }: SheetConfigurationProps) => {
-  const { data: sheetsConfig, isLoading } = useQuery({
+  const { data: sheetsConfig, isLoading: isConfigLoading } = useQuery({
     queryKey: ['google-sheets-config'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -28,6 +29,24 @@ export const SheetConfiguration = ({
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: sheetData, isLoading: isDataLoading, refetch } = useQuery({
+    queryKey: ['sheet-data', googleSheetId],
+    queryFn: async () => {
+      if (!googleSheetId) return [];
+      
+      const { data, error } = await supabase.functions.invoke('google-sheets', {
+        body: { 
+          action: 'sync',
+          spreadsheetId: googleSheetId
+        }
+      });
+      
+      if (error) throw error;
+      return data?.values || [];
+    },
+    enabled: !!googleSheetId,
   });
 
   const getSheetUrl = (sheetId: string, gid?: string) => {
@@ -98,6 +117,13 @@ export const SheetConfiguration = ({
                 </div>
               </div>
             )}
+
+            <SheetDataDisplay 
+              isLoading={isDataLoading}
+              sheetData={sheetData || []}
+              onRefresh={() => refetch()}
+              lastSynced={sheetsConfig?.[0]?.updated_at}
+            />
           </div>
         )}
       </CardContent>
