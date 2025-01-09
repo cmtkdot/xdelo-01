@@ -25,6 +25,27 @@ export async function processMessage(message: any, supabase: any) {
 
     // Handle media if present
     if (message.photo?.length > 0 || message.video || message.document) {
+      const mediaItem = message.photo 
+        ? message.photo[message.photo.length - 1] 
+        : message.video || message.document;
+
+      // Check for existing media with same file_unique_id
+      const { data: existingMedia } = await supabase
+        .from('media')
+        .select('id, file_name')
+        .eq('metadata->file_unique_id', mediaItem.file_unique_id)
+        .single();
+
+      if (existingMedia) {
+        console.log(`Duplicate media detected with file_unique_id: ${mediaItem.file_unique_id}`);
+        console.log(`Skipping upload for existing media with id: ${existingMedia.id}`);
+        return {
+          ...results,
+          media: existingMedia,
+          isDuplicate: true
+        };
+      }
+
       const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
       if (!botToken) {
         throw new Error('Telegram bot token not configured');

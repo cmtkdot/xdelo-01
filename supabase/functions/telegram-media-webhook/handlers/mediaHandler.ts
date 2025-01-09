@@ -14,7 +14,7 @@ export async function handleMediaUpload(supabase: any, message: any, userId: str
       return null;
     }
 
-    // Check for existing media
+    // Check for existing media with same file_unique_id
     const { data: existingMedia } = await supabase
       .from('media')
       .select('id')
@@ -42,7 +42,7 @@ export async function handleMediaUpload(supabase: any, message: any, userId: str
     // Upload to Supabase storage
     const publicUrl = await uploadToStorage(supabase, fileName, buffer, mediaType);
 
-    // Create media record
+    // Create media record with metadata including file_unique_id
     const metadata = {
       file_id: mediaItem.file_id,
       file_unique_id: mediaItem.file_unique_id,
