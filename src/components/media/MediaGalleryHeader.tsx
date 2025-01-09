@@ -67,7 +67,8 @@ const MediaGalleryHeader = ({
 
       if (error) throw error;
 
-      // Invalidate the media queries to refresh the data
+      // Force a refetch of all media data
+      await queryClient.invalidateQueries({ queryKey: ['media'] });
       await queryClient.invalidateQueries({ queryKey: ['media-table'] });
 
       toast({

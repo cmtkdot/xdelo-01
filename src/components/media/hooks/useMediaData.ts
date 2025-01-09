@@ -47,6 +47,10 @@ const useMediaData = (filter: MediaFilter) => {
       console.log("Media data fetched:", data?.length, "items");
       return data as MediaItem[];
     },
+    // Ensure the query is always fresh
+    staleTime: 0,
+    // Enable real-time updates
+    refetchInterval: 1000,
   });
 
   return query;
