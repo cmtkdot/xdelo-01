@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -12,22 +13,16 @@ serve(async (req) => {
   }
 
   try {
-    // Validate request
-    if (req.method !== 'POST') {
-      throw new Error('Method not allowed');
-    }
-
-    if (req.headers.get("content-type") !== "application/json") {
-      throw new Error("Content-Type must be application/json");
-    }
-
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Log start of operation
     await supabase.from('edge_function_logs').insert({
       function_name: 'sync-media-captions',
       status: 'info',
-      message: 'Starting media captions sync'
+      message: 'Starting media captions sync based on media groups'
     });
 
     // Get all media groups
@@ -57,6 +52,8 @@ serve(async (req) => {
     // Process each media group
     for (const [groupId, mediaItems] of Object.entries(groupedMedia)) {
       try {
+        console.log(`Processing media group ${groupId} with ${mediaItems.length} items`);
+        
         // Get the first item's caption (assuming it's the main caption for the group)
         const mainCaption = mediaItems[0]?.caption || '';
 
@@ -125,7 +122,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in sync-media-captions:', error);
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
     
     // Log error
     await supabase.from('edge_function_logs').insert({
@@ -144,7 +144,7 @@ serve(async (req) => {
           ...corsHeaders,
           'Content-Type': 'application/json'
         },
-        status: error.message.includes('Content-Type') ? 400 : 500
+        status: 500
       }
     );
   }
