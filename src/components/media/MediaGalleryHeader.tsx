@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface MediaGalleryHeaderProps {
   onSyncCaptions: () => Promise<void>;
@@ -20,6 +21,7 @@ const MediaGalleryHeader = ({
   const [isResyncing, setResyncing] = useState(false);
   const [isSyncingGroups, setSyncingGroups] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handleResync = async () => {
     try {
@@ -33,15 +35,17 @@ const MediaGalleryHeader = ({
 
       if (error) throw error;
 
+      await queryClient.invalidateQueries({ queryKey: ['media-table'] });
+      
       toast({
         title: "Success",
-        description: "Media resynced successfully",
+        description: "Media files resynced successfully",
       });
     } catch (error) {
       console.error('Error resyncing media:', error);
       toast({
         title: "Error",
-        description: "Failed to resync media",
+        description: "Failed to resync media files",
         variant: "destructive",
       });
     } finally {
@@ -63,6 +67,9 @@ const MediaGalleryHeader = ({
 
       if (error) throw error;
 
+      // Invalidate the media queries to refresh the data
+      await queryClient.invalidateQueries({ queryKey: ['media-table'] });
+
       toast({
         title: "Success",
         description: "Media group captions synchronized successfully",
@@ -80,64 +87,62 @@ const MediaGalleryHeader = ({
   };
 
   return (
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
-      <div className="flex items-center gap-2">
-        <div className="p-2 rounded-md bg-[#0088cc]/10 text-[#0088cc]">
-          <Image className="w-5 h-5" />
+    <div className="w-full backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Image className="w-5 h-5 text-[#0088cc]" />
+          <h2 className="text-lg font-semibold text-white">Media Gallery</h2>
         </div>
-        <div>
-          <h2 className="text-lg font-semibold">Media Gallery</h2>
-          <p className="text-sm text-gray-500">Manage your media files</p>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleResync}
+            disabled={isResyncing}
+            className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
+            title="Resync media files"
+          >
+            <RotateCw className={`w-4 h-4 mr-2 ${isResyncing ? 'animate-spin' : ''}`} />
+            Resync Media
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncMediaGroups}
+            disabled={isSyncingGroups}
+            className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
+            title="Sync captions within media groups"
+          >
+            <Users className={`w-4 h-4 mr-2 ${isSyncingGroups ? 'animate-spin' : ''}`} />
+            Sync Group Captions
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onSyncCaptions}
+            disabled={isSyncingCaptions}
+            className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
+            title="Sync captions across media groups"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaptions ? 'animate-spin' : ''}`} />
+            Sync All Captions
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onDeleteDuplicates}
+            disabled={isDeletingDuplicates}
+            className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
+            title="Delete duplicate media files"
+          >
+            <Trash2 className={`w-4 h-4 mr-2 ${isDeletingDuplicates ? 'animate-spin' : ''}`} />
+            Delete Duplicates
+          </Button>
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleResync}
-          disabled={isResyncing}
-          className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
-        >
-          <RotateCw className={`w-4 h-4 mr-2 ${isResyncing ? 'animate-spin' : ''}`} />
-          Resync Media
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSyncMediaGroups}
-          disabled={isSyncingGroups}
-          className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
-          title="Sync captions within media groups"
-        >
-          <Users className={`w-4 h-4 mr-2 ${isSyncingGroups ? 'animate-spin' : ''}`} />
-          Sync Group Captions
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onSyncCaptions}
-          disabled={isSyncingCaptions}
-          className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
-          title="Sync captions across media groups"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaptions ? 'animate-spin' : ''}`} />
-          Sync All Captions
-        </Button>
-        
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onDeleteDuplicates}
-          disabled={isDeletingDuplicates}
-          className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
-          title="Delete duplicates based on Telegram file IDs"
-        >
-          <Trash2 className="w-4 h-4 mr-2" />
-          Delete File Duplicates
-        </Button>
       </div>
     </div>
   );
