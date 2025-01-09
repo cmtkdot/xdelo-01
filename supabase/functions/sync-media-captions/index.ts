@@ -1,97 +1,111 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { logOperation } from "../_shared/database.ts";
-import { getMediaGroups, updateMediaGroupCaptions } from "./utils/mediaGroups.ts";
-import { validateRequest, validateMediaGroup } from "./utils/validation.ts";
+
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    validateRequest(req);
+    // Validate request
+    if (req.method !== 'POST') {
+      throw new Error('Method not allowed');
+    }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    if (req.headers.get("content-type") !== "application/json") {
+      throw new Error("Content-Type must be application/json");
+    }
 
-    await logOperation(
-      supabase,
-      'sync-media-captions',
-      'info',
-      'Starting media group caption sync'
-    );
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const groupedMedia = await getMediaGroups(supabase);
+    // Log start of operation
+    await supabase.from('edge_function_logs').insert({
+      function_name: 'sync-media-captions',
+      status: 'info',
+      message: 'Starting media captions sync'
+    });
+
+    // Get all media groups
+    const { data: mediaGroups, error: groupsError } = await supabase
+      .from('media')
+      .select('*')
+      .not('media_group_id', 'is', null)
+      .order('media_group_id');
+
+    if (groupsError) {
+      throw new Error(`Failed to fetch media groups: ${groupsError.message}`);
+    }
+
+    // Group media by media_group_id
+    const groupedMedia = mediaGroups.reduce((acc: Record<string, any[]>, media: any) => {
+      const groupId = media.media_group_id;
+      if (!acc[groupId]) {
+        acc[groupId] = [];
+      }
+      acc[groupId].push(media);
+      return acc;
+    }, {});
+
     const results = [];
     const errors = [];
 
-    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
-    if (!botToken) {
-      throw new Error('Telegram bot token not configured');
-    }
-
     // Process each media group
-    for (const [groupId, mediaGroup] of Object.entries(groupedMedia)) {
+    for (const [groupId, mediaItems] of Object.entries(groupedMedia)) {
       try {
-        validateMediaGroup(mediaGroup);
-        
-        // Get the first message from the group to fetch caption
-        const firstMedia = mediaGroup[0];
-        const chatId = firstMedia.chat_id;
-        const messageId = firstMedia.metadata.message_id;
+        // Get the first item's caption (assuming it's the main caption for the group)
+        const mainCaption = mediaItems[0]?.caption || '';
 
-        console.log(`Fetching message ${messageId} from chat ${chatId} for group ${groupId}`);
+        // Update all items in the group with the same caption
+        const { error: updateError } = await supabase
+          .from('media')
+          .update({ 
+            caption: mainCaption,
+            updated_at: new Date().toISOString()
+          })
+          .eq('media_group_id', groupId);
 
-        const response = await fetch(
-          `https://api.telegram.org/bot${botToken}/getMessages`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              chat_id: chatId,
-              message_ids: [messageId]
-            })
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch message: ${response.statusText}`);
+        if (updateError) {
+          throw new Error(`Failed to update group ${groupId}: ${updateError.message}`);
         }
 
-        const data = await response.json();
-        if (!data.ok) {
-          throw new Error('Invalid response from Telegram API');
-        }
+        results.push({
+          groupId,
+          status: 'updated',
+          mediaCount: mediaItems.length,
+          caption: mainCaption
+        });
 
-        const caption = data.result[0]?.caption || null;
-        
-        // Update all media in the group with the same caption
-        const updated = await updateMediaGroupCaptions(supabase, groupId, caption);
-        
-        if (updated) {
-          results.push({ groupId, status: 'updated', mediaCount: mediaGroup.length });
-        } else {
-          errors.push({ groupId, error: 'Failed to update captions' });
-        }
+        // Log successful update
+        await supabase.from('edge_function_logs').insert({
+          function_name: 'sync-media-captions',
+          status: 'success',
+          message: `Updated captions for media group ${groupId} (${mediaItems.length} items)`
+        });
 
       } catch (error) {
         console.error(`Error processing group ${groupId}:`, error);
         errors.push({ groupId, error: error.message });
+
+        // Log error
+        await supabase.from('edge_function_logs').insert({
+          function_name: 'sync-media-captions',
+          status: 'error',
+          message: `Error updating group ${groupId}: ${error.message}`
+        });
       }
     }
 
-    await logOperation(
-      supabase,
-      'sync-media-captions',
-      errors.length ? 'error' : 'success',
-      `Sync completed with ${results.length} updates and ${errors.length} errors`
-    );
+    // Log completion
+    await supabase.from('edge_function_logs').insert({
+      function_name: 'sync-media-captions',
+      status: errors.length ? 'error' : 'success',
+      message: `Sync completed with ${results.length} updates and ${errors.length} errors`
+    });
 
     return new Response(
       JSON.stringify({
@@ -111,12 +125,14 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in sync-media-captions:', error);
     
-    await logOperation(
-      supabase,
-      'sync-media-captions',
-      'error',
-      `Error: ${error.message}`
-    );
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Log error
+    await supabase.from('edge_function_logs').insert({
+      function_name: 'sync-media-captions',
+      status: 'error',
+      message: `Error: ${error.message}`
+    });
 
     return new Response(
       JSON.stringify({ 
