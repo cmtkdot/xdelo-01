@@ -1,7 +1,7 @@
-import { Image, Trash2, RefreshCw, RotateCw } from "lucide-react";
+import { Image, Trash2, RefreshCw, RotateCw, Users } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 interface MediaGalleryHeaderProps {
@@ -18,13 +18,14 @@ const MediaGalleryHeader = ({
   isDeletingDuplicates,
 }: MediaGalleryHeaderProps) => {
   const [isResyncing, setResyncing] = useState(false);
+  const [isSyncingGroups, setSyncingGroups] = useState(false);
   const { toast } = useToast();
 
   const handleResync = async () => {
     try {
       setResyncing(true);
       const { error } = await supabase.functions.invoke('resync-media', {
-        body: { action: "resync" }, // Provide a non-empty body
+        body: { action: "resync" },
         headers: {
           'Content-Type': 'application/json'
         }
@@ -45,6 +46,36 @@ const MediaGalleryHeader = ({
       });
     } finally {
       setResyncing(false);
+    }
+  };
+
+  const handleSyncMediaGroups = async () => {
+    try {
+      setSyncingGroups(true);
+      console.log('Starting media groups sync...');
+      
+      const { error } = await supabase.functions.invoke('sync-media-captions', {
+        body: { action: "sync_groups" },
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Media group captions synchronized successfully",
+      });
+    } catch (error) {
+      console.error('Error syncing media groups:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync media group captions",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingGroups(false);
     }
   };
 
@@ -75,13 +106,25 @@ const MediaGalleryHeader = ({
         <Button
           variant="outline"
           size="sm"
+          onClick={handleSyncMediaGroups}
+          disabled={isSyncingGroups}
+          className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
+          title="Sync captions within media groups"
+        >
+          <Users className={`w-4 h-4 mr-2 ${isSyncingGroups ? 'animate-spin' : ''}`} />
+          Sync Group Captions
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onSyncCaptions}
           disabled={isSyncingCaptions}
           className="text-xs bg-white dark:bg-transparent border-gray-200 dark:border-white/10 text-gray-700 dark:text-white/90 hover:bg-gray-50 dark:hover:bg-white/5"
           title="Sync captions across media groups"
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingCaptions ? 'animate-spin' : ''}`} />
-          Sync Group Captions
+          Sync All Captions
         </Button>
         
         <Button
