@@ -93,7 +93,8 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
         }
       }
 
-      // Invalidate queries to refresh the media list
+      // Invalidate all media-related queries to refresh all views
+      await queryClient.invalidateQueries({ queryKey: ['media'] });
       await queryClient.invalidateQueries({ queryKey: ['media-table'] });
       
       toast({
