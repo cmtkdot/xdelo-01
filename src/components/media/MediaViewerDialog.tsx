@@ -77,12 +77,28 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
 
       if (dbError) throw dbError;
 
+      // Delete associated data if it exists
+      if (item.metadata) {
+        const messageId = getMessageId();
+        if (messageId && item.chat_id) {
+          const { error: messageError } = await supabase
+            .from('messages')
+            .delete()
+            .eq('chat_id', item.chat_id)
+            .eq('message_id', messageId);
+
+          if (messageError) {
+            console.error('Error deleting associated message:', messageError);
+          }
+        }
+      }
+
       // Invalidate queries to refresh the media list
       await queryClient.invalidateQueries({ queryKey: ['media-table'] });
       
       toast({
         title: "Success",
-        description: "Media deleted successfully",
+        description: "Media and associated data deleted successfully",
       });
 
       // Close the dialog
