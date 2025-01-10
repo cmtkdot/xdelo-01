@@ -18,7 +18,19 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { keepNewest = true } = await req.json();
+    // Safely parse the request body
+    let keepNewest = true;
+    try {
+      const body = await req.text();
+      if (body) {
+        const data = JSON.parse(body);
+        keepNewest = data.keepNewest ?? true;
+      }
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      // Default to keeping newest if parsing fails
+    }
+
     console.log(`Starting duplicate cleanup, keeping ${keepNewest ? 'newest' : 'oldest'} versions`);
 
     // Get all media items that have a telegram_file_id in their metadata
@@ -28,7 +40,10 @@ serve(async (req) => {
       .not('metadata->telegram_file_id', 'is', null)
       .order('created_at', { ascending: !keepNewest });
 
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error('Error fetching media items:', fetchError);
+      throw fetchError;
+    }
 
     // Group media by Telegram file ID from metadata
     const groupedMedia = mediaItems.reduce((acc: Record<string, any[]>, item: any) => {
@@ -56,6 +71,20 @@ serve(async (req) => {
         console.log(`Deleting ${duplicates.length} duplicates for file ID: ${fileId}`);
         console.log('Keeping media item:', { id: keep.id, created_at: keep.created_at });
         
+        // First delete files from storage
+        for (const duplicate of duplicates) {
+          if (duplicate.file_name) {
+            const { error: storageError } = await supabase.storage
+              .from('telegram-media')
+              .remove([duplicate.file_name]);
+
+            if (storageError) {
+              console.error(`Error deleting file ${duplicate.file_name} from storage:`, storageError);
+            }
+          }
+        }
+
+        // Then delete database records
         const { error: deleteError } = await supabase
           .from('media')
           .delete()

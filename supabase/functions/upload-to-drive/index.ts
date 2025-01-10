@@ -36,9 +36,14 @@ serve(async (req) => {
     try {
       const text = await req.text();
       requestBody = text ? JSON.parse(text) : {};
+      console.log('Parsed request body:', requestBody);
     } catch (e) {
       console.error('Error parsing request body:', e);
       throw new Error('Invalid JSON in request body');
+    }
+
+    if (!requestBody) {
+      throw new Error('Request body is required');
     }
 
     console.log('Processing request for:', requestBody.fileName || 'multiple files');
@@ -71,7 +76,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        stack: error.stack 
+        stack: error.stack,
+        details: 'Failed to process upload request'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
