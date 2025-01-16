@@ -20,6 +20,7 @@ export const navItems = [
   { path: "/channel-sync", icon: RefreshCw, label: "Channel Sync" },
   { path: "/media-table", icon: FileSpreadsheet, label: "Media Table" },
   { path: "/google-sheet", icon: FileSpreadsheet, label: "Google Sheet" },
+  { path: "/google-sheet-sync", icon: FileSpreadsheet, label: "Sheet Sync" },
   { path: "/webhooks", icon: Webhook, label: "Webhooks" },
   { path: "/ai-chat", icon: Bot, label: "AI Chat" },
   { path: "/database-chat", icon: Database, label: "Database Chat" },

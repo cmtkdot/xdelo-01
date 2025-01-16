@@ -12,6 +12,7 @@ import Media from "./pages/Media";
 import MediaTable from "./pages/MediaTable";
 import MediaData from "./pages/MediaData";
 import GoogleSheet from "./pages/GoogleSheet";
+import GoogleSheetSync from "./pages/GoogleSheetSync";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import AiChat from "./pages/AiChat";
@@ -70,6 +71,7 @@ function App() {
                               <Route path="/media-table" element={<MediaTable />} />
                               <Route path="/media-data" element={<MediaData />} />
                               <Route path="/google-sheet" element={<GoogleSheet />} />
+                              <Route path="/google-sheet-sync" element={<GoogleSheetSync />} />
                               <Route path="/settings" element={<Settings />} />
                               <Route path="/ai-chat" element={<AiChat />} />
                               <Route path="/database-chat" element={<DatabaseChat />} />
