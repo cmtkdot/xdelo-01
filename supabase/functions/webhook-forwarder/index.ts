@@ -9,6 +9,46 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const CAPTION_SYNC_DELAY = 60000; // 1 minute in milliseconds
+
+async function scheduleCaptionSync(supabase: any) {
+  // Wait for 1 minute
+  await new Promise(resolve => setTimeout(resolve, CAPTION_SYNC_DELAY));
+
+  try {
+    await logOperation(
+      supabase,
+      'webhook-forwarder',
+      'info',
+      'Starting delayed caption sync'
+    );
+
+    const { error } = await supabase.functions.invoke('sync-media-captions', {
+      body: { action: "sync" },
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (error) throw error;
+
+    await logOperation(
+      supabase,
+      'webhook-forwarder',
+      'success',
+      'Completed delayed caption sync'
+    );
+  } catch (error) {
+    console.error('Error in delayed caption sync:', error);
+    await logOperation(
+      supabase,
+      'webhook-forwarder',
+      'error',
+      `Failed delayed caption sync: ${error.message}`
+    );
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -96,6 +136,9 @@ serve(async (req) => {
           metadata,
           message.media_group_id
         );
+
+        // Schedule caption sync after 1 minute
+        scheduleCaptionSync(supabase).catch(console.error);
 
         await logOperation(
           supabase,
