@@ -10,15 +10,16 @@ serve(async (req) => {
 
   try {
     const { spreadsheetId, action } = await req.json();
-    const apiKey = Deno.env.get('GOOGLE_API_KEY');
+    const serviceAccountCreds = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
+    
+    if (!serviceAccountCreds.client_email || !serviceAccountCreds.private_key) {
+      throw new Error('Google service account credentials not properly configured');
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    if (!apiKey) {
-      throw new Error('Google API key not configured');
-    }
 
     if (!spreadsheetId) {
       throw new Error('Spreadsheet ID is required');
@@ -28,7 +29,7 @@ serve(async (req) => {
 
     switch (action) {
       case 'init': {
-        // First, get the media data
+        // Get the media data
         const { data: mediaData, error: mediaError } = await supabase
           .from('media')
           .select('*')
@@ -36,11 +37,15 @@ serve(async (req) => {
 
         if (mediaError) throw mediaError;
 
+        // Create JWT token for Google Sheets API
+        const jwtToken = await createJWT(serviceAccountCreds);
+
         // Get existing sheet data to preserve custom columns
-        const sheetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ?key=${apiKey}`;
+        const sheetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ?access_token=${jwtToken}`;
         const getResponse = await fetch(sheetUrl);
         
         if (!getResponse.ok) {
+          console.error('Failed to fetch sheet data:', await getResponse.text());
           throw new Error(`Failed to fetch sheet data: ${getResponse.statusText}`);
         }
 
@@ -97,7 +102,7 @@ serve(async (req) => {
         });
 
         // Update the sheet with merged data
-        const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:${String.fromCharCode(65 + finalHeaders.length)}${mediaRows.length + 1}?valueInputOption=RAW&key=${apiKey}`;
+        const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:${String.fromCharCode(65 + finalHeaders.length)}${mediaRows.length + 1}?valueInputOption=RAW&access_token=${jwtToken}`;
         const updateResponse = await fetch(updateUrl, {
           method: 'PUT',
           headers: {
@@ -110,6 +115,7 @@ serve(async (req) => {
         });
 
         if (!updateResponse.ok) {
+          console.error('Failed to update sheet:', await updateResponse.text());
           throw new Error(`Failed to update sheet: ${updateResponse.statusText}`);
         }
 
@@ -155,3 +161,66 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to create JWT token for Google Sheets API
+async function createJWT(serviceAccountCreds: any) {
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT',
+  };
+
+  const now = Math.floor(Date.now() / 1000);
+  const claim = {
+    iss: serviceAccountCreds.client_email,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now,
+  };
+
+  const encodedHeader = btoa(JSON.stringify(header));
+  const encodedClaim = btoa(JSON.stringify(claim));
+  const signatureInput = `${encodedHeader}.${encodedClaim}`;
+
+  // Create signature
+  const encoder = new TextEncoder();
+  const keyData = serviceAccountCreds.private_key;
+  const privateKey = await crypto.subtle.importKey(
+    'pkcs8',
+    encoder.encode(keyData),
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+    },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    privateKey,
+    encoder.encode(signatureInput)
+  );
+
+  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  const jwt = `${encodedHeader}.${encodedClaim}.${encodedSignature}`;
+
+  // Exchange JWT for access token
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+
+  if (!tokenResponse.ok) {
+    throw new Error('Failed to get access token');
+  }
+
+  const { access_token } = await tokenResponse.json();
+  return access_token;
+}
