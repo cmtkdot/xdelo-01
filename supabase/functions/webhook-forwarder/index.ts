@@ -54,12 +54,12 @@ serve(async (req) => {
       if (mediaItem?.file_id) {
         console.log('Checking for duplicate media with file_unique_id:', mediaItem.file_unique_id);
         
-        // Check for duplicates using file_unique_id in metadata
-        const { data: existingMedia, error: queryError } = await supabase
+        // Enhanced duplicate check using metadata->file_unique_id
+        const { data: existingMedia, error: queryError } = await supabaseClient
           .from('media')
           .select('id, file_name, metadata')
           .filter('metadata->file_unique_id', 'eq', mediaItem.file_unique_id)
-          .single();
+          .maybeSingle();
 
         if (queryError) {
           console.error('Error checking for duplicates:', queryError);
@@ -69,7 +69,7 @@ serve(async (req) => {
         if (existingMedia) {
           console.log('Duplicate media found:', existingMedia.id);
           await logOperation(
-            supabase,
+            supabaseClient,
             'webhook-forwarder',
             'info',
             `Skipped duplicate media with file_unique_id: ${mediaItem.file_unique_id}`
@@ -85,11 +85,21 @@ serve(async (req) => {
           );
         }
 
-        // Get file content
+        // If no duplicate found, proceed with file download and upload
         const response = await fetch(
-          `https://api.telegram.org/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/getFile?file_id=${mediaItem.file_id}`
+          `https://api.telegram.org/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/getFile?file_id=${mediaItem.file_id}`,
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
         );
+        
         const fileData = await response.json();
+        
+        if (!fileData.ok) {
+          throw new Error(`Failed to get file data: ${JSON.stringify(fileData)}`);
+        }
         
         const fileUrl = `https://api.telegram.org/file/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/${fileData.result.file_path}`;
         const mediaResponse = await fetch(fileUrl);
