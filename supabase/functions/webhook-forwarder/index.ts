@@ -64,69 +64,87 @@ serve(async (req) => {
       }
     };
 
-    // Only add body for methods that typically have one
+    // Optimize data handling for POST/PUT methods
     if (method !== 'GET' && method !== 'DELETE') {
+      // Flatten nested structures and limit data depth
+      const flattenData = (obj: any, prefix = ''): Record<string, any> => {
+        const result: Record<string, any> = {};
+        
+        for (const key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            const value = obj[key];
+            const newKey = prefix ? `${prefix}.${key}` : key;
+            
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+              Object.assign(result, flattenData(value, newKey));
+            } else {
+              result[newKey] = value;
+            }
+          }
+        }
+        
+        return result;
+      };
+
       const requestBody = {
-        ...(data || {}),
-        ...(body || {}),
+        data: data ? flattenData(data) : undefined,
+        ...(body ? flattenData(body) : {}),
         timestamp: new Date().toISOString()
       };
 
       requestOptions.body = JSON.stringify(requestBody);
-      console.log('Request body:', requestOptions.body);
+      console.log('Optimized request body:', requestOptions.body);
     }
 
     console.log('Making request to:', url.toString());
-    console.log('Request options:', requestOptions);
-
     const response = await fetch(url.toString(), requestOptions);
-    const responseData = await response.json().catch(() => null);
+    let responseData;
     
-    console.log('Webhook response:', { 
-      status: response.status, 
-      statusText: response.statusText,
-      data: responseData 
-    });
+    try {
+      responseData = await response.json();
+    } catch (e) {
+      console.log('Response is not JSON:', e);
+      responseData = null;
+    }
 
-    // Log webhook execution in webhook_history
+    // Log webhook execution
     if (webhook_url) {
-      const { data: webhookUrlData } = await supabase
-        .from('webhook_urls')
-        .select('id')
-        .eq('url', webhook_url)
-        .single();
+      try {
+        const { data: webhookUrlData } = await supabase
+          .from('webhook_urls')
+          .select('id')
+          .eq('url', webhook_url)
+          .single();
 
-      if (webhookUrlData?.id) {
-        await supabase
-          .from('webhook_history')
-          .insert({
-            webhook_url_id: webhookUrlData.id,
-            fields_sent: data?.selected_fields || [],
-            schedule_type,
-            status: response.ok ? 'success' : 'error',
-            media_count: data?.length || 0
-          });
+        if (webhookUrlData?.id) {
+          await supabase
+            .from('webhook_history')
+            .insert({
+              webhook_url_id: webhookUrlData.id,
+              fields_sent: Array.isArray(data?.selected_fields) ? data.selected_fields : [],
+              schedule_type,
+              status: response.ok ? 'success' : 'error',
+              media_count: Array.isArray(data) ? data.length : 0
+            });
+        }
+      } catch (error) {
+        console.error('Error logging webhook history:', error);
       }
     }
 
-    // Extract headers from response data if it's an array of objects
-    let extractedHeaders = [];
-    if (Array.isArray(responseData)) {
-      const firstItem = responseData[0];
-      if (firstItem && typeof firstItem === 'object') {
-        extractedHeaders = Object.keys(firstItem);
-      }
-    } else if (responseData && typeof responseData === 'object') {
-      extractedHeaders = Object.keys(responseData);
-    }
+    // Extract headers from response data
+    const extractedHeaders = responseData && typeof responseData === 'object' 
+      ? Array.isArray(responseData)
+        ? Object.keys(responseData[0] || {})
+        : Object.keys(responseData)
+      : [];
 
     if (!response.ok) {
       return new Response(
         JSON.stringify({
           success: false,
           error: `Webhook request failed with status ${response.status}`,
-          details: responseData,
-          requestBody: method !== 'GET' ? JSON.parse(requestOptions.body as string) : undefined
+          details: responseData
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },

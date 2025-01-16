@@ -16,21 +16,31 @@ export async function processMessage(message: any, supabase: any) {
   };
 
   try {
-    // Process channel
-    results.channel = await saveChannel(supabase, message.chat, userId);
-    console.log('Channel processed:', results.channel);
+    // Process channel with optimized error handling
+    try {
+      results.channel = await saveChannel(supabase, message.chat, userId);
+      console.log('Channel processed:', results.channel);
+    } catch (error) {
+      console.error('Error processing channel:', error);
+      await logOperation(supabase, 'telegram-media-webhook', 'error', `Channel processing error: ${error.message}`);
+    }
 
-    // Process message
-    results.message = await saveMessage(supabase, message.chat, message, userId);
-    console.log('Message processed:', results.message);
+    // Process message with optimized error handling
+    try {
+      results.message = await saveMessage(supabase, message.chat, message, userId);
+      console.log('Message processed:', results.message);
+    } catch (error) {
+      console.error('Error processing message:', error);
+      await logOperation(supabase, 'telegram-media-webhook', 'error', `Message processing error: ${error.message}`);
+    }
 
-    // Handle media if present
+    // Handle media if present with optimized processing
     if (message.photo?.length > 0 || message.video || message.document) {
       const mediaItem = message.photo 
         ? message.photo[message.photo.length - 1] 
         : message.video || message.document;
 
-      // Check for existing media with same file_unique_id
+      // Check for existing media with optimized query
       const { data: existingMedia } = await supabase
         .from('media')
         .select('id, file_name, metadata')
@@ -51,8 +61,15 @@ export async function processMessage(message: any, supabase: any) {
         throw new Error('Telegram bot token not configured');
       }
 
-      results.media = await handleMediaUpload(supabase, message, userId, botToken);
-      console.log('Media processed:', results.media);
+      // Process media with optimized error handling
+      try {
+        results.media = await handleMediaUpload(supabase, message, userId, botToken);
+        console.log('Media processed:', results.media);
+      } catch (error) {
+        console.error('Error processing media:', error);
+        await logOperation(supabase, 'telegram-media-webhook', 'error', `Media processing error: ${error.message}`);
+        throw error;
+      }
     }
 
     await logOperation(
