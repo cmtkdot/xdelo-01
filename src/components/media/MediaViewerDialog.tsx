@@ -109,7 +109,7 @@ const MediaViewerDialog = ({ item, isOpen, onClose }: MediaViewerDialogProps) =>
       console.error('Error deleting media:', error);
       toast({
         title: "Error",
-        description: "Failed to delete media",
+        description: "Failed to delete media. Please ensure you have permission to delete this item.",
         variant: "destructive",
       });
     } finally {
