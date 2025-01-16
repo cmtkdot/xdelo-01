@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { FileSpreadsheet, RefreshCw, AlertCircle } from "lucide-react";
+import { useGoogleLogin } from '@react-oauth/google';
 
 export default function GoogleSheetSync() {
   const [sheetUrl, setSheetUrl] = useState("");
@@ -37,11 +38,12 @@ export default function GoogleSheetSync() {
 
   // Mutation for syncing with Google Sheets
   const syncMutation = useMutation({
-    mutationFn: async (spreadsheetId: string) => {
+    mutationFn: async ({ spreadsheetId, accessToken }: { spreadsheetId: string, accessToken: string }) => {
       const { data, error } = await supabase.functions.invoke('google-sheets-sync', {
         body: { 
           action: 'init',
-          spreadsheetId
+          spreadsheetId,
+          accessToken
         }
       });
       
@@ -65,17 +67,36 @@ export default function GoogleSheetSync() {
     },
   });
 
-  const handleSync = () => {
-    const spreadsheetId = getSpreadsheetId(sheetUrl);
-    if (!spreadsheetId) {
+  const login = useGoogleLogin({
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    onSuccess: async (response) => {
+      const spreadsheetId = getSpreadsheetId(sheetUrl);
+      if (!spreadsheetId) {
+        toast({
+          title: "Invalid URL",
+          description: "Please enter a valid Google Sheets URL.",
+          variant: "destructive",
+        });
+        return;
+      }
+      syncMutation.mutate({ 
+        spreadsheetId,
+        accessToken: response.access_token
+      });
+    },
+    onError: (error) => {
+      console.error('Google login error:', error);
       toast({
-        title: "Invalid URL",
-        description: "Please enter a valid Google Sheets URL.",
+        title: "Authentication Failed",
+        description: "Failed to authenticate with Google. Please try again.",
         variant: "destructive",
       });
-      return;
-    }
-    syncMutation.mutate(spreadsheetId);
+    },
+    flow: 'implicit'
+  });
+
+  const handleSync = () => {
+    login(); // This will trigger the Google OAuth flow
   };
 
   return (
