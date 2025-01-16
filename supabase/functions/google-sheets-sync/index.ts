@@ -23,6 +23,8 @@ serve(async (req) => {
       throw new Error('Spreadsheet ID is required');
     }
 
+    console.log(`Processing ${action} request for spreadsheet: ${spreadsheetId}`);
+
     switch (action) {
       case 'init': {
         // Get the media data

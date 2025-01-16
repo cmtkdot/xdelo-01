@@ -8,8 +8,9 @@ export const GoogleAuthButton = () => {
 
   const handleSuccess = async (response: any) => {
     try {
-      localStorage.setItem('google_access_token', response.access_token);
-      console.log('Successfully obtained access token:', response.access_token);
+      // Store the credentials
+      localStorage.setItem('google_access_token', response.credential);
+      console.log('Successfully obtained access token:', response.credential);
       
       // Store the token expiration time (1 hour from now)
       const expirationTime = new Date().getTime() + 3600 * 1000;
@@ -51,6 +52,7 @@ export const GoogleAuthButton = () => {
       text="continue_with"
       shape="rectangular"
       width="300"
+      scope="https://www.googleapis.com/auth/spreadsheets"
     />
   );
 };
