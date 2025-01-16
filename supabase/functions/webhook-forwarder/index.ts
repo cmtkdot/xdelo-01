@@ -58,7 +58,7 @@ serve(async (req) => {
         const { data: existingMedia, error: queryError } = await supabaseClient
           .from('media')
           .select('id, file_name, metadata')
-          .filter('metadata->file_unique_id', 'eq', mediaItem.file_unique_id)
+          .eq('metadata->file_unique_id', mediaItem.file_unique_id)
           .maybeSingle();
 
         if (queryError) {
@@ -68,6 +68,21 @@ serve(async (req) => {
 
         if (existingMedia) {
           console.log('Duplicate media found:', existingMedia.id);
+          
+          // If the existing media has no caption but the new message does, update it
+          if (!existingMedia.caption && message.caption) {
+            const { error: updateError } = await supabaseClient
+              .from('media')
+              .update({ caption: message.caption })
+              .eq('id', existingMedia.id);
+
+            if (updateError) {
+              console.error('Error updating caption:', updateError);
+            } else {
+              console.log('Updated caption for existing media:', existingMedia.id);
+            }
+          }
+          
           await logOperation(
             supabaseClient,
             'webhook-forwarder',
