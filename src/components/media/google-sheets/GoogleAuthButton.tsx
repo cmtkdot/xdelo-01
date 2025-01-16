@@ -1,58 +1,56 @@
 import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
-import { GoogleLogin } from '@react-oauth/google';
+import { useGoogleLogin } from '@react-oauth/google';
 import { useToast } from "@/components/ui/use-toast";
 
 export const GoogleAuthButton = () => {
   const { toast } = useToast();
 
-  const handleSuccess = async (response: any) => {
-    try {
-      // Store the credentials
-      localStorage.setItem('google_access_token', response.credential);
-      console.log('Successfully obtained access token:', response.credential);
-      
-      // Store the token expiration time (1 hour from now)
-      const expirationTime = new Date().getTime() + 3600 * 1000;
-      localStorage.setItem('google_token_expiry', expirationTime.toString());
-      
-      toast({
-        title: "Success",
-        description: "Successfully authenticated with Google",
-      });
+  const login = useGoogleLogin({
+    onSuccess: async (response) => {
+      try {
+        // Store the access token
+        localStorage.setItem('google_access_token', response.access_token);
+        console.log('Successfully obtained access token');
+        
+        // Store the token expiration time (1 hour from now)
+        const expirationTime = new Date().getTime() + 3600 * 1000;
+        localStorage.setItem('google_token_expiry', expirationTime.toString());
+        
+        toast({
+          title: "Success",
+          description: "Successfully authenticated with Google",
+        });
 
-      // Reload the page to reinitialize components with the new token
-      window.location.reload();
-    } catch (error) {
-      console.error('Error storing access token:', error);
+        // Reload the page to reinitialize components with the new token
+        window.location.reload();
+      } catch (error) {
+        console.error('Error storing access token:', error);
+        toast({
+          title: "Error",
+          description: "Failed to store access token",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: () => {
       toast({
         title: "Error",
-        description: "Failed to store access token",
+        description: "Failed to authenticate with Google. Please try again.",
         variant: "destructive",
       });
-    }
-  };
-
-  const handleError = () => {
-    toast({
-      title: "Error",
-      description: "Failed to authenticate with Google. Please try again.",
-      variant: "destructive",
-    });
-  };
+    },
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+  });
 
   return (
-    <GoogleLogin
-      onSuccess={handleSuccess}
-      onError={handleError}
-      useOneTap
-      type="standard"
-      theme="filled_black"
-      size="large"
-      text="continue_with"
-      shape="rectangular"
-      width="300"
-      scope="https://www.googleapis.com/auth/spreadsheets"
-    />
+    <Button 
+      onClick={() => login()} 
+      className="flex items-center gap-2"
+      variant="outline"
+    >
+      <LogIn className="h-4 w-4" />
+      Continue with Google
+    </Button>
   );
 };

@@ -25,7 +25,8 @@ export const GoogleSheetsConfigContent = ({
   } = useGoogleSheetsConfig(selectedMedia);
 
   // Check if user is authenticated with Google
-  const isGoogleAuthenticated = !!localStorage.getItem('google_access_token');
+  const accessToken = localStorage.getItem('google_access_token');
+  const isGoogleAuthenticated = !!accessToken;
 
   const { data: allMedia } = useQuery({
     queryKey: ['all-media', selectedMedia.length],
@@ -99,6 +100,7 @@ export const GoogleSheetsConfigContent = ({
             <SyncManager 
               spreadsheets={spreadsheets}
               allMedia={allMedia}
+              accessToken={accessToken}
             />
           </>
         )}
