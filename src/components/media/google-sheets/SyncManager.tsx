@@ -15,6 +15,25 @@ export const SyncManager = ({ spreadsheets, allMedia }: SyncManagerProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Initial sync for each configured spreadsheet
+    const performInitialSync = async () => {
+      for (const sheet of spreadsheets) {
+        if (sheet.autoSync && sheet.isHeadersMapped && allMedia) {
+          try {
+            await syncWithGoogleSheets(sheet.id, allMedia, sheet.gid);
+            console.log(`Initial sync completed for spreadsheet: ${sheet.id}`);
+          } catch (error) {
+            console.error(`Initial sync failed for spreadsheet: ${sheet.id}`, error);
+          }
+        }
+      }
+    };
+
+    if (allMedia?.length) {
+      performInitialSync();
+    }
+
+    // Set up interval for automatic syncing
     const syncInterval = setInterval(() => {
       spreadsheets.forEach(sheet => {
         if (sheet.autoSync && sheet.isHeadersMapped && allMedia) {
@@ -23,6 +42,7 @@ export const SyncManager = ({ spreadsheets, allMedia }: SyncManagerProps) => {
       });
     }, SYNC_INTERVAL);
 
+    // Set up real-time subscription for media changes
     const channels = spreadsheets
       .filter(sheet => sheet.autoSync && sheet.isHeadersMapped)
       .map(sheet => {

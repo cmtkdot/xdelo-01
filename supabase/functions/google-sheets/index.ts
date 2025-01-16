@@ -66,13 +66,55 @@ async function handleInitSheet(apiKey: string, data: any) {
 }
 
 async function handleSyncSheet(apiKey: string, data: any) {
-  console.log('Syncing Google Sheet:', data.spreadsheetId);
+  const { spreadsheetId, values, headerMapping } = data;
+  console.log('Syncing Google Sheet:', spreadsheetId);
   
   try {
-    const { spreadsheetId, values, range = 'A1', valueInputOption = 'RAW' } = data;
+    // First, get existing sheet data to preserve non-synced columns
+    const existingDataResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ?key=${apiKey}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=${valueInputOption}`,
+    if (!existingDataResponse.ok) {
+      throw new Error(`Failed to fetch existing data: ${existingDataResponse.statusText}`);
+    }
+
+    const existingData = await existingDataResponse.json();
+    const existingValues = existingData.values || [];
+    const headers = existingValues[0] || [];
+
+    // Create a map of column indices for synced columns
+    const syncedColumnIndices = new Map();
+    Object.keys(headerMapping || {}).forEach(header => {
+      const index = headers.indexOf(header);
+      if (index !== -1) {
+        syncedColumnIndices.set(index, true);
+      }
+    });
+
+    // Merge new data with existing data, preserving non-synced columns
+    const mergedValues = values.map((row: string[], rowIndex: number) => {
+      const existingRow = existingValues[rowIndex + 1] || [];
+      const mergedRow = [...existingRow];
+      
+      row.forEach((value: string, colIndex: number) => {
+        if (syncedColumnIndices.has(colIndex)) {
+          mergedRow[colIndex] = value;
+        }
+      });
+
+      return mergedRow;
+    });
+
+    // Update the sheet with merged data
+    const updateResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A2:ZZ?valueInputOption=RAW`,
       {
         method: 'PUT',
         headers: {
@@ -80,18 +122,17 @@ async function handleSyncSheet(apiKey: string, data: any) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          range,
-          values,
+          values: mergedValues,
           majorDimension: 'ROWS',
         }),
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`Failed to sync sheet: ${response.statusText}`);
+    if (!updateResponse.ok) {
+      throw new Error(`Failed to sync sheet: ${updateResponse.statusText}`);
     }
 
-    const result = await response.json();
+    const result = await updateResponse.json();
     
     return new Response(
       JSON.stringify({

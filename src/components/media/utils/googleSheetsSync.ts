@@ -6,6 +6,19 @@ export const SPECIFIC_SPREADSHEET_ID = "1fItNaUkO73LXPveUeXSwn9e9JZomu6UUtuC58ep
 export const SPECIFIC_GID = "1908422891";
 export const SYNC_INTERVAL = 30000; // 30 seconds
 
+// Default columns to sync
+export const DEFAULT_SYNC_COLUMNS = [
+  'file_name',
+  'media_type',
+  'caption',
+  'file_url',
+  'google_drive_url',
+  'public_url',
+  'created_at',
+  'updated_at',
+  'id'
+];
+
 export const initGoogleSheetsAPI = async () => {
   try {
     console.log('Initializing Google Sheets sync with service account...');
@@ -44,30 +57,57 @@ export const syncWithGoogleSheets = async (
   try {
     console.log('Starting Google Sheets sync...');
     
-    const { data, error } = await supabase.functions.invoke('sync-google-sheet', {
+    // Get existing header mapping from config
+    const { data: configData, error: configError } = await supabase
+      .from('google_sheets_config')
+      .select('header_mapping')
+      .eq('spreadsheet_id', spreadsheetId)
+      .single();
+
+    if (configError) throw configError;
+
+    const headerMapping = configData?.header_mapping || {};
+    
+    // Format data based on header mapping
+    const formattedData = mediaItems.map(item => {
+      const row: string[] = [];
+      Object.entries(headerMapping).forEach(([sheetHeader, dbColumn]) => {
+        let value = '';
+        if (dbColumn.includes('.')) {
+          // Handle nested properties (e.g., 'chat.title')
+          const [parent, child] = dbColumn.split('.');
+          value = item[parent]?.[child] || '';
+        } else {
+          value = item[dbColumn] || '';
+        }
+        
+        // Format dates
+        if (dbColumn === 'created_at' || dbColumn === 'updated_at') {
+          value = value ? new Date(value).toLocaleString() : '';
+        }
+        
+        row.push(value.toString());
+      });
+      return row;
+    });
+
+    const { data, error } = await supabase.functions.invoke('google-sheets', {
       body: {
+        action: 'sync',
         spreadsheetId,
         gid,
-        data: mediaItems.map(item => [
-          item.file_name,
-          item.media_type,
-          item.chat?.title || '',
-          new Date(item.created_at || '').toLocaleString(),
-          item.caption || '',
-          item.file_url,
-          item.google_drive_url || '',
-          item.google_drive_id || '',
-          new Date(item.updated_at || '').toLocaleString(),
-          item.media_group_id || '',
-          item.id,
-          item.public_url || ''  // Added public URL
-        ])
+        data: formattedData,
+        headerMapping
       },
     });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
+
+    // Update last sync timestamp
+    await supabase
+      .from('google_sheets_config')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('spreadsheet_id', spreadsheetId);
 
     console.log('Sync completed successfully');
     return true;
