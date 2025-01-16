@@ -12,7 +12,6 @@ const corsHeaders = {
 const CAPTION_SYNC_DELAY = 60000; // 1 minute in milliseconds
 
 async function scheduleCaptionSync(supabase: any) {
-  // Wait for 1 minute
   await new Promise(resolve => setTimeout(resolve, CAPTION_SYNC_DELAY));
 
   try {
@@ -78,15 +77,29 @@ serve(async (req) => {
         : message.video || message.document;
 
       if (mediaItem?.file_id) {
-        // Check for duplicates
-        const { data: existingMedia } = await supabase
+        console.log('Checking for duplicate media with file_unique_id:', mediaItem.file_unique_id);
+        
+        // Check for duplicates using file_unique_id in metadata
+        const { data: existingMedia, error: queryError } = await supabase
           .from('media')
           .select('id, file_name, metadata')
-          .eq('metadata->file_unique_id', mediaItem.file_unique_id)
+          .filter('metadata->file_unique_id', 'eq', mediaItem.file_unique_id)
           .single();
+
+        if (queryError) {
+          console.error('Error checking for duplicates:', queryError);
+          throw queryError;
+        }
 
         if (existingMedia) {
           console.log('Duplicate media found:', existingMedia.id);
+          await logOperation(
+            supabase,
+            'webhook-forwarder',
+            'info',
+            `Skipped duplicate media with file_unique_id: ${mediaItem.file_unique_id}`
+          );
+          
           return new Response(
             JSON.stringify({ 
               success: true, 
@@ -113,7 +126,7 @@ serve(async (req) => {
         // Upload to storage
         const publicUrl = await uploadToStorage(supabase, fileName, buffer, mediaType);
 
-        // Create media record
+        // Create media record with file_unique_id in metadata
         const metadata = {
           file_id: mediaItem.file_id,
           file_unique_id: mediaItem.file_unique_id,
