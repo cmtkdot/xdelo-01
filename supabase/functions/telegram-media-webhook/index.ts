@@ -33,27 +33,6 @@ serve(async (req) => {
       );
     }
 
-    // Save channel info
-    const channelData = {
-      user_id: crypto.randomUUID(), // This should be replaced with actual user ID in production
-      chat_id: message.chat.id,
-      title: message.chat.title || `Chat ${message.chat.id}`,
-      username: message.chat.username,
-      is_active: true
-    };
-
-    const { error: channelError } = await supabase
-      .from('channels')
-      .upsert(channelData, {
-        onConflict: 'chat_id',
-        ignoreDuplicates: false,
-      });
-
-    if (channelError) {
-      console.error('Error saving channel:', channelError);
-      throw channelError;
-    }
-
     // Process message and handle duplicates
     const result = await processMessage(message, supabase);
 

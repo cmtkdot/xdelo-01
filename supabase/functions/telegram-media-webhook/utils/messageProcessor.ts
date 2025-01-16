@@ -39,7 +39,6 @@ export async function processMessage(message: any, supabase: any) {
 
       if (existingMedia) {
         console.log(`Duplicate media detected with file_unique_id: ${mediaItem.file_unique_id}`);
-        console.log(`Skipping upload for existing media with id: ${existingMedia.id}`);
         return {
           ...results,
           media: existingMedia,
