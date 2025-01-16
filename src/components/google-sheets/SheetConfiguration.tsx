@@ -1,11 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileSpreadsheet, CheckCircle, ExternalLink } from "lucide-react";
+import { FileSpreadsheet, CheckCircle, ExternalLink, AlertTriangle } from "lucide-react";
 import { GoogleSheetsConfig } from "../media/GoogleSheetsConfig";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SheetDataDisplay } from "./SheetDataDisplay";
+import { useToast } from "@/components/ui/use-toast";
 
 interface SheetConfigurationProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -18,6 +19,8 @@ export const SheetConfiguration = ({
   googleSheetId, 
   parsedMapping 
 }: SheetConfigurationProps) => {
+  const { toast } = useToast();
+  
   const { data: sheetsConfig, isLoading: isConfigLoading } = useQuery({
     queryKey: ['google-sheets-config'],
     queryFn: async () => {
@@ -49,9 +52,49 @@ export const SheetConfiguration = ({
     enabled: !!googleSheetId,
   });
 
+  const { data: mediaCount } = useQuery({
+    queryKey: ['media-count', googleSheetId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('media')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
   const getSheetUrl = (sheetId: string, gid?: string) => {
     const baseUrl = `https://docs.google.com/spreadsheets/d/${sheetId}`;
     return gid ? `${baseUrl}/edit#gid=${gid}` : `${baseUrl}/edit`;
+  };
+
+  const handleSyncWithMedia = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('google-sheets', {
+        body: { 
+          action: 'sync-media',
+          spreadsheetId: googleSheetId
+        }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Sync Started",
+        description: "The sheet is being synced with your media table.",
+      });
+      
+      // Refetch the sheet data after sync
+      refetch();
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Sync Failed",
+        description: "Failed to sync with media table. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -83,17 +126,36 @@ export const SheetConfiguration = ({
                     Connected to Google Sheet
                   </AlertDescription>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-blue-400 hover:text-blue-300 transition-colors"
-                  onClick={() => window.open(getSheetUrl(googleSheetId), '_blank')}
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open Sheet
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSyncWithMedia}
+                    className="text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    Sync with Media ({mediaCount} items)
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-blue-400 hover:text-blue-300 transition-colors"
+                    onClick={() => window.open(getSheetUrl(googleSheetId), '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open Sheet
+                  </Button>
+                </div>
               </div>
             </Alert>
+
+            {Object.keys(parsedMapping).length === 0 && (
+              <Alert variant="warning">
+                <AlertTriangle className="h-5 w-5" />
+                <AlertDescription>
+                  No field mappings configured. Please set up field mappings to enable synchronization.
+                </AlertDescription>
+              </Alert>
+            )}
 
             {Object.keys(parsedMapping).length > 0 && (
               <div className="p-4 rounded-lg bg-white/5 border border-white/10">
