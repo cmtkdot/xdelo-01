@@ -23,33 +23,31 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
-    console.log('Received webhook payload:', JSON.stringify(payload, null, 2));
+    console.log('Received webhook payload:', JSON.stringify(payload));
 
+    // Check if this is a Telegram update
     const message = payload.message || payload.channel_post;
-    if (!message) {
+    if (message) {
+      console.log('Processing Telegram message:', message);
+      const result = await processMessage(message, supabase);
+
       return new Response(
-        JSON.stringify({ success: true, message: "No content to process" }),
+        JSON.stringify({ success: true, result }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Process message and handle duplicates
-    const result = await processMessage(message, supabase);
-
-    if (result.isDuplicate) {
-      console.log('Duplicate media detected, skipping upload');
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Duplicate media skipped",
-          existingMedia: result.media 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Log webhook request
+    await supabase
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'telegram-media-webhook',
+        status: 'info',
+        message: `Processed webhook request: ${JSON.stringify(payload)}`
+      });
 
     return new Response(
-      JSON.stringify({ success: true, result }),
+      JSON.stringify({ success: true, message: "Webhook processed successfully" }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
