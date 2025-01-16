@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { FileSpreadsheet, RefreshCw, AlertCircle } from "lucide-react";
-import { useGoogleLogin } from '@react-oauth/google';
+import { GoogleAuthButton } from "@/components/media/google-sheets/GoogleAuthButton";
 
 export default function GoogleSheetSync() {
   const [sheetUrl, setSheetUrl] = useState("");
@@ -38,7 +38,12 @@ export default function GoogleSheetSync() {
 
   // Mutation for syncing with Google Sheets
   const syncMutation = useMutation({
-    mutationFn: async ({ spreadsheetId, accessToken }: { spreadsheetId: string, accessToken: string }) => {
+    mutationFn: async (spreadsheetId: string) => {
+      const accessToken = localStorage.getItem('google_access_token');
+      if (!accessToken) {
+        throw new Error('Google authentication required');
+      }
+
       const { data, error } = await supabase.functions.invoke('google-sheets-sync', {
         body: { 
           action: 'init',
@@ -67,36 +72,28 @@ export default function GoogleSheetSync() {
     },
   });
 
-  const login = useGoogleLogin({
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
-    onSuccess: async (response) => {
-      const spreadsheetId = getSpreadsheetId(sheetUrl);
-      if (!spreadsheetId) {
-        toast({
-          title: "Invalid URL",
-          description: "Please enter a valid Google Sheets URL.",
-          variant: "destructive",
-        });
-        return;
-      }
-      syncMutation.mutate({ 
-        spreadsheetId,
-        accessToken: response.access_token
-      });
-    },
-    onError: (error) => {
-      console.error('Google login error:', error);
+  const handleSync = () => {
+    const spreadsheetId = getSpreadsheetId(sheetUrl);
+    if (!spreadsheetId) {
       toast({
-        title: "Authentication Failed",
-        description: "Failed to authenticate with Google. Please try again.",
+        title: "Invalid URL",
+        description: "Please enter a valid Google Sheets URL.",
         variant: "destructive",
       });
-    },
-    flow: 'implicit'
-  });
+      return;
+    }
 
-  const handleSync = () => {
-    login(); // This will trigger the Google OAuth flow
+    const accessToken = localStorage.getItem('google_access_token');
+    if (!accessToken) {
+      toast({
+        title: "Authentication Required",
+        description: "Please authenticate with Google first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    syncMutation.mutate(spreadsheetId);
   };
 
   return (
@@ -120,6 +117,15 @@ export default function GoogleSheetSync() {
           </Alert>
 
           <div className="flex flex-col space-y-4">
+            {!localStorage.getItem('google_access_token') && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Google Authentication
+                </label>
+                <GoogleAuthButton />
+              </div>
+            )}
+
             <div className="space-y-2">
               <label htmlFor="sheetUrl" className="text-sm font-medium">
                 Google Sheet URL
@@ -135,7 +141,7 @@ export default function GoogleSheetSync() {
 
             <Button
               onClick={handleSync}
-              disabled={!sheetUrl || syncMutation.isPending}
+              disabled={!sheetUrl || syncMutation.isPending || !localStorage.getItem('google_access_token')}
               className="w-full"
             >
               {syncMutation.isPending ? (
