@@ -1,25 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { processMediaMessage } from "./utils/mediaProcessor.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-function extractProductInfo(caption: string) {
-  if (!caption) return null;
-  const regex = /^(.*?)\s*x\s*(\d+)\s*#([A-Z0-9]+)/;
-  const matches = caption.match(regex);
-  
-  if (matches) {
-    return {
-      product_name: matches[1].trim(),
-      units_available: parseInt(matches[2]),
-      po_product_id: matches[3]
-    };
-  }
-  return null;
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -48,71 +34,33 @@ serve(async (req) => {
       );
     }
 
-    // Extract media info with proper file_unique_id handling
-    const photo = message.photo?.[message.photo?.length - 1];
-    const video = message.video;
-    const document = message.document;
-    const mediaItem = photo || video || document;
-
-    if (!mediaItem) {
-      console.error('No media in message:', message);
+    const result = await processMediaMessage(supabaseClient, message, telegramBotToken);
+    
+    if (result.error) {
       return new Response(
-        JSON.stringify({ error: 'No media in message' }), 
+        JSON.stringify({ error: result.error }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
-    console.log('Processing media item:', {
-      file_id: mediaItem.file_id,
-      file_unique_id: mediaItem.file_unique_id,
-      message_id: message.message_id
-    });
-
-    // Check for existing media with file_unique_id
-    const { data: existingMedia, error: queryError } = await supabaseClient
-      .from('media')
-      .select('*')
-      .eq('file_unique_id', mediaItem.file_unique_id)
-      .maybeSingle();
-
-    if (queryError) {
-      console.error('Error checking for existing media:', queryError);
-      throw queryError;
-    }
-
-    // Extract product information from caption
-    const productInfo = extractProductInfo(message.caption || '');
-    console.log('Extracted product info:', productInfo);
-
-    const mediaMetadata = {
-      file_id: mediaItem.file_id,
-      file_unique_id: mediaItem.file_unique_id,
-      file_size: mediaItem.file_size,
-      message_id: message.message_id,
-      content_type: mediaItem.mime_type || 'image/jpeg',
-      media_group_id: message.media_group_id,
-      original_message: message,
-    };
-
-    if (existingMedia) {
-      console.log('Updating existing media:', existingMedia.id);
+    if (result.existingMedia) {
+      console.log('Updating existing media:', result.existingMedia.id);
       
       const { error: updateError } = await supabaseClient
         .from('media')
         .update({
           chat_id: message.chat.id,
           caption: message.caption,
-          metadata: mediaMetadata,
+          metadata: result.existingMedia.metadata,
           media_group_id: message.media_group_id,
           updated_at: new Date().toISOString(),
-          file_unique_id: mediaItem.file_unique_id,
-          ...(productInfo && {
-            product_name: productInfo.product_name,
-            units_available: productInfo.units_available,
-            po_product_id: productInfo.po_product_id,
+          ...(result.productInfo && {
+            product_name: result.productInfo.product_name,
+            units_available: result.productInfo.units_available,
+            po_product_id: result.productInfo.po_product_id,
           })
         })
-        .eq('id', existingMedia.id);
+        .eq('id', result.existingMedia.id);
 
       if (updateError) {
         console.error('Error updating media:', updateError);
@@ -122,71 +70,30 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           message: 'Media record updated', 
-          id: existingMedia.id,
-          productInfo 
+          id: result.existingMedia.id,
+          productInfo: result.productInfo 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
 
-    // Get file path from Telegram
-    const getFilePath = await fetch(
-      `https://api.telegram.org/bot${telegramBotToken}/getFile?file_id=${mediaItem.file_id}`
-    );
-    
-    if (!getFilePath.ok) {
-      throw new Error(`Failed to get file path: ${getFilePath.statusText}`);
-    }
-
-    const fileData = await getFilePath.json();
-    if (!fileData.ok || !fileData.result.file_path) {
-      throw new Error('Failed to get file path from Telegram');
-    }
-
-    // Download file from Telegram
-    const fileUrl = `https://api.telegram.org/file/bot${telegramBotToken}/${fileData.result.file_path}`;
-    const fileResponse = await fetch(fileUrl);
-    
-    if (!fileResponse.ok) {
-      throw new Error(`Failed to download file: ${fileResponse.statusText}`);
-    }
-
-    const fileBuffer = await fileResponse.arrayBuffer();
-    const fileName = `${mediaItem.file_unique_id}_${Date.now()}.${fileData.result.file_path.split('.').pop()}`;
-
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabaseClient.storage
-      .from('telegram-media')
-      .upload(fileName, fileBuffer, {
-        contentType: mediaItem.mime_type || 'image/jpeg',
-        cacheControl: '3600'
-      });
-
-    if (uploadError) {
-      console.error('Error uploading to storage:', uploadError);
-      throw uploadError;
-    }
-
-    // Generate public URL
-    const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${fileName}`;
-
-    // Insert new media record with file_unique_id
+    // Insert new media record
     const { data: newMedia, error: insertError } = await supabaseClient
       .from('media')
       .insert({
         chat_id: message.chat.id,
-        file_name: fileName,
-        file_url: fileUrl,
-        public_url: publicUrl,
-        media_type: mediaItem.mime_type || 'image/jpeg',
+        file_name: result.fileName,
+        file_url: result.publicUrl,
+        public_url: result.publicUrl,
+        media_type: result.mediaMetadata.content_type,
         caption: message.caption,
-        metadata: mediaMetadata,
+        metadata: result.mediaMetadata,
         media_group_id: message.media_group_id,
-        file_unique_id: mediaItem.file_unique_id,
-        ...(productInfo && {
-          product_name: productInfo.product_name,
-          units_available: productInfo.units_available,
-          po_product_id: productInfo.po_product_id,
+        file_unique_id: result.mediaMetadata.file_unique_id,
+        ...(result.productInfo && {
+          product_name: result.productInfo.product_name,
+          units_available: result.productInfo.units_available,
+          po_product_id: result.productInfo.po_product_id,
         })
       })
       .select()
@@ -199,16 +106,16 @@ serve(async (req) => {
 
     console.log('Successfully processed media:', {
       id: newMedia.id,
-      file_name: fileName,
-      file_unique_id: mediaItem.file_unique_id,
-      productInfo
+      file_name: result.fileName,
+      file_unique_id: result.mediaMetadata.file_unique_id,
+      productInfo: result.productInfo
     });
 
     return new Response(
       JSON.stringify({ 
         message: 'New media record created', 
         id: newMedia.id,
-        productInfo 
+        productInfo: result.productInfo 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 201 }
     );
