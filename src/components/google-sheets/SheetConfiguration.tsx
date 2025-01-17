@@ -1,12 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { FileSpreadsheet } from "lucide-react";
 import { GoogleSheetsConfig } from "../media/GoogleSheetsConfig";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { checkGoogleTokenStatus } from "../ai-chat/AuthHandler";
-import { GoogleAuthButton } from "../media/google-sheets/GoogleAuthButton";
 import { ConnectionStatus } from "./components/ConnectionStatus";
 import { FieldMappingDisplay } from "./components/FieldMappingDisplay";
 import { SheetDataDisplay } from "./SheetDataDisplay";
@@ -45,23 +42,10 @@ export const SheetConfiguration = ({
     queryFn: async () => {
       if (!googleSheetId) return [];
       
-      const tokenStatus = checkGoogleTokenStatus();
-      if (!tokenStatus.isValid) {
-        throw new Error(`Google authentication required: ${tokenStatus.reason}`);
-      }
-      
-      const accessToken = localStorage.getItem('google_access_token');
-      if (!accessToken) {
-        throw new Error('Google access token not found');
-      }
-
       const { data, error } = await supabase.functions.invoke('sheets-operations', {
         body: { 
           action: 'read',
           spreadsheetId: googleSheetId
-        },
-        headers: {
-          Authorization: `Bearer ${accessToken}`
         }
       });
       
@@ -126,28 +110,10 @@ export const SheetConfiguration = ({
 
   const handleSyncWithMedia = async () => {
     try {
-      const tokenStatus = checkGoogleTokenStatus();
-      if (!tokenStatus.isValid) {
-        toast({
-          title: "Authentication Required",
-          description: "Please re-authenticate with Google to continue.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const accessToken = localStorage.getItem('google_access_token');
-      if (!accessToken) {
-        throw new Error('Google access token not found');
-      }
-
       const { error: verifyError } = await supabase.functions.invoke('sheets-operations', {
         body: { 
           action: 'verify',
           spreadsheetId: googleSheetId
-        },
-        headers: {
-          Authorization: `Bearer ${accessToken}`
         }
       });
       
@@ -158,9 +124,6 @@ export const SheetConfiguration = ({
           action: 'write',
           spreadsheetId: googleSheetId,
           data: await formatMediaData()
-        },
-        headers: {
-          Authorization: `Bearer ${accessToken}`
         }
       });
       
@@ -185,32 +148,6 @@ export const SheetConfiguration = ({
   const getSheetUrl = (sheetId: string) => {
     return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
   };
-
-  const tokenStatus = checkGoogleTokenStatus();
-  if (!tokenStatus.isValid) {
-    return (
-      <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-6 w-6" />
-            Google Sheets Authentication Required
-          </CardTitle>
-          <CardDescription>
-            Please authenticate with Google to access Google Sheets
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="warning">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Your Google authentication has expired. Please re-authenticate to continue using Google Sheets integration.
-            </AlertDescription>
-          </Alert>
-          <GoogleAuthButton />
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
