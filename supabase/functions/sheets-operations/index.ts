@@ -6,15 +6,22 @@ const corsHeaders = {
 };
 
 function formatPrivateKey(privateKey: string): string {
-  let formattedKey = privateKey
-    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-    .replace(/-----END PRIVATE KEY-----/g, '')
-    .replace(/\\n/g, '\n')
-    .replace(/\s/g, '');
-
-  formattedKey = `-----BEGIN PRIVATE KEY-----\n${formattedKey}\n-----END PRIVATE KEY-----`;
-  
-  return formattedKey;
+  try {
+    // Remove any escaped newlines and replace with actual newlines
+    let formattedKey = privateKey.replace(/\\n/g, '\n');
+    
+    // Remove any existing headers and footers
+    formattedKey = formattedKey
+      .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+      .replace(/-----END PRIVATE KEY-----/g, '')
+      .trim();
+    
+    // Add proper PEM formatting with newlines
+    return `-----BEGIN PRIVATE KEY-----\n${formattedKey}\n-----END PRIVATE KEY-----`;
+  } catch (error) {
+    console.error('Error formatting private key:', error);
+    throw new Error('Failed to format private key');
+  }
 }
 
 async function generateGoogleToken(credentials: any) {
@@ -123,6 +130,9 @@ serve(async (req) => {
     
     // Get service account credentials
     const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
+    if (!credentials.private_key || !credentials.client_email) {
+      throw new Error('Invalid service account credentials');
+    }
     
     console.log(`Processing ${action} request for spreadsheet: ${spreadsheetId}`);
 
