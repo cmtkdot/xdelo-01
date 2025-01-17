@@ -28,7 +28,11 @@ export function useGlideData(tableConfig: GlideTableConfig | null) {
       
       const { data, error } = await supabase
         .from('glide_products')
-        .insert([{ ...newData, table_config_id: tableConfig.id }])
+        .insert([{ 
+          ...newData, 
+          table_config_id: tableConfig.id,
+          glide_product_row_id: crypto.randomUUID()
+        }])
         .select()
         .single();
 
@@ -49,13 +53,13 @@ export function useGlideData(tableConfig: GlideTableConfig | null) {
   });
 
   const updateRow = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+    mutationFn: async ({ glide_product_row_id, data }: { glide_product_row_id: string; data: Record<string, any> }) => {
       if (!tableConfig) throw new Error('No table selected');
       
       const { data: updatedData, error } = await supabase
         .from('glide_products')
         .update(data)
-        .eq('id', id)
+        .eq('glide_product_row_id', glide_product_row_id)
         .select()
         .single();
 
@@ -76,13 +80,13 @@ export function useGlideData(tableConfig: GlideTableConfig | null) {
   });
 
   const deleteRow = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (glide_product_row_id: string) => {
       if (!tableConfig) throw new Error('No table selected');
       
       const { error } = await supabase
         .from('glide_products')
         .delete()
-        .eq('id', id);
+        .eq('glide_product_row_id', glide_product_row_id);
 
       if (error) throw error;
     },

@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { corsHeaders } from './cors.ts';
-import { executeTableOperation } from './tableOperations.ts';
+import { corsHeaders } from '../_shared/cors.ts';
+
+const GLIDE_BATCH_LIMIT = 500;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -10,34 +11,73 @@ serve(async (req) => {
 
   try {
     const { tableConfig, operation } = await req.json();
-    console.log('Processing Glide table operation:', { tableConfig, operation });
+    
+    const glideApiToken = Deno.env.get('GLIDE_API_TOKEN');
+    if (!glideApiToken) {
+      throw new Error('Missing GLIDE_API_TOKEN');
+    }
 
-    // Get Supabase client
+    // Fetch data from Glide API
+    const response = await fetch('https://api.glideapp.io/api/function/queryTables', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${glideApiToken}`,
+      },
+      body: JSON.stringify({
+        appID: tableConfig.app_id,
+        queries: [
+          {
+            tableName: tableConfig.table_id,
+            limit: GLIDE_BATCH_LIMIT
+          }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Glide API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const rows = data[0]?.rows || [];
+
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Missing Supabase configuration');
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Execute the table operation
-    const result = await executeTableOperation(tableConfig, operation);
+    // Map and store the data
+    const mappedRows = rows.map((row: any) => ({
+      table_config_id: tableConfig.id,
+      glide_product_row_id: row.$rowID,
+      product_data: row,
+    }));
 
-    // Log the operation in Supabase
-    await supabase
-      .from('edge_function_logs')
-      .insert({
-        function_name: 'glide-apps-sync',
-        status: 'success',
-        message: `Successfully executed ${operation.type} operation on table ${tableConfig.table}`
+    const { error: upsertError } = await supabase
+      .from('glide_products')
+      .upsert(mappedRows, {
+        onConflict: 'glide_product_row_id',
       });
+
+    if (upsertError) throw upsertError;
+
+    // Update last_synced timestamp
+    await supabase
+      .from('glide_table_configs')
+      .update({ last_synced: new Date().toISOString() })
+      .eq('id', tableConfig.id);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        data: result,
-        operation: operation.type
+        message: `Synced ${mappedRows.length} rows successfully`,
+        count: mappedRows.length 
       }),
       { 
         headers: { 
@@ -48,11 +88,10 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in Glide apps sync:', error);
+    console.error('Error syncing Glide table:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        details: error.stack
+        error: error.message 
       }),
       { 
         status: 400,

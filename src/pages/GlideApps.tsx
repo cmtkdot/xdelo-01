@@ -31,7 +31,7 @@ const GlideApps = () => {
     const columnName = Object.keys(rowData)[cell[0]];
     
     updateRow({
-      id: rowData.id,
+      glide_product_row_id: rowData.glide_product_row_id,
       data: { [columnName]: newValue.data }
     });
   };
@@ -50,8 +50,8 @@ const GlideApps = () => {
 
   const handleDeleteRow = (rowIndex: number) => {
     if (!tableData) return;
-    const rowId = tableData[rowIndex].id;
-    deleteRow(rowId);
+    const glide_product_row_id = tableData[rowIndex].glide_product_row_id;
+    deleteRow(glide_product_row_id);
   };
 
   return (
