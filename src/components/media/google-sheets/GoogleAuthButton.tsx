@@ -9,6 +9,7 @@ export const GoogleAuthButton = () => {
 
   const login = useGoogleLogin({
     flow: 'auth-code',
+    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
     onSuccess: async (codeResponse) => {
       try {
         // Exchange code for tokens
@@ -52,8 +53,7 @@ export const GoogleAuthButton = () => {
         description: "Failed to authenticate with Google. Please try again.",
         variant: "destructive",
       });
-    },
-    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+    }
   });
 
   return (
