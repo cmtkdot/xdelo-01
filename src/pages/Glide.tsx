@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, RefreshCw, CheckCircle, XCircle } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
 
 type GlideProduct = Database['public']['Tables']['glide_products']['Row'];
 
@@ -60,7 +62,7 @@ const Glide = () => {
 
   const formatDate = (date: string | null) => {
     if (!date) return 'N/A';
-    return format(new Date(date), 'PP');
+    return format(new Date(date), 'PP p');
   };
 
   const formatCurrency = (amount: number | null) => {
@@ -72,109 +74,114 @@ const Glide = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 relative overflow-hidden">
-      {/* Animated background gradients */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-purple-900/5 to-black">
-        <div className="absolute inset-0">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header Section */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Glide Sync Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage and monitor your Glide product synchronization
+          </p>
         </div>
+        <Button 
+          onClick={handleSync} 
+          disabled={isSyncing}
+          className="min-w-[140px]"
+        >
+          {isSyncing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Syncing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Sync Now
+            </>
+          )}
+        </Button>
       </div>
 
-      {/* Content container */}
-      <div className="relative space-y-6 z-10">
-        {/* Header section */}
-        <div className="backdrop-blur-xl bg-black/40 rounded-2xl border border-white/10 p-6 shadow-2xl">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text">
-              Glide Products
-            </h1>
-            <Button 
-              onClick={handleSync} 
-              disabled={isSyncing}
-              className="relative backdrop-blur-xl bg-white/10 border border-white/20 hover:bg-white/20 text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300 hover:shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/10"
-            >
-              {isSyncing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Syncing...
-                </>
-              ) : (
-                "Sync Products"
-              )}
-            </Button>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="p-6">
+          <h3 className="font-semibold text-lg mb-2">Total Products</h3>
+          <p className="text-3xl font-bold">{products?.length || 0}</p>
+        </Card>
+        <Card className="p-6">
+          <h3 className="font-semibold text-lg mb-2">Last Sync</h3>
+          <p className="text-3xl font-bold">
+            {products?.[0]?.last_synced ? formatDate(products[0].last_synced) : 'Never'}
+          </p>
+        </Card>
+        <Card className="p-6">
+          <h3 className="font-semibold text-lg mb-2">Sync Status</h3>
+          <div className="flex items-center space-x-2">
+            {isSyncing ? (
+              <Badge variant="secondary" className="text-lg py-1">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Syncing
+              </Badge>
+            ) : (
+              <Badge variant="default" className="text-lg py-1">
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Ready
+              </Badge>
+            )}
           </div>
-        </div>
+        </Card>
+      </div>
 
-        {/* Table section */}
-        {isLoading ? (
-          <div className="flex items-center justify-center p-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-          </div>
-        ) : (
-          <div className="backdrop-blur-xl bg-black/40 rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b border-white/10 hover:bg-white/5">
-                    <TableHead className="text-blue-400">PO Date</TableHead>
-                    <TableHead className="text-blue-400">Vendor UID</TableHead>
-                    <TableHead className="text-blue-400">Product Name</TableHead>
-                    <TableHead className="text-blue-400">Vendor Product Name</TableHead>
-                    <TableHead className="text-blue-400">PO UID</TableHead>
-                    <TableHead className="text-blue-400">Cost</TableHead>
-                    <TableHead className="text-blue-400">Media ID</TableHead>
-                    <TableHead className="text-blue-400">Video Link</TableHead>
-                    <TableHead className="text-blue-400">Caption</TableHead>
-                    <TableHead className="text-blue-400">Google URL</TableHead>
+      {/* Products Table */}
+      {isLoading ? (
+        <div className="flex items-center justify-center p-12">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product Name</TableHead>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>PO Date</TableHead>
+                  <TableHead>Cost</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last Updated</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products?.map((product) => (
+                  <TableRow key={product.glide_product_row_id}>
+                    <TableCell className="font-medium">{product.product_name || 'N/A'}</TableCell>
+                    <TableCell>{product.vendor_uid || 'N/A'}</TableCell>
+                    <TableCell>{formatDate(product.po_date)}</TableCell>
+                    <TableCell>{formatCurrency(product.cost)}</TableCell>
+                    <TableCell>
+                      <Badge variant={product.is_sample ? "secondary" : "default"}>
+                        {product.is_sample ? 'Sample' : 'Regular'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{formatDate(product.last_edited_date)}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products?.map((product) => (
-                    <TableRow 
-                      key={product.glide_product_row_id}
-                      className="border-b border-white/10 hover:bg-white/5 transition-colors"
-                    >
-                      <TableCell className="text-white/90">{formatDate(product.po_date)}</TableCell>
-                      <TableCell className="text-white/90">{product.vendor_uid || 'N/A'}</TableCell>
-                      <TableCell className="text-white/90">{product.product_name || 'N/A'}</TableCell>
-                      <TableCell className="text-white/90">{product.vendor_product_name || 'N/A'}</TableCell>
-                      <TableCell className="text-white/90">{product.po_uid || 'N/A'}</TableCell>
-                      <TableCell className="text-white/90">{formatCurrency(product.cost)}</TableCell>
-                      <TableCell className="text-white/90">{product.supabase_media_id || 'N/A'}</TableCell>
-                      <TableCell>
-                        {product.supabase_video_link ? (
-                          <a 
-                            href={product.supabase_video_link} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:text-blue-300 transition-colors"
-                          >
-                            View Video
-                          </a>
-                        ) : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-white/90">{product.supabase_caption || 'N/A'}</TableCell>
-                      <TableCell>
-                        {product.supabase_google_url ? (
-                          <a 
-                            href={product.supabase_google_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:text-blue-300 transition-colors"
-                          >
-                            View in Drive
-                          </a>
-                        ) : 'N/A'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                ))}
+                {(!products || products.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <XCircle className="h-8 w-8 mb-2" />
+                        <p>No products found</p>
+                        <p className="text-sm">Click "Sync Now" to fetch products from Glide</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </div>
+        </Card>
+      )}
     </div>
   );
 };

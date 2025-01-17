@@ -9,47 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      bot_activities: {
-        Row: {
-          chat_id: number
-          created_at: string | null
-          details: Json | null
-          event_type: string
-          id: string
-          message_id: number | null
-          message_type: string | null
-          user_id: string | null
-        }
-        Insert: {
-          chat_id: number
-          created_at?: string | null
-          details?: Json | null
-          event_type: string
-          id?: string
-          message_id?: number | null
-          message_type?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          chat_id?: number
-          created_at?: string | null
-          details?: Json | null
-          event_type?: string
-          id?: string
-          message_id?: number | null
-          message_type?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bot_activities_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "channels"
-            referencedColumns: ["chat_id"]
-          },
-        ]
-      }
       bot_users: {
         Row: {
           bot_user_id: string
