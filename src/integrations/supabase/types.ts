@@ -410,7 +410,10 @@ export type Database = {
           media_group_id: string | null
           media_type: string
           metadata: Json | null
+          po_product_id: string | null
+          product_name: string | null
           public_url: string | null
+          units_available: number | null
           updated_at: string | null
           user_id: string
           webhook_configuration_id: string | null
@@ -429,7 +432,10 @@ export type Database = {
           media_group_id?: string | null
           media_type: string
           metadata?: Json | null
+          po_product_id?: string | null
+          product_name?: string | null
           public_url?: string | null
+          units_available?: number | null
           updated_at?: string | null
           user_id: string
           webhook_configuration_id?: string | null
@@ -448,7 +454,10 @@ export type Database = {
           media_group_id?: string | null
           media_type?: string
           metadata?: Json | null
+          po_product_id?: string | null
+          product_name?: string | null
           public_url?: string | null
+          units_available?: number | null
           updated_at?: string | null
           user_id?: string
           webhook_configuration_id?: string | null
