@@ -1,56 +1,34 @@
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
+import type { GlideTableConfig } from './types';
 
 interface TableActionsProps {
-  onSync: () => void;
   onAddRow: () => void;
-  isSyncing: boolean;
   isAddingRow: boolean;
-  selectedTableId: string;
+  selectedTableConfig: GlideTableConfig | null;
 }
 
 export function TableActions({ 
-  onSync, 
   onAddRow, 
-  isSyncing, 
   isAddingRow, 
-  selectedTableId 
+  selectedTableConfig 
 }: TableActionsProps) {
   return (
     <div className="flex gap-2">
-      {selectedTableId && (
-        <Button 
-          onClick={onAddRow}
-          disabled={isAddingRow}
-          className="min-w-[140px]"
-        >
-          {isAddingRow ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Adding...
-            </>
-          ) : (
-            <>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Row
-            </>
-          )}
-        </Button>
-      )}
       <Button 
-        onClick={onSync} 
-        disabled={isSyncing || !selectedTableId}
+        onClick={onAddRow}
+        disabled={isAddingRow || !selectedTableConfig}
         className="min-w-[140px]"
       >
-        {isSyncing ? (
+        {isAddingRow ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Syncing...
+            Adding...
           </>
         ) : (
           <>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Sync Now
+            <Plus className="mr-2 h-4 w-4" />
+            Add Row
           </>
         )}
       </Button>

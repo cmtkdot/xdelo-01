@@ -5,15 +5,20 @@ import type { GlideTableConfig } from './types';
 
 interface TableSelectorProps {
   selectedAppId: string;
-  selectedTableId: string;
-  onTableSelect: (tableId: string) => void;
+  selectedTableConfig: GlideTableConfig | null;
+  onTableSelect: (config: GlideTableConfig) => void;
 }
 
-export function TableSelector({ selectedAppId, selectedTableId, onTableSelect }: TableSelectorProps) {
+export function TableSelector({ 
+  selectedAppId, 
+  selectedTableConfig, 
+  onTableSelect 
+}: TableSelectorProps) {
   const { data: tableConfigs, isLoading } = useQuery({
     queryKey: ['glide-table-configs', selectedAppId],
     queryFn: async () => {
       if (!selectedAppId) return [];
+      
       const { data, error } = await supabase
         .from('glide_table_configs')
         .select('*')
@@ -29,8 +34,11 @@ export function TableSelector({ selectedAppId, selectedTableId, onTableSelect }:
 
   return (
     <Select
-      value={selectedTableId}
-      onValueChange={onTableSelect}
+      value={selectedTableConfig?.id}
+      onValueChange={(value) => {
+        const config = tableConfigs?.find(c => c.id === value);
+        if (config) onTableSelect(config);
+      }}
       disabled={isLoading || !selectedAppId || !tableConfigs?.length}
     >
       <SelectTrigger className="w-full">
@@ -38,7 +46,7 @@ export function TableSelector({ selectedAppId, selectedTableId, onTableSelect }:
       </SelectTrigger>
       <SelectContent>
         {tableConfigs?.map((config) => (
-          <SelectItem key={config.id} value={config.table_id}>
+          <SelectItem key={config.id} value={config.id}>
             {config.table_name}
           </SelectItem>
         ))}

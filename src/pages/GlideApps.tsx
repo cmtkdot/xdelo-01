@@ -1,184 +1,57 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
-import { GlideDataTable } from "@/components/glide/GlideDataTable";
+import { GlideDataGrid } from "@/components/glide/GlideDataGrid";
 import { AppSelector } from "@/components/glide/AppSelector";
 import { TableSelector } from "@/components/glide/TableSelector";
 import { TableActions } from "@/components/glide/TableActions";
-import type { GlideTableData } from "@/components/glide/types";
+import { useGlideData } from "@/hooks/useGlideData";
+import type { GlideTableConfig } from "@/components/glide/types";
 
 const GlideApps = () => {
-  const { toast } = useToast();
-  const [isSyncing, setIsSyncing] = useState(false);
   const [selectedAppId, setSelectedAppId] = useState<string>("");
-  const [selectedTableId, setSelectedTableId] = useState<string>("");
+  const [selectedTableConfig, setSelectedTableConfig] = useState<GlideTableConfig | null>(null);
+  const { 
+    tableData, 
+    isLoading, 
+    addRow, 
+    updateRow, 
+    deleteRow, 
+    isModifying 
+  } = useGlideData(selectedTableConfig);
 
-  // Fetch table data for selected table
-  const { data: tableData, isLoading: isLoadingTableData, refetch: refetchTableData } = useQuery({
-    queryKey: ['glide-table-data', selectedTableId],
-    queryFn: async () => {
-      if (!selectedTableId) return null;
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await supabase.functions.invoke('glide-apps-sync', {
-        body: { 
-          operation: { type: 'get' },
-          tableConfig: {
-            table: selectedTableId
-          }
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`
-        }
-      });
-
-      if (response.error) {
-        toast({
-          title: "Error fetching table data",
-          description: response.error.message,
-          variant: "destructive",
-        });
-        throw response.error;
-      }
-      return response.data;
-    },
-    enabled: !!selectedTableId,
-  });
-
-  // Add row mutation
-  const addRowMutation = useMutation({
-    mutationFn: async (data: Record<string, any>) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await supabase.functions.invoke('glide-apps-sync', {
-        body: { 
-          operation: { 
-            type: 'add',
-            data
-          },
-          tableConfig: {
-            table: selectedTableId
-          }
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`
-        }
-      });
-
-      if (response.error) throw response.error;
-      return response.data;
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Row added successfully" });
-      refetchTableData();
-    },
-    onError: (error) => {
-      toast({
-        title: "Error adding row",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  });
-
-  const handleSync = async () => {
-    if (!selectedTableId) {
-      toast({
-        title: "Error",
-        description: "Please select a table first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsSyncing(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const { error } = await supabase.functions.invoke('glide-apps-sync', {
-        body: { 
-          appId: selectedAppId,
-          tableId: selectedTableId
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`
-        }
-      });
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Data synced successfully",
-      });
-      refetchTableData();
-    } catch (error) {
-      console.error('Error syncing data:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to sync data",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
+  const handleTableSelect = (config: GlideTableConfig) => {
+    setSelectedTableConfig(config);
   };
 
-  const handleCellEdited = async (cell: any, newValue: any) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const { error } = await supabase.functions.invoke('glide-apps-sync', {
-        body: { 
-          operation: { 
-            type: 'update',
-            rowId: tableData[cell[1]].id,
-            data: { [Object.keys(tableData[cell[1]])[cell[0]]]: newValue.data }
-          },
-          tableConfig: {
-            table: selectedTableId
-          }
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`
-        }
-      });
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Data updated successfully",
-      });
-      refetchTableData();
-    } catch (error) {
-      console.error('Error updating data:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update data",
-        variant: "destructive",
-      });
-    }
+  const handleCellEdited = (cell: any, newValue: any) => {
+    if (!tableData) return;
+    
+    const rowData = tableData[cell[1]];
+    const columnName = Object.keys(rowData)[cell[0]];
+    
+    updateRow({
+      id: rowData.id,
+      data: { [columnName]: newValue.data }
+    });
   };
 
   const handleAddRow = () => {
-    if (!tableData || !tableData.length) {
-      toast({
-        title: "Error",
-        description: "Cannot add row: no table template available",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!tableData?.length) return;
+    
     const template = Object.fromEntries(
-      Object.keys(tableData[0]).map(key => [key, ''])
+      Object.keys(tableData[0])
+        .filter(key => key !== 'id')
+        .map(key => [key, ''])
     );
-    addRowMutation.mutate(template);
+    
+    addRow(template);
+  };
+
+  const handleDeleteRow = (rowIndex: number) => {
+    if (!tableData) return;
+    const rowId = tableData[rowIndex].id;
+    deleteRow(rowId);
   };
 
   return (
@@ -191,11 +64,9 @@ const GlideApps = () => {
           </p>
         </div>
         <TableActions 
-          onSync={handleSync}
           onAddRow={handleAddRow}
-          isSyncing={isSyncing}
-          isAddingRow={addRowMutation.isPending}
-          selectedTableId={selectedTableId}
+          isAddingRow={isModifying}
+          selectedTableConfig={selectedTableConfig}
         />
       </div>
 
@@ -205,31 +76,32 @@ const GlideApps = () => {
             selectedAppId={selectedAppId}
             onAppSelect={(value) => {
               setSelectedAppId(value);
-              setSelectedTableId("");
+              setSelectedTableConfig(null);
             }}
           />
         </div>
         <div className="w-1/2">
           <TableSelector
             selectedAppId={selectedAppId}
-            selectedTableId={selectedTableId}
-            onTableSelect={setSelectedTableId}
+            selectedTableConfig={selectedTableConfig}
+            onTableSelect={handleTableSelect}
           />
         </div>
       </div>
 
-      {isLoadingTableData && (
+      {isLoading && (
         <div className="flex justify-center p-8">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       )}
 
-      {selectedTableId && tableData && (
+      {selectedTableConfig && tableData && (
         <Card className="p-6">
-          <GlideDataTable
+          <GlideDataGrid
             data={tableData}
-            columns={Object.keys(tableData[0] || {})}
+            columns={Object.keys(tableData[0] || {}).filter(key => key !== 'id')}
             onCellEdited={handleCellEdited}
+            onRowDelete={handleDeleteRow}
           />
         </Card>
       )}
