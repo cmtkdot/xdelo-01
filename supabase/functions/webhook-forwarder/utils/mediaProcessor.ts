@@ -14,36 +14,53 @@ export async function processMediaMessage(supabase: any, message: any, botToken:
   }
 
   // Check for duplicates by file_unique_id first
+  console.log('[processMediaMessage] Checking for duplicates by file_unique_id:', mediaInfo.file_unique_id);
   const existingMedia = await checkFileUniqueId(supabase, mediaInfo.file_unique_id);
+  
   if (existingMedia) {
     console.log('[processMediaMessage] Duplicate found by file_unique_id:', existingMedia.id);
     
     // Check if we need to update the existing record
-    if (message.caption !== existingMedia.caption || 
-        message.media_group_id !== existingMedia.media_group_id) {
-      return { existingMedia, requiresUpdate: true };
-    }
+    const requiresUpdate = message.caption !== existingMedia.caption || 
+                         message.media_group_id !== existingMedia.media_group_id;
     
-    return { existingMedia, requiresUpdate: false };
+    return { 
+      existingMedia, 
+      requiresUpdate,
+      mediaMetadata: {
+        ...mediaInfo,
+        content_hash: existingMedia.metadata?.content_hash
+      }
+    };
   }
 
   // Download file only if no duplicate found
+  console.log('[processMediaMessage] No duplicate found, downloading file');
   const { buffer, filePath } = await downloadTelegramFile(mediaInfo.file_id, botToken);
   
   // Calculate content hash
   const contentHash = await calculateFileHash(buffer);
+  console.log('[processMediaMessage] Calculated content hash:', contentHash);
   
   // Check for content-based duplicates
   const contentDuplicate = await checkContentHash(supabase, contentHash);
   if (contentDuplicate) {
     console.log('[processMediaMessage] Content-based duplicate found:', contentDuplicate.id);
-    return { existingMedia: contentDuplicate, requiresUpdate: true };
+    return { 
+      existingMedia: contentDuplicate, 
+      requiresUpdate: true,
+      mediaMetadata: {
+        ...mediaInfo,
+        content_hash: contentHash
+      }
+    };
   }
 
   // Generate safe filename
   const fileName = `${mediaInfo.file_unique_id}_${Date.now()}.${filePath.split('.').pop()}`;
 
   // Upload to storage
+  console.log('[processMediaMessage] Uploading new file:', fileName);
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from('telegram-media')
     .upload(fileName, buffer, {
@@ -64,12 +81,7 @@ export async function processMediaMessage(supabase: any, message: any, botToken:
 
   // Prepare metadata
   const mediaMetadata = {
-    file_id: mediaInfo.file_id,
-    file_unique_id: mediaInfo.file_unique_id,
-    message_id: message.message_id,
-    content_type: mediaInfo.content_type,
-    mime_type: mediaInfo.mime_type,
-    file_size: mediaInfo.file_size,
+    ...mediaInfo,
     content_hash: contentHash
   };
 

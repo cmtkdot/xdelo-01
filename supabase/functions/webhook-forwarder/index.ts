@@ -34,18 +34,24 @@ serve(async (req) => {
       );
     }
 
+    // Process the media message
     const result = await processMediaMessage(supabaseClient, message, telegramBotToken);
     
     if (result.error) {
+      console.error('[webhook-forwarder] Error processing media:', result.error);
       return new Response(
         JSON.stringify({ error: result.error }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
+    // If we found an existing media entry
     if (result.existingMedia) {
+      console.log('[webhook-forwarder] Found existing media:', result.existingMedia.id);
+      
+      // Only update if changes are needed
       if (result.requiresUpdate) {
-        console.log('Updating existing media:', result.existingMedia.id);
+        console.log('[webhook-forwarder] Updating existing media:', result.existingMedia.id);
         
         const { error: updateError } = await supabaseClient
           .from('media')
@@ -64,11 +70,9 @@ serve(async (req) => {
           .eq('id', result.existingMedia.id);
 
         if (updateError) {
-          console.error('Error updating media:', updateError);
+          console.error('[webhook-forwarder] Error updating media:', updateError);
           throw updateError;
         }
-      } else {
-        console.log('No updates needed for existing media:', result.existingMedia.id);
       }
 
       return new Response(
@@ -80,7 +84,8 @@ serve(async (req) => {
       );
     }
 
-    // Insert new media record
+    // Insert new media record if no duplicate was found
+    console.log('[webhook-forwarder] Creating new media record');
     const { data: newMedia, error: insertError } = await supabaseClient
       .from('media')
       .insert({
@@ -103,11 +108,11 @@ serve(async (req) => {
       .single();
 
     if (insertError) {
-      console.error('Error inserting media:', insertError);
+      console.error('[webhook-forwarder] Error inserting media:', insertError);
       throw insertError;
     }
 
-    console.log('Successfully processed media:', {
+    console.log('[webhook-forwarder] Successfully processed media:', {
       id: newMedia.id,
       file_name: result.fileName,
       file_unique_id: result.mediaMetadata.file_unique_id
@@ -122,7 +127,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    console.error('[webhook-forwarder] Error processing webhook:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
