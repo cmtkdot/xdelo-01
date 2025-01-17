@@ -1,36 +1,43 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkFileUniqueId, calculateFileHash, checkContentHash } from "./duplicateDetection.ts";
+import { downloadTelegramFile, extractMediaInfo } from "./telegramHandler.ts";
 import { deleteFromStorage } from "./storageManager.ts";
-import { extractMediaInfo, getTelegramFilePath, downloadTelegramFile } from "./telegramHandler.ts";
 
 export async function processMediaMessage(supabase: any, message: any, botToken: string) {
-  console.log('Processing media message:', { message_id: message.message_id });
+  console.log('[processMediaMessage] Processing message:', message.message_id);
 
+  // Extract media info
   const mediaInfo = await extractMediaInfo(message);
   if (!mediaInfo) {
-    console.error('No media in message:', message);
+    console.log('[processMediaMessage] No media in message');
     return { error: 'No media in message' };
   }
 
   // Check for duplicates by file_unique_id first
   const existingMedia = await checkFileUniqueId(supabase, mediaInfo.file_unique_id);
   if (existingMedia) {
-    console.log('Duplicate media found by file_unique_id:', existingMedia.id);
-    return { existingMedia };
+    console.log('[processMediaMessage] Duplicate found by file_unique_id:', existingMedia.id);
+    
+    // Check if we need to update the existing record
+    if (message.caption !== existingMedia.caption || 
+        message.media_group_id !== existingMedia.media_group_id) {
+      return { existingMedia, requiresUpdate: true };
+    }
+    
+    return { existingMedia, requiresUpdate: false };
   }
 
-  // Get file path from Telegram
-  const filePath = await getTelegramFilePath(mediaInfo.file_id, botToken);
-  const fileBuffer = await downloadTelegramFile(filePath, botToken);
+  // Download file only if no duplicate found
+  const { buffer, filePath } = await downloadTelegramFile(mediaInfo.file_id, botToken);
   
   // Calculate content hash
-  const contentHash = await calculateFileHash(fileBuffer);
+  const contentHash = await calculateFileHash(buffer);
   
   // Check for content-based duplicates
   const contentDuplicate = await checkContentHash(supabase, contentHash);
   if (contentDuplicate) {
-    console.log('Content-based duplicate found:', contentDuplicate.id);
-    return { existingMedia: contentDuplicate };
+    console.log('[processMediaMessage] Content-based duplicate found:', contentDuplicate.id);
+    return { existingMedia: contentDuplicate, requiresUpdate: true };
   }
 
   // Generate safe filename
@@ -39,32 +46,31 @@ export async function processMediaMessage(supabase: any, message: any, botToken:
   // Upload to storage
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from('telegram-media')
-    .upload(fileName, fileBuffer, {
+    .upload(fileName, buffer, {
       contentType: mediaInfo.mime_type,
       cacheControl: '3600'
     });
 
   if (uploadError) {
-    console.error('Error uploading to storage:', uploadError);
+    console.error('[processMediaMessage] Error uploading to storage:', uploadError);
     throw uploadError;
   }
 
   // Generate public URL
   const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${fileName}`;
 
-  // Extract product info from caption if present
+  // Extract product info from caption
   const productInfo = extractProductInfo(message.caption || '');
 
   // Prepare metadata
   const mediaMetadata = {
     file_id: mediaInfo.file_id,
     file_unique_id: mediaInfo.file_unique_id,
-    file_size: mediaInfo.file_size,
     message_id: message.message_id,
-    content_type: mediaInfo.mime_type,
-    media_group_id: message.media_group_id,
-    content_hash: contentHash,
-    original_message: message,
+    content_type: mediaInfo.content_type,
+    mime_type: mediaInfo.mime_type,
+    file_size: mediaInfo.file_size,
+    content_hash: contentHash
   };
 
   return {
@@ -77,6 +83,7 @@ export async function processMediaMessage(supabase: any, message: any, botToken:
 
 function extractProductInfo(caption: string) {
   if (!caption) return null;
+  
   const regex = /^(.*?)\s*x\s*(\d+)\s*#([A-Z0-9]+)/;
   const matches = caption.match(regex);
   

@@ -44,34 +44,37 @@ serve(async (req) => {
     }
 
     if (result.existingMedia) {
-      console.log('Updating existing media:', result.existingMedia.id);
-      
-      const { error: updateError } = await supabaseClient
-        .from('media')
-        .update({
-          chat_id: message.chat.id,
-          caption: message.caption,
-          metadata: result.existingMedia.metadata,
-          media_group_id: message.media_group_id,
-          updated_at: new Date().toISOString(),
-          ...(result.productInfo && {
-            product_name: result.productInfo.product_name,
-            units_available: result.productInfo.units_available,
-            po_product_id: result.productInfo.po_product_id,
+      if (result.requiresUpdate) {
+        console.log('Updating existing media:', result.existingMedia.id);
+        
+        const { error: updateError } = await supabaseClient
+          .from('media')
+          .update({
+            chat_id: message.chat.id,
+            caption: message.caption,
+            metadata: result.mediaMetadata,
+            media_group_id: message.media_group_id,
+            updated_at: new Date().toISOString(),
+            ...(result.productInfo && {
+              product_name: result.productInfo.product_name,
+              units_available: result.productInfo.units_available,
+              po_product_id: result.productInfo.po_product_id,
+            })
           })
-        })
-        .eq('id', result.existingMedia.id);
+          .eq('id', result.existingMedia.id);
 
-      if (updateError) {
-        console.error('Error updating media:', updateError);
-        throw updateError;
+        if (updateError) {
+          console.error('Error updating media:', updateError);
+          throw updateError;
+        }
+      } else {
+        console.log('No updates needed for existing media:', result.existingMedia.id);
       }
 
       return new Response(
         JSON.stringify({ 
-          message: 'Media record updated', 
-          id: result.existingMedia.id,
-          productInfo: result.productInfo 
+          message: result.requiresUpdate ? 'Media record updated' : 'No updates needed', 
+          id: result.existingMedia.id
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
@@ -107,15 +110,13 @@ serve(async (req) => {
     console.log('Successfully processed media:', {
       id: newMedia.id,
       file_name: result.fileName,
-      file_unique_id: result.mediaMetadata.file_unique_id,
-      productInfo: result.productInfo
+      file_unique_id: result.mediaMetadata.file_unique_id
     });
 
     return new Response(
       JSON.stringify({ 
         message: 'New media record created', 
-        id: newMedia.id,
-        productInfo: result.productInfo 
+        id: newMedia.id
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 201 }
     );
