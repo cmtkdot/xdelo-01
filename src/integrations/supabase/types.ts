@@ -428,6 +428,7 @@ export type Database = {
           supabase_google_url: string | null
           supabase_media_id: string | null
           supabase_video_link: string | null
+          table_config_id: string | null
           total_qty_purchased: number | null
           total_units_behind_sample: number | null
           updated_at: string | null
@@ -471,6 +472,7 @@ export type Database = {
           supabase_google_url?: string | null
           supabase_media_id?: string | null
           supabase_video_link?: string | null
+          table_config_id?: string | null
           total_qty_purchased?: number | null
           total_units_behind_sample?: number | null
           updated_at?: string | null
@@ -514,6 +516,7 @@ export type Database = {
           supabase_google_url?: string | null
           supabase_media_id?: string | null
           supabase_video_link?: string | null
+          table_config_id?: string | null
           total_qty_purchased?: number | null
           total_units_behind_sample?: number | null
           updated_at?: string | null
@@ -523,7 +526,15 @@ export type Database = {
           vendor_uid?: string | null
           vpay_row_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "glide_products_table_config_id_fkey"
+            columns: ["table_config_id"]
+            isOneToOne: false
+            referencedRelation: "glide_table_configs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       glide_table_configs: {
         Row: {

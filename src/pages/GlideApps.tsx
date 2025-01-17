@@ -1,75 +1,20 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
-import { Loader2, RefreshCw, Plus, Trash } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { Database } from "@/integrations/supabase/types";
+import { Loader2 } from "lucide-react";
 import { GlideDataTable } from "@/components/glide/GlideDataTable";
-
-type GlideApp = Database['public']['Tables']['glide_apps']['Row'];
-type GlideTableConfig = Database['public']['Tables']['glide_table_configs']['Row'];
+import { AppSelector } from "@/components/glide/AppSelector";
+import { TableSelector } from "@/components/glide/TableSelector";
+import { TableActions } from "@/components/glide/TableActions";
+import type { GlideTableData } from "@/components/glide/types";
 
 const GlideApps = () => {
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedAppId, setSelectedAppId] = useState<string>("");
   const [selectedTableId, setSelectedTableId] = useState<string>("");
-
-  // Fetch Glide apps
-  const { data: apps, isLoading: isLoadingApps } = useQuery({
-    queryKey: ['glide-apps'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('glide_apps')
-        .select('*')
-        .eq('is_active', true)
-        .order('app_name');
-
-      if (error) {
-        toast({
-          title: "Error fetching apps",
-          description: error.message,
-          variant: "destructive",
-        });
-        throw error;
-      }
-      return data as GlideApp[];
-    },
-  });
-
-  // Fetch table configs for selected app
-  const { data: tableConfigs, isLoading: isLoadingTables } = useQuery({
-    queryKey: ['glide-table-configs', selectedAppId],
-    queryFn: async () => {
-      if (!selectedAppId) return [];
-      const { data, error } = await supabase
-        .from('glide_table_configs')
-        .select('*')
-        .eq('app_id', selectedAppId)
-        .eq('is_active', true)
-        .order('table_name');
-
-      if (error) {
-        toast({
-          title: "Error fetching tables",
-          description: error.message,
-          variant: "destructive",
-        });
-        throw error;
-      }
-      return data as GlideTableConfig[];
-    },
-    enabled: !!selectedAppId,
-  });
 
   // Fetch table data for selected table
   const { data: tableData, isLoading: isLoadingTableData, refetch: refetchTableData } = useQuery({
@@ -134,42 +79,6 @@ const GlideApps = () => {
     onError: (error) => {
       toast({
         title: "Error adding row",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Delete row mutation
-  const deleteRowMutation = useMutation({
-    mutationFn: async (rowId: string) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await supabase.functions.invoke('glide-apps-sync', {
-        body: { 
-          operation: { 
-            type: 'delete',
-            rowId
-          },
-          tableConfig: {
-            table: selectedTableId
-          }
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`
-        }
-      });
-
-      if (response.error) throw response.error;
-      return response.data;
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Row deleted successfully" });
-      refetchTableData();
-    },
-    onError: (error) => {
-      toast({
-        title: "Error deleting row",
         description: error.message,
         variant: "destructive",
       });
@@ -281,88 +190,35 @@ const GlideApps = () => {
             Manage and monitor your Glide apps synchronization
           </p>
         </div>
-        <div className="flex gap-2">
-          {selectedTableId && (
-            <Button 
-              onClick={handleAddRow}
-              disabled={addRowMutation.isPending}
-              className="min-w-[140px]"
-            >
-              {addRowMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Row
-                </>
-              )}
-            </Button>
-          )}
-          <Button 
-            onClick={handleSync} 
-            disabled={isSyncing || !selectedTableId}
-            className="min-w-[140px]"
-          >
-            {isSyncing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Syncing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Sync Now
-              </>
-            )}
-          </Button>
-        </div>
+        <TableActions 
+          onSync={handleSync}
+          onAddRow={handleAddRow}
+          isSyncing={isSyncing}
+          isAddingRow={addRowMutation.isPending}
+          selectedTableId={selectedTableId}
+        />
       </div>
 
       <div className="flex gap-4">
         <div className="w-1/2">
-          <Select
-            value={selectedAppId}
-            onValueChange={(value) => {
+          <AppSelector 
+            selectedAppId={selectedAppId}
+            onAppSelect={(value) => {
               setSelectedAppId(value);
               setSelectedTableId("");
             }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Glide App" />
-            </SelectTrigger>
-            <SelectContent>
-              {apps?.map((app) => (
-                <SelectItem key={app.id} value={app.id}>
-                  {app.app_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
         <div className="w-1/2">
-          <Select
-            value={selectedTableId}
-            onValueChange={setSelectedTableId}
-            disabled={!selectedAppId || !tableConfigs?.length}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Table" />
-            </SelectTrigger>
-            <SelectContent>
-              {tableConfigs?.map((config) => (
-                <SelectItem key={config.id} value={config.table_id}>
-                  {config.table_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <TableSelector
+            selectedAppId={selectedAppId}
+            selectedTableId={selectedTableId}
+            onTableSelect={setSelectedTableId}
+          />
         </div>
       </div>
 
-      {(isLoadingApps || isLoadingTables || isLoadingTableData) && (
+      {isLoadingTableData && (
         <div className="flex justify-center p-8">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
