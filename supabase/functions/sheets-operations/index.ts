@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, spreadsheetId, data, headerMapping, gid } = await req.json();
+    const { action, spreadsheetId, data } = await req.json();
     
     if (!spreadsheetId) {
       throw new Error('Spreadsheet ID is required');
@@ -27,7 +27,6 @@ serve(async (req) => {
     
     switch (action) {
       case 'verify': {
-        // Test access by trying to get spreadsheet metadata
         const response = await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
           {
@@ -51,57 +50,128 @@ serve(async (req) => {
         );
       }
 
-      case 'read': {
-        const range = gid ? `${gid}!A1:ZZ` : 'A1:ZZ';
-        const response = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('Read failed:', error);
-          throw new Error(`Failed to read sheet data: ${JSON.stringify(error)}`);
-        }
-
-        const sheetData = await response.json();
-        return new Response(
-          JSON.stringify({ success: true, data: sheetData.values }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
       case 'write': {
         if (!data) {
           throw new Error('No data provided for write operation');
         }
 
-        const range = gid ? `${gid}!A1:ZZ` : 'A1:ZZ';
-        const response = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`,
+        // First, get the current sheet metadata to check existing columns
+        const metadataResponse = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
           {
-            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!metadataResponse.ok) {
+          throw new Error('Failed to get spreadsheet metadata');
+        }
+
+        const metadata = await metadataResponse.json();
+        const sheet = metadata.sheets[0]; // Use first sheet
+        const sheetId = sheet.properties.sheetId;
+
+        // Get existing values to check headers
+        const valuesResponse = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ1`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          }
+        );
+
+        const valuesData = await valuesResponse.json();
+        const existingHeaders = valuesData.values?.[0] || [];
+        const newHeaders = data[0]; // First row contains headers
+
+        // If headers don't match, update them
+        if (JSON.stringify(existingHeaders) !== JSON.stringify(newHeaders)) {
+          console.log('Updating headers...');
+          
+          // Clear existing content
+          await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ?clear=true`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          // Write new data with headers
+          const response = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ?valueInputOption=RAW`,
+            {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                values: data,
+                majorDimension: "ROWS"
+              })
+            }
+          );
+
+          if (!response.ok) {
+            const error = await response.json();
+            console.error('Write failed:', error);
+            throw new Error(`Failed to write sheet data: ${JSON.stringify(error)}`);
+          }
+        } else {
+          // Append new data only
+          const response = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A${existingHeaders.length + 1}:append?valueInputOption=RAW`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                values: data.slice(1), // Skip headers
+                majorDimension: "ROWS"
+              })
+            }
+          );
+
+          if (!response.ok) {
+            const error = await response.json();
+            console.error('Append failed:', error);
+            throw new Error(`Failed to append sheet data: ${JSON.stringify(error)}`);
+          }
+        }
+
+        // Auto-resize columns
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+          {
+            method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              values: data,
-              majorDimension: "ROWS"
+              requests: [{
+                autoResizeDimensions: {
+                  dimensions: {
+                    sheetId: sheetId,
+                    dimension: "COLUMNS",
+                    startIndex: 0,
+                    endIndex: newHeaders.length
+                  }
+                }
+              }]
             })
           }
         );
-
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('Write failed:', error);
-          throw new Error(`Failed to write sheet data: ${JSON.stringify(error)}`);
-        }
 
         return new Response(
           JSON.stringify({ success: true }),
@@ -145,7 +215,6 @@ async function generateGoogleToken(credentials: any) {
   };
 
   const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
 
   // Create the JWT segments
   const encodedHeader = btoa(JSON.stringify(header));
