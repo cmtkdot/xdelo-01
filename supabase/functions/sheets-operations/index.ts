@@ -6,14 +6,12 @@ const corsHeaders = {
 };
 
 function formatPrivateKey(privateKey: string): string {
-  // Remove any existing headers, footers, and whitespace
   let formattedKey = privateKey
     .replace(/-----BEGIN PRIVATE KEY-----/g, '')
     .replace(/-----END PRIVATE KEY-----/g, '')
     .replace(/\\n/g, '\n')
     .replace(/\s/g, '');
 
-  // Add proper PEM formatting
   formattedKey = `-----BEGIN PRIVATE KEY-----\n${formattedKey}\n-----END PRIVATE KEY-----`;
   
   return formattedKey;
@@ -22,7 +20,7 @@ function formatPrivateKey(privateKey: string): string {
 async function generateGoogleToken(credentials: any) {
   try {
     const now = Math.floor(Date.now() / 1000);
-    const exp = now + 3600; // Token expires in 1 hour
+    const exp = now + 3600;
 
     const claim = {
       iss: credentials.client_email,
@@ -32,28 +30,20 @@ async function generateGoogleToken(credentials: any) {
       iat: now
     };
 
-    // Format the private key properly
     const formattedPrivateKey = formatPrivateKey(credentials.private_key);
     console.log('Private key length:', formattedPrivateKey.length);
 
-    // Create JWT header
     const header = {
       alg: 'RS256',
       typ: 'JWT'
     };
 
-    // Base64 encode header and claim
     const encodedHeader = btoa(JSON.stringify(header));
     const encodedClaim = btoa(JSON.stringify(claim));
-    
-    // Create signature input
     const signatureInput = `${encodedHeader}.${encodedClaim}`;
 
     try {
-      // Convert the PEM formatted key to ArrayBuffer
       const keyArrayBuffer = new TextEncoder().encode(formattedPrivateKey);
-
-      // Import the private key
       const keyData = await crypto.subtle.importKey(
         'pkcs8',
         keyArrayBuffer,
@@ -65,17 +55,14 @@ async function generateGoogleToken(credentials: any) {
         ['sign']
       );
 
-      // Sign the input
       const signature = await crypto.subtle.sign(
         'RSASSA-PKCS1-v1_5',
         keyData,
         new TextEncoder().encode(signatureInput)
       );
 
-      // Create final JWT
       const jwt = `${signatureInput}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`;
 
-      // Exchange JWT for access token
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: {
@@ -117,7 +104,24 @@ serve(async (req) => {
       throw new Error('Spreadsheet ID is required');
     }
 
-    // Get service account credentials from environment
+    // Get Google API key from the get-google-api-key function
+    const apiKeyResponse = await fetch(
+      `${Deno.env.get('SUPABASE_URL')}/functions/v1/get-google-api-key`,
+      {
+        headers: {
+          Authorization: req.headers.get('Authorization') || '',
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!apiKeyResponse.ok) {
+      throw new Error('Failed to get Google API key');
+    }
+
+    const { api_key } = await apiKeyResponse.json();
+    
+    // Get service account credentials
     const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
     
     console.log(`Processing ${action} request for spreadsheet: ${spreadsheetId}`);
@@ -128,7 +132,7 @@ serve(async (req) => {
     switch (action) {
       case 'verify': {
         const response = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?key=${api_key}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -155,9 +159,8 @@ serve(async (req) => {
           throw new Error('No data provided for write operation');
         }
 
-        // First, get the current sheet metadata
         const metadataResponse = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?key=${api_key}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -171,12 +174,11 @@ serve(async (req) => {
         }
 
         const metadata = await metadataResponse.json();
-        const sheet = metadata.sheets[0]; // Use first sheet
+        const sheet = metadata.sheets[0];
         const sheetId = sheet.properties.sheetId;
 
-        // Write data
         const response = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:append?valueInputOption=RAW`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:append?valueInputOption=RAW&key=${api_key}`,
           {
             method: 'POST',
             headers: {
@@ -196,9 +198,8 @@ serve(async (req) => {
           throw new Error(`Failed to write data: ${JSON.stringify(error)}`);
         }
 
-        // Auto-resize columns
         await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate?key=${api_key}`,
           {
             method: 'POST',
             headers: {
