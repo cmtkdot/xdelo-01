@@ -3,6 +3,72 @@
 ## Overview
 This application is a comprehensive media management system that integrates Telegram channels with Supabase storage. It provides robust synchronization capabilities with external services like Google Drive and Google Sheets, along with advanced media handling features.
 
+## Architecture
+
+### Frontend Components
+
+#### Media Gallery
+- **MediaGalleryContainer**: Core component managing media display and interactions
+  - Real-time updates using Supabase subscriptions
+  - Filtering by channel, media type, and upload status
+  - Batch operations (delete, sync)
+  - Duplicate detection and cleanup
+- **MediaFilters**: Advanced filtering interface
+  - Channel selection
+  - Media type filtering
+  - Upload status tracking
+- **MediaCard**: Individual media item display
+  - Thumbnail preview
+  - Caption management
+  - Quick actions
+  - Selection for batch operations
+
+#### Integration Components
+- **GoogleDriveUploader**: Handles media uploads to Google Drive
+- **GoogleAuthButton**: Manages Google OAuth authentication
+- **DeleteMediaDialog**: Confirmation dialog for media deletion
+- **ExportButton**: Facilitates data export functionality
+
+### Supabase Integration
+
+#### Client-Side Integration
+- Real-time subscriptions for media updates
+- Direct database queries using RLS policies
+- Storage bucket management for media files
+- Edge function invocation for complex operations
+
+#### Edge Functions
+1. **sync-telegram-channel**
+   - Webhook endpoint for Telegram updates
+   - Media file processing and storage
+   - Metadata extraction and storage
+
+2. **sync-media-captions**
+   - Batch caption synchronization
+   - Media group handling
+   - Caption history tracking
+
+3. **resync-media**
+   - File integrity verification
+   - Missing media recovery
+   - Storage URL management
+
+4. **upload-to-drive**
+   - Google Drive integration
+   - Batch upload handling
+   - Progress tracking
+
+#### Database Schema
+- **media**: Core table for media item storage
+- **channels**: Telegram channel management
+- **edge_function_logs**: Operation logging and monitoring
+
+### Security Features
+- Row Level Security (RLS) policies
+- Secure file storage access
+- OAuth integration for Google services
+- Webhook authentication for Telegram
+
 ## Core Features
 
 ### 1. Telegram Integration
