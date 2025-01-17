@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Plus, Trash } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -32,7 +32,7 @@ const GlideApps = () => {
         .from('glide_apps')
         .select('*')
         .eq('is_active', true)
-        .order('display_order');
+        .order('app_name');
 
       if (error) {
         toast({
@@ -55,7 +55,8 @@ const GlideApps = () => {
         .from('glide_table_configs')
         .select('*')
         .eq('app_id', selectedAppId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('table_name');
 
       if (error) {
         toast({
@@ -71,7 +72,7 @@ const GlideApps = () => {
   });
 
   // Fetch table data for selected table
-  const { data: tableData, isLoading: isLoadingTableData } = useQuery({
+  const { data: tableData, isLoading: isLoadingTableData, refetch: refetchTableData } = useQuery({
     queryKey: ['glide-table-data', selectedTableId],
     queryFn: async () => {
       if (!selectedTableId) return null;
@@ -101,6 +102,78 @@ const GlideApps = () => {
       return response.data;
     },
     enabled: !!selectedTableId,
+  });
+
+  // Add row mutation
+  const addRowMutation = useMutation({
+    mutationFn: async (data: Record<string, any>) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('glide-apps-sync', {
+        body: { 
+          operation: { 
+            type: 'add',
+            data
+          },
+          tableConfig: {
+            table: selectedTableId
+          }
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        }
+      });
+
+      if (response.error) throw response.error;
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Row added successfully" });
+      refetchTableData();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error adding row",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Delete row mutation
+  const deleteRowMutation = useMutation({
+    mutationFn: async (rowId: string) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('glide-apps-sync', {
+        body: { 
+          operation: { 
+            type: 'delete',
+            rowId
+          },
+          tableConfig: {
+            table: selectedTableId
+          }
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        }
+      });
+
+      if (response.error) throw response.error;
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Row deleted successfully" });
+      refetchTableData();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error deleting row",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   });
 
   const handleSync = async () => {
@@ -133,6 +206,7 @@ const GlideApps = () => {
         title: "Success",
         description: "Data synced successfully",
       });
+      refetchTableData();
     } catch (error) {
       console.error('Error syncing data:', error);
       toast({
@@ -171,6 +245,7 @@ const GlideApps = () => {
         title: "Success",
         description: "Data updated successfully",
       });
+      refetchTableData();
     } catch (error) {
       console.error('Error updating data:', error);
       toast({
@@ -179,6 +254,22 @@ const GlideApps = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleAddRow = () => {
+    if (!tableData || !tableData.length) {
+      toast({
+        title: "Error",
+        description: "Cannot add row: no table template available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const template = Object.fromEntries(
+      Object.keys(tableData[0]).map(key => [key, ''])
+    );
+    addRowMutation.mutate(template);
   };
 
   return (
@@ -190,23 +281,44 @@ const GlideApps = () => {
             Manage and monitor your Glide apps synchronization
           </p>
         </div>
-        <Button 
-          onClick={handleSync} 
-          disabled={isSyncing || !selectedTableId}
-          className="min-w-[140px]"
-        >
-          {isSyncing ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Syncing...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Sync Now
-            </>
+        <div className="flex gap-2">
+          {selectedTableId && (
+            <Button 
+              onClick={handleAddRow}
+              disabled={addRowMutation.isPending}
+              className="min-w-[140px]"
+            >
+              {addRowMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Row
+                </>
+              )}
+            </Button>
           )}
-        </Button>
+          <Button 
+            onClick={handleSync} 
+            disabled={isSyncing || !selectedTableId}
+            className="min-w-[140px]"
+          >
+            {isSyncing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Sync Now
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-4">
