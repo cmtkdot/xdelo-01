@@ -35,38 +35,48 @@ export const MediaTableContent = ({
 }: MediaTableContentProps) => {
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[400px]">
+      <div className="flex items-center justify-center h-[400px] rounded-lg border border-border bg-card">
         <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
       </div>
     );
   }
 
-  return (
-    <ScrollArea className="h-[calc(100vh-16rem)]" type="always">
-      <div className="min-w-[1400px]">
-        <Table>
-          <MediaTableHeader 
-            onSort={onSort}
-            onSelectAll={onSelectAll}
-            allSelected={allSelected}
-            someSelected={someSelected}
-            sortConfig={sortConfig}
-          />
-          <TableBody>
-            {mediaItems?.map((item, index) => (
-              <MediaTableRow
-                key={item.id}
-                item={item}
-                onOpenFile={onOpenFile}
-                isSelected={selectedMedia.some(media => media.id === item.id)}
-                onToggleSelect={(e) => onToggleSelect(item, index, e)}
-                onDelete={onRefetch}
-              />
-            ))}
-          </TableBody>
-        </Table>
+  if (!mediaItems.length) {
+    return (
+      <div className="flex items-center justify-center h-[400px] rounded-lg border border-border bg-card text-muted-foreground">
+        No media items found
       </div>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-[calc(100vh-12rem)] border rounded-lg border-border bg-card overflow-hidden">
+      <ScrollArea className="h-full">
+        <div className="min-w-[800px]">
+          <Table>
+            <MediaTableHeader 
+              onSort={onSort}
+              onSelectAll={onSelectAll}
+              allSelected={allSelected}
+              someSelected={someSelected}
+              sortConfig={sortConfig}
+            />
+            <TableBody>
+              {mediaItems.map((item, index) => (
+                <MediaTableRow
+                  key={item.id}
+                  item={item}
+                  isSelected={selectedMedia.some(selected => selected.id === item.id)}
+                  onToggleSelect={(e) => onToggleSelect(item, index, e)}
+                  onOpenFile={onOpenFile}
+                  onDelete={onRefetch}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+    </div>
   );
 };

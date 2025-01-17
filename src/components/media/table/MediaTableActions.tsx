@@ -52,7 +52,19 @@ export const MediaTableActions = ({
     try {
       setIsDeleting(true);
 
-      // First, delete the associated message if it exists
+      // First, delete from storage bucket
+      const { error: storageError } = await supabase
+        .storage
+        .from('media')
+        .remove([fileName]);
+
+      if (storageError) {
+        console.error('Error deleting from storage:', storageError);
+        // Continue with database deletion even if storage deletion fails
+        // as the file might have been already deleted or moved
+      }
+
+      // Then delete the associated message if it exists
       if (chatId && messageId) {
         const { error: messageError } = await supabase
           .from('messages')
@@ -66,7 +78,7 @@ export const MediaTableActions = ({
         }
       }
 
-      // Then delete the media entry
+      // Finally delete the media entry
       const { error: mediaError } = await supabase
         .from('media')
         .delete()
@@ -85,7 +97,7 @@ export const MediaTableActions = ({
       console.error('Error deleting media:', error);
       toast({
         title: "Error",
-        description: "Failed to delete media. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to delete media. Please try again.",
         variant: "destructive",
       });
     } finally {

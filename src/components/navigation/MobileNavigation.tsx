@@ -4,6 +4,7 @@ import NavigationItems from "./NavigationItems";
 import LogoutButton from "./LogoutButton";
 import ExportButton from "./ExportButton";
 import { useLocation } from "react-router-dom";
+import { ThemeToggle } from "../ui/theme-toggle";
 
 interface MobileNavigationProps {
   isOpen: boolean;
@@ -50,7 +51,11 @@ const MobileNavigation = ({ isOpen, onToggle }: MobileNavigationProps) => {
           </div>
 
           <div className="p-4 border-t border-gray-200/50 dark:border-white/10">
-            <LogoutButton className="w-full justify-start" />
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Theme</span>
+              <ThemeToggle />
+            </div>
+            <LogoutButton className="w-full justify-center" />
           </div>
         </div>
       </nav>
