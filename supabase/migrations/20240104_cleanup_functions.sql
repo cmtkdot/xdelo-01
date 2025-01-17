@@ -1,1 +1,0 @@
--- Update triggers to use the new update_updated_at_column function
