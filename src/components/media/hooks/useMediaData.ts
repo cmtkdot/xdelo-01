@@ -3,10 +3,10 @@ import { MediaItem, MediaFilter } from "../types";
 import { useToast } from "@/components/ui/use-toast";
 import { useQuery } from "@tanstack/react-query";
 
-const useMediaData = (filter: MediaFilter) => {
+export const useMediaData = (filter?: MediaFilter) => {
   const { toast } = useToast();
   
-  const query = useQuery({
+  return useQuery({
     queryKey: ['media', filter],
     queryFn: async () => {
       console.log("Fetching media with filter:", filter);
@@ -18,17 +18,17 @@ const useMediaData = (filter: MediaFilter) => {
         `)
         .order('created_at', { ascending: false });
 
-      if (filter.selectedChannel !== "all") {
+      if (filter?.selectedChannel !== "all") {
         query = query.eq('chat_id', parseInt(filter.selectedChannel));
       }
       
-      if (filter.selectedType !== "all") {
+      if (filter?.selectedType !== "all") {
         query = query.eq('media_type', filter.selectedType);
       }
 
-      if (filter.uploadStatus === "not_uploaded") {
+      if (filter?.uploadStatus === "not_uploaded") {
         query = query.is('google_drive_id', null);
-      } else if (filter.uploadStatus === "uploaded") {
+      } else if (filter?.uploadStatus === "uploaded") {
         query = query.not('google_drive_id', 'is', null);
       }
 
@@ -47,13 +47,7 @@ const useMediaData = (filter: MediaFilter) => {
       console.log("Media data fetched:", data?.length, "items");
       return data as MediaItem[];
     },
-    // Ensure the query is always fresh
     staleTime: 0,
-    // Enable real-time updates
     refetchInterval: 1000,
   });
-
-  return query;
 };
-
-export default useMediaData;

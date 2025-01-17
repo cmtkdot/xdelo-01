@@ -13,25 +13,28 @@ export const GoogleSheetsConfigContent = ({
   googleSheetId,
   sheetsConfig 
 }: GoogleSheetsConfigProps) => {
-  const { spreadsheets, addSpreadsheet, removeSpreadsheet, updateSpreadsheet } = useGoogleSheetsConfig();
+  const { spreadsheets, handleAddSpreadsheet, toggleAutoSync, removeSpreadsheet } = useGoogleSheetsConfig();
   const { data: allMedia } = useMediaData();
 
   useEffect(() => {
     if (googleSheetId) {
-      addSpreadsheet(googleSheetId);
+      handleAddSpreadsheet("Synced Media Sheet", googleSheetId);
     }
   }, [googleSheetId]);
 
   return (
     <div className="space-y-4">
-      <AddSpreadsheetForm onSubmit={addSpreadsheet} />
+      <AddSpreadsheetForm onSubmit={handleAddSpreadsheet} />
       
       {spreadsheets.map(sheet => (
         <SpreadsheetCard
           key={sheet.id}
-          spreadsheet={sheet}
+          sheet={sheet}
+          onToggleAutoSync={toggleAutoSync}
           onRemove={removeSpreadsheet}
-          onUpdate={updateSpreadsheet}
+          onHeaderMappingComplete={(mapping) => {
+            console.log('Header mapping complete:', mapping);
+          }}
         />
       ))}
 

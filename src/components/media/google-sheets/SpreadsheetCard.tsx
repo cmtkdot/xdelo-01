@@ -5,16 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { GoogleSheetsHeaderMapping } from "../GoogleSheetsHeaderMapping";
 import { Badge } from "@/components/ui/badge";
+import { SpreadsheetConfig } from "./types";
 
-interface SpreadsheetConfig {
-  id: string;
-  name: string;
-  autoSync: boolean;
-  gid?: string;
-  isHeadersMapped?: boolean;
-}
-
-interface SpreadsheetCardProps {
+export interface SpreadsheetCardProps {
   sheet: SpreadsheetConfig;
   onToggleAutoSync: (id: string) => void;
   onRemove: (id: string) => void;
