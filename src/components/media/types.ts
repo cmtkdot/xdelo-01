@@ -24,10 +24,14 @@ export interface MediaItem {
 }
 
 export interface Channel {
-  id?: string;
+  id: string;
   chat_id: number;
   title: string;
   username?: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  user_id: string;
 }
 
 export interface MediaFilter {
