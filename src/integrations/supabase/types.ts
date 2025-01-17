@@ -188,6 +188,36 @@ export type Database = {
         }
         Relationships: []
       }
+      glide_apps: {
+        Row: {
+          app_id: string
+          app_name: string
+          created_at: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          app_id: string
+          app_name: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          app_id?: string
+          app_name?: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       glide_products: {
         Row: {
           account_row_id: string | null
@@ -319,6 +349,59 @@ export type Database = {
           vpay_row_id?: string | null
         }
         Relationships: []
+      }
+      glide_table_configs: {
+        Row: {
+          app_id: string
+          column_mapping: Json | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_synced: string | null
+          sync_direction: Database["public"]["Enums"]["sync_direction"] | null
+          sync_interval: number | null
+          table_id: string
+          table_name: string
+          updated_at: string | null
+          validation_rules: Json | null
+        }
+        Insert: {
+          app_id: string
+          column_mapping?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_synced?: string | null
+          sync_direction?: Database["public"]["Enums"]["sync_direction"] | null
+          sync_interval?: number | null
+          table_id: string
+          table_name: string
+          updated_at?: string | null
+          validation_rules?: Json | null
+        }
+        Update: {
+          app_id?: string
+          column_mapping?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_synced?: string | null
+          sync_direction?: Database["public"]["Enums"]["sync_direction"] | null
+          sync_interval?: number | null
+          table_id?: string
+          table_name?: string
+          updated_at?: string | null
+          validation_rules?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "glide_table_configs_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "glide_apps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       media: {
         Row: {
@@ -702,6 +785,10 @@ export type Database = {
         | "transportation"
         | "dc_expenses"
         | "automatic"
+      sync_direction:
+        | "glide_to_supabase"
+        | "supabase_to_glide"
+        | "bidirectional"
     }
     CompositeTypes: {
       [_ in never]: never

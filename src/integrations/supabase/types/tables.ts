@@ -9,3 +9,5 @@ export type { BotUsers } from './tables/botUsers';
 export type { AITrainingData } from './tables/aiTrainingData';
 export type { GlideProducts } from './tables/glideProducts';
 export type { Expense } from './tables/expense';
+export type { GlideApps } from './tables/glideApps';
+export type { GlideTableConfigs } from './tables/glideTableConfigs';
