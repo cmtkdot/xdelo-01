@@ -6,7 +6,6 @@ import {
   Image,
   Settings,
   Webhook,
-  Bot,
   FileSpreadsheet,
   Database,
   RefreshCw,
@@ -14,15 +13,14 @@ import {
 import { cn } from "@/lib/utils";
 
 export const navItems = [
-  { path: "/", icon: Home, label: "Dashboard" },
-  { path: "/messages", icon: MessageSquare, label: "Messages" },
+  { path: "/", icon: Home, label: "Home" },
   { path: "/media", icon: Image, label: "Media" },
+  { path: "/messages", icon: MessageSquare, label: "Messages" },
   { path: "/channel-sync", icon: RefreshCw, label: "Channel Sync" },
   { path: "/media-table", icon: FileSpreadsheet, label: "Media Table" },
   { path: "/google-sheet", icon: FileSpreadsheet, label: "Google Sheet" },
   { path: "/google-sheet-sync", icon: FileSpreadsheet, label: "Sheet Sync" },
   { path: "/webhooks", icon: Webhook, label: "Webhooks" },
-  { path: "/ai-chat", icon: Bot, label: "AI Chat" },
   { path: "/database-chat", icon: Database, label: "Database Chat" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
