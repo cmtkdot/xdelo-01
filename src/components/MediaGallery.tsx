@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import useMediaData from "./media/hooks/useMediaData";
+import { useMediaData } from "./media/hooks/useMediaData";
 import useMediaSubscription from "./media/hooks/useMediaSubscription";
 import { MediaFilter } from "./media/types";
 import { useToast } from "@/hooks/use-toast";
