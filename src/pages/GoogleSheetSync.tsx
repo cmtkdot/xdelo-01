@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FileSpreadsheet, RefreshCw } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
@@ -45,17 +45,19 @@ export default function GoogleSheetSync() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       toast({
         title: "Success",
-        description: "Data synced successfully",
+        description: "Data synced successfully to Google Sheets",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sync error:', error);
       toast({
         title: "Error",
-        description: "Failed to sync data. Please check the logs.",
+        description: error.message || "Failed to sync data. Please check the logs.",
         variant: "destructive",
       });
     } finally {
@@ -73,15 +75,30 @@ export default function GoogleSheetSync() {
 
     if (error) throw error;
 
-    return mediaData.map((item: any) => [
+    // Add headers as first row
+    const headers = [
+      'ID',
+      'File Name',
+      'Media Type', 
+      'Caption',
+      'Channel',
+      'Created At',
+      'Public URL',
+      'Google Drive URL'
+    ];
+
+    const rows = mediaData.map((item: any) => [
       item.id,
       item.file_name,
       item.media_type,
       item.caption || '',
       item.chat?.title || '',
       item.created_at ? new Date(item.created_at).toLocaleString() : '',
-      item.public_url || ''
+      item.public_url || '',
+      item.google_drive_url || ''
     ]);
+
+    return [headers, ...rows];
   };
 
   return (
@@ -93,13 +110,13 @@ export default function GoogleSheetSync() {
             Google Sheets Sync
           </CardTitle>
           <CardDescription>
-            Sync your media data with Google Sheets
+            Sync your media data with Google Sheets using service account authentication
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <AlertDescription>
-              You can sync {mediaCount} media items with your Google Sheet.
+              You can sync {mediaCount} media items to your Google Sheet. Make sure the sheet is shared with the service account email.
             </AlertDescription>
           </Alert>
 
