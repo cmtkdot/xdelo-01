@@ -5,15 +5,23 @@ export interface DatabaseFunctions {
     Args: { query_text: string };
     Returns: Json;
   };
-  get_media_data: {
+  handle_message_upsert: {
     Args: Record<string, never>;
-    Returns: Json;
+    Returns: unknown;
   };
   handle_new_user: {
     Args: Record<string, never>;
     Returns: unknown;
   };
-  handle_updated_at: {
+  set_media_public_url: {
+    Args: Record<string, never>;
+    Returns: unknown;
+  };
+  update_media_references: {
+    Args: Record<string, never>;
+    Returns: unknown;
+  };
+  update_message_public_url: {
     Args: Record<string, never>;
     Returns: unknown;
   };
