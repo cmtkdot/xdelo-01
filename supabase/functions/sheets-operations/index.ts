@@ -20,11 +20,11 @@ serve(async (req) => {
     // Get service account credentials from environment
     const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
     
-    // Generate JWT token for service account
-    const jwt = await createJWT(credentials);
-    
     console.log(`Processing ${action} request for spreadsheet: ${spreadsheetId}`);
 
+    // Generate JWT token
+    const token = await generateGoogleToken(credentials);
+    
     switch (action) {
       case 'verify': {
         // Test access by trying to get spreadsheet metadata
@@ -32,7 +32,7 @@ serve(async (req) => {
           `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
           {
             headers: {
-              'Authorization': `Bearer ${jwt}`,
+              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           }
@@ -40,6 +40,7 @@ serve(async (req) => {
 
         if (!response.ok) {
           const error = await response.json();
+          console.error('Verification failed:', error);
           throw new Error(`Failed to verify sheet access: ${JSON.stringify(error)}`);
         }
 
@@ -51,12 +52,12 @@ serve(async (req) => {
       }
 
       case 'read': {
-        // Read sheet data
+        const range = gid ? `${gid}!A1:ZZ` : 'A1:ZZ';
         const response = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`,
           {
             headers: {
-              'Authorization': `Bearer ${jwt}`,
+              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           }
@@ -64,6 +65,7 @@ serve(async (req) => {
 
         if (!response.ok) {
           const error = await response.json();
+          console.error('Read failed:', error);
           throw new Error(`Failed to read sheet data: ${JSON.stringify(error)}`);
         }
 
@@ -79,13 +81,13 @@ serve(async (req) => {
           throw new Error('No data provided for write operation');
         }
 
-        // Write data to sheet
+        const range = gid ? `${gid}!A1:ZZ` : 'A1:ZZ';
         const response = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ?valueInputOption=RAW`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`,
           {
             method: 'PUT',
             headers: {
-              'Authorization': `Bearer ${jwt}`,
+              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -97,6 +99,7 @@ serve(async (req) => {
 
         if (!response.ok) {
           const error = await response.json();
+          console.error('Write failed:', error);
           throw new Error(`Failed to write sheet data: ${JSON.stringify(error)}`);
         }
 
@@ -126,8 +129,7 @@ serve(async (req) => {
   }
 });
 
-// Helper function to create JWT token
-async function createJWT(credentials: any) {
+async function generateGoogleToken(credentials: any) {
   const header = {
     alg: 'RS256',
     typ: 'JWT'
@@ -142,18 +144,19 @@ async function createJWT(credentials: any) {
     iat: now
   };
 
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  // Create the JWT segments
   const encodedHeader = btoa(JSON.stringify(header));
   const encodedClaim = btoa(JSON.stringify(claim));
   const signatureInput = `${encodedHeader}.${encodedClaim}`;
 
-  // Convert private key to proper format
+  // Import the private key
   const privateKey = credentials.private_key.replace(/\\n/g, '\n');
-  
-  // Create signature
-  const encoder = new TextEncoder();
   const keyData = await crypto.subtle.importKey(
     'pkcs8',
-    new Uint8Array(privateKey.split('').map(c => c.charCodeAt(0))),
+    str2ab(privateKey),
     {
       name: 'RSASSA-PKCS1-v1_5',
       hash: 'SHA-256'
@@ -161,13 +164,15 @@ async function createJWT(credentials: any) {
     false,
     ['sign']
   );
-  
+
+  // Sign the input
   const signature = await crypto.subtle.sign(
     'RSASSA-PKCS1-v1_5',
     keyData,
     encoder.encode(signatureInput)
   );
 
+  // Create the complete JWT
   const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)));
   const jwt = `${encodedHeader}.${encodedClaim}.${encodedSignature}`;
 
@@ -183,6 +188,22 @@ async function createJWT(credentials: any) {
     })
   });
 
+  if (!tokenResponse.ok) {
+    const error = await tokenResponse.json();
+    console.error('Token exchange failed:', error);
+    throw new Error(`Failed to exchange JWT for access token: ${JSON.stringify(error)}`);
+  }
+
   const tokenData = await tokenResponse.json();
   return tokenData.access_token;
+}
+
+// Helper function to convert string to ArrayBuffer
+function str2ab(str: string): ArrayBuffer {
+  const buf = new ArrayBuffer(str.length);
+  const bufView = new Uint8Array(buf);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
 }
