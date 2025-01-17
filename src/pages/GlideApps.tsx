@@ -81,7 +81,9 @@ const GlideApps = () => {
       const response = await supabase.functions.invoke('glide-apps-sync', {
         body: { 
           operation: { type: 'get' },
-          tableId: selectedTableId
+          tableConfig: {
+            table: selectedTableId
+          }
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`
@@ -154,7 +156,9 @@ const GlideApps = () => {
             rowId: tableData[cell[1]].id,
             data: { [Object.keys(tableData[cell[1]])[cell[0]]]: newValue.data }
           },
-          tableId: selectedTableId
+          tableConfig: {
+            table: selectedTableId
+          }
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`
