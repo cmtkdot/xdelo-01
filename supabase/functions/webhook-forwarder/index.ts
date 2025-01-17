@@ -54,11 +54,11 @@ serve(async (req) => {
       if (mediaItem?.file_id) {
         console.log('Checking for duplicate media with file_unique_id:', mediaItem.file_unique_id);
         
-        // Only check for duplicates using file_unique_id
+        // Check for existing media with same file_unique_id
         const { data: existingMedia, error: queryError } = await supabaseClient
           .from('media')
-          .select('id, file_name, metadata')
-          .eq('metadata->file_unique_id', mediaItem.file_unique_id)
+          .select('*')
+          .filter('metadata->file_unique_id', 'eq', mediaItem.file_unique_id)
           .maybeSingle();
 
         if (queryError) {
@@ -69,31 +69,41 @@ serve(async (req) => {
         if (existingMedia) {
           console.log('Duplicate media found:', existingMedia.id);
           
-          // If the existing media has no caption but the new message does, update it
-          if (!existingMedia.caption && message.caption) {
-            const { error: updateError } = await supabaseClient
-              .from('media')
-              .update({ caption: message.caption })
-              .eq('id', existingMedia.id);
-
-            if (updateError) {
-              console.error('Error updating caption:', updateError);
-            } else {
-              console.log('Updated caption for existing media:', existingMedia.id);
+          // Update existing media record with new information
+          const updateData = {
+            chat_id: message.chat?.id,
+            caption: message.caption,
+            media_group_id: message.media_group_id,
+            updated_at: new Date().toISOString(),
+            metadata: {
+              ...existingMedia.metadata,
+              message_id: message.message_id,
+              media_group_id: message.media_group_id,
+              original_message: message
             }
+          };
+
+          const { error: updateError } = await supabaseClient
+            .from('media')
+            .update(updateData)
+            .eq('id', existingMedia.id);
+
+          if (updateError) {
+            console.error('Error updating media:', updateError);
+            throw updateError;
           }
           
           await logOperation(
             supabaseClient,
             'webhook-forwarder',
             'info',
-            `Skipped duplicate media with file_unique_id: ${mediaItem.file_unique_id}`
+            `Updated existing media with file_unique_id: ${mediaItem.file_unique_id}`
           );
           
           return new Response(
             JSON.stringify({ 
               success: true, 
-              message: 'Duplicate media skipped',
+              message: 'Media record updated',
               mediaId: existingMedia.id 
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -120,7 +130,7 @@ serve(async (req) => {
         const mediaResponse = await fetch(fileUrl);
         const buffer = await mediaResponse.arrayBuffer();
 
-        const fileName = fileData.result.file_path.split('/').pop();
+        const fileName = `${mediaItem.file_unique_id}_${Date.now()}.${fileData.result.file_path.split('.').pop()}`;
         const mediaType = message.photo ? 'image' : (message.video ? 'video' : 'document');
 
         // Upload to storage
@@ -135,7 +145,11 @@ serve(async (req) => {
           width: mediaItem.width,
           height: mediaItem.height,
           duration: mediaItem.duration,
-          message_id: message.message_id
+          message_id: message.message_id,
+          file_path: fileData.result.file_path,
+          content_type: mediaItem.mime_type || `${mediaType}/${fileData.result.file_path.split('.').pop()}`,
+          media_group_id: message.media_group_id,
+          original_message: message
         };
 
         const { data: media, error: insertError } = await supabaseClient
