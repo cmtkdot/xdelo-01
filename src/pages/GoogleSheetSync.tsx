@@ -10,7 +10,6 @@ import { useQuery } from "@tanstack/react-query";
 import { GoogleAuthButton } from "@/components/media/google-sheets/GoogleAuthButton";
 import { getGoogleAuthMethod } from "@/components/media/utils/googleSheets/authManager";
 
-// Helper function to extract spreadsheet ID from URL
 const extractSpreadsheetId = (url: string): string | null => {
   try {
     const patterns = [
@@ -38,16 +37,6 @@ export default function GoogleSheetSync() {
   const { toast } = useToast();
   const [authMethod, setAuthMethod] = useState<'oauth' | 'service_account' | null>(null);
 
-  // Fetch auth method on component mount
-  useQuery({
-    queryKey: ['google-auth-method'],
-    queryFn: async () => {
-      const method = await getGoogleAuthMethod();
-      setAuthMethod(method);
-      return method;
-    },
-  });
-
   const { data: mediaCount } = useQuery({
     queryKey: ['media-count'],
     queryFn: async () => {
@@ -57,6 +46,15 @@ export default function GoogleSheetSync() {
       
       if (error) throw error;
       return count || 0;
+    },
+  });
+
+  useQuery({
+    queryKey: ['google-auth-method'],
+    queryFn: async () => {
+      const method = await getGoogleAuthMethod();
+      setAuthMethod(method);
+      return method;
     },
   });
 
