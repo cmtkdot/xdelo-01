@@ -1,18 +1,18 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileSpreadsheet } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { SheetConfiguration } from "@/components/google-sheets/SheetConfiguration";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { FileSpreadsheet, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { Json } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useQuery } from "@tanstack/react-query";
 
 export default function GoogleSheetSync() {
-  const [googleSheetId, setGoogleSheetId] = useState<string | null>(null);
+  const [spreadsheetId, setSpreadsheetId] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Get media count for display
   const { data: mediaCount } = useQuery({
     queryKey: ['media-count'],
     queryFn: async () => {
@@ -25,65 +25,104 @@ export default function GoogleSheetSync() {
     },
   });
 
-  // Get existing sheet config and header mapping
-  const { data: sheetsConfig } = useQuery({
-    queryKey: ['google-sheets-config'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('google_sheets_config')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      if (data?.[0]) {
-        setGoogleSheetId(data[0].spreadsheet_id);
-      }
-      return data;
-    },
-  });
-
-  // Parse the header mapping to ensure it's a Record<string, string>
-  const parseHeaderMapping = (mapping: Json | null): Record<string, string> => {
-    if (!mapping || typeof mapping !== 'object') {
-      return {};
+  const handleSync = async () => {
+    if (!spreadsheetId) {
+      toast({
+        title: "Error",
+        description: "Please enter a spreadsheet ID",
+        variant: "destructive",
+      });
+      return;
     }
-    
-    const result: Record<string, string> = {};
-    Object.entries(mapping).forEach(([key, value]) => {
-      if (typeof value === 'string') {
-        result[key] = value;
-      }
-    });
-    return result;
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('sheets-operations', {
+        body: { 
+          action: 'write',
+          spreadsheetId,
+          data: await formatMediaData()
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Data synced successfully",
+      });
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync data. Please check the logs.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const headerMapping = parseHeaderMapping(sheetsConfig?.[0]?.header_mapping);
+  const formatMediaData = async () => {
+    const { data: mediaData, error } = await supabase
+      .from('media')
+      .select(`
+        *,
+        chat:channels(title, username)
+      `);
+
+    if (error) throw error;
+
+    return mediaData.map((item: any) => [
+      item.id,
+      item.file_name,
+      item.media_type,
+      item.caption || '',
+      item.chat?.title || '',
+      item.created_at ? new Date(item.created_at).toLocaleString() : '',
+      item.public_url || ''
+    ]);
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-4">
-      <Card className="bg-black/40 backdrop-blur-xl border-white/10">
+      <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-6 w-6" />
-            Google Sheets Integration
+            Google Sheets Sync
           </CardTitle>
           <CardDescription>
-            Connect and sync your media data with Google Sheets
+            Sync your media data with Google Sheets
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <AlertDescription>
-              You can sync {mediaCount} media items with your Google Sheet. The sync will preserve custom columns and their values.
+              You can sync {mediaCount} media items with your Google Sheet.
             </AlertDescription>
           </Alert>
 
-          <SheetConfiguration
-            onSpreadsheetIdSet={setGoogleSheetId}
-            googleSheetId={googleSheetId}
-            parsedMapping={headerMapping}
-            sheetsConfig={sheetsConfig}
-          />
+          <div className="flex gap-4">
+            <Input
+              placeholder="Enter Google Sheet ID"
+              value={spreadsheetId}
+              onChange={(e) => setSpreadsheetId(e.target.value)}
+              className="flex-1"
+            />
+            <Button 
+              onClick={handleSync}
+              disabled={isLoading || !spreadsheetId}
+              className="gap-2"
+            >
+              {isLoading ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Sync Now
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
