@@ -11,8 +11,12 @@ serve(async (req) => {
   }
 
   try {
-    const { action, spreadsheetId, data } = await req.json();
+    const { action, spreadsheetId, data, headerMapping, gid } = await req.json();
     
+    if (!spreadsheetId) {
+      throw new Error('Spreadsheet ID is required');
+    }
+
     // Get service account credentials from environment
     const credentials = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS') || '{}');
     
