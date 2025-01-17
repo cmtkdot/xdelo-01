@@ -82,13 +82,13 @@ const MediaTable = () => {
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
+          event: '*',
           schema: 'public',
           table: 'media'
         },
         (payload) => {
           console.log('Received real-time update:', payload);
-          refetch(); // Refresh the data when changes occur
+          refetch();
         }
       )
       .subscribe((status) => {
@@ -118,7 +118,7 @@ const MediaTable = () => {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-12rem)] text-center">
         <div className="p-6 max-w-sm mx-auto bg-red-500/10 rounded-lg border border-red-500/20">
-          <p className="text-red-400">Error: {(error as Error).message}</p>
+          <p className="text-red-400">Error: {error.message}</p>
         </div>
       </div>
     );

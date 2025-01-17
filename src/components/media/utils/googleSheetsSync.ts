@@ -61,37 +61,26 @@ export const syncWithGoogleSheets = async (
   try {
     console.log('Starting Google Sheets sync...');
     
-    // Get existing header mapping from config
-    const { data: configData, error: configError } = await supabase
-      .from('google_sheets_config')
-      .select('header_mapping')
-      .eq('spreadsheet_id', spreadsheetId)
-      .single();
-
-    if (configError) throw configError;
-
-    const headerMapping = configData?.header_mapping || {};
-    
-    // Format data based on header mapping
+    // Format data for sync
     const formattedData = mediaItems.map(item => {
-      const row: string[] = [];
-      Object.entries(headerMapping).forEach(([sheetHeader, dbColumn]) => {
+      const row = [];
+      for (const column of DEFAULT_SYNC_COLUMNS) {
         let value = '';
-        if (dbColumn.includes('.')) {
+        if (column.includes('.')) {
           // Handle nested properties (e.g., 'chat.title')
-          const [parent, child] = dbColumn.split('.');
-          value = item[parent]?.[child] || '';
+          const [parent, child] = column.split('.');
+          value = item[parent as keyof MediaItem]?.[child] || '';
         } else {
-          value = item[dbColumn] || '';
+          value = item[column as keyof MediaItem] || '';
         }
         
         // Format dates
-        if (dbColumn === 'created_at' || dbColumn === 'updated_at') {
+        if (column === 'created_at' || column === 'updated_at') {
           value = value ? new Date(value).toLocaleString() : '';
         }
         
         row.push(value.toString());
-      });
+      }
       return row;
     });
 
@@ -101,17 +90,11 @@ export const syncWithGoogleSheets = async (
         spreadsheetId,
         gid,
         data: formattedData,
-        headerMapping
+        columns: DEFAULT_SYNC_COLUMNS
       },
     });
 
     if (error) throw error;
-
-    // Update last sync timestamp
-    await supabase
-      .from('google_sheets_config')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('spreadsheet_id', spreadsheetId);
 
     console.log('Sync completed successfully');
     return true;
