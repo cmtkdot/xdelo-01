@@ -1,4 +1,4 @@
-import { TelegramFile } from "../../../_shared/types.ts";
+import { TelegramFile } from "../../_shared/types.ts";
 
 export async function extractMediaInfo(message: any) {
   console.log('[extractMediaInfo] Processing message:', message.message_id);
