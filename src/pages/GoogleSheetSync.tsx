@@ -8,8 +8,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 
+// Helper function to extract spreadsheet ID from URL
+const extractSpreadsheetId = (url: string): string | null => {
+  try {
+    // Handle different Google Sheets URL formats
+    const patterns = [
+      /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/, // Standard format
+      /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)\/edit/, // Edit URL
+      /^([a-zA-Z0-9-_]+)$/ // Direct ID
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error extracting spreadsheet ID:', error);
+    return null;
+  }
+};
+
 export default function GoogleSheetSync() {
-  const [spreadsheetId, setSpreadsheetId] = useState("");
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -26,10 +49,12 @@ export default function GoogleSheetSync() {
   });
 
   const handleSync = async () => {
+    const spreadsheetId = extractSpreadsheetId(spreadsheetUrl);
+    
     if (!spreadsheetId) {
       toast({
         title: "Error",
-        description: "Please enter a spreadsheet ID",
+        description: "Please enter a valid Google Sheets URL",
         variant: "destructive",
       });
       return;
@@ -122,14 +147,14 @@ export default function GoogleSheetSync() {
 
           <div className="flex gap-4">
             <Input
-              placeholder="Enter Google Sheet ID"
-              value={spreadsheetId}
-              onChange={(e) => setSpreadsheetId(e.target.value)}
+              placeholder="Enter Google Sheet URL"
+              value={spreadsheetUrl}
+              onChange={(e) => setSpreadsheetUrl(e.target.value)}
               className="flex-1"
             />
             <Button 
               onClick={handleSync}
-              disabled={isLoading || !spreadsheetId}
+              disabled={isLoading || !spreadsheetUrl}
               className="gap-2"
             >
               {isLoading ? (
