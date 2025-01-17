@@ -1,161 +1,121 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    // Log start of operation
-    await supabase.from('edge_function_logs').insert({
-      function_name: 'sync-media-captions',
-      status: 'info',
-      message: 'Starting media captions sync based on media groups'
-    });
-
-    // Get all media groups
-    const { data: mediaGroups, error: groupsError } = await supabase
-      .from('media')
-      .select('media_group_id')
-      .not('media_group_id', 'is', null)
-      .order('media_group_id');
-
-    if (groupsError) {
-      throw new Error(`Failed to fetch media groups: ${groupsError.message}`);
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+    if (!botToken) {
+      throw new Error('TELEGRAM_BOT_TOKEN is not configured');
     }
 
-    // Get unique media group IDs
-    const uniqueGroupIds = [...new Set(mediaGroups.map(m => m.media_group_id))];
-    console.log(`Found ${uniqueGroupIds.length} unique media groups to process`);
+    // Get media items with empty captions or in media groups
+    const { data: mediaItems, error: fetchError } = await supabase
+      .from('media')
+      .select('*')
+      .or('caption.is.null,media_group_id.is.not.null')
+      .order('created_at', { ascending: false });
 
-    const results = [];
-    const errors = [];
+    if (fetchError) throw fetchError;
 
-    // Process each media group
-    for (const groupId of uniqueGroupIds) {
+    console.log(`Found ${mediaItems?.length || 0} media items to process`);
+
+    const processedGroups = new Set();
+    const results = {
+      processed: 0,
+      updated: 0,
+      errors: [] as string[]
+    };
+
+    for (const media of mediaItems || []) {
       try {
-        console.log(`Processing media group ${groupId}`);
-        
-        // Get all media items in this group
-        const { data: groupMedia, error: mediaError } = await supabase
-          .from('media')
-          .select('*')
-          .eq('media_group_id', groupId)
-          .order('created_at');
-
-        if (mediaError) throw mediaError;
-
-        // Find the first media item with a caption
-        const mediaWithCaption = groupMedia.find(m => m.caption && m.caption.trim() !== '');
-        
-        if (mediaWithCaption) {
-          console.log(`Found caption "${mediaWithCaption.caption}" in group ${groupId}`);
+        if (media.media_group_id && !processedGroups.has(media.media_group_id)) {
+          // Process media group
+          processedGroups.add(media.media_group_id);
           
-          // Update all items in the group that don't have captions
-          const { error: updateError } = await supabase
+          const { data: groupMedia } = await supabase
             .from('media')
-            .update({ 
-              caption: mediaWithCaption.caption,
-              updated_at: new Date().toISOString()
-            })
-            .eq('media_group_id', groupId)
-            .is('caption', null);
+            .select('*')
+            .eq('media_group_id', media.media_group_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
 
-          if (updateError) {
-            throw new Error(`Failed to update group ${groupId}: ${updateError.message}`);
+          if (groupMedia?.metadata?.message_id) {
+            const response = await fetch(
+              `https://api.telegram.org/bot${botToken}/getMessage?chat_id=${groupMedia.chat_id}&message_id=${groupMedia.metadata.message_id}`
+            );
+
+            if (!response.ok) {
+              throw new Error(`Failed to get message: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.ok && data.result.caption !== groupMedia.caption) {
+              const { error: updateError } = await supabase
+                .from('media')
+                .update({ caption: data.result.caption })
+                .eq('media_group_id', media.media_group_id);
+
+              if (updateError) throw updateError;
+              results.updated++;
+            }
+          }
+        } else if (!media.media_group_id && !media.caption && media.metadata?.message_id) {
+          // Process single media
+          const response = await fetch(
+            `https://api.telegram.org/bot${botToken}/getMessage?chat_id=${media.chat_id}&message_id=${media.metadata.message_id}`
+          );
+
+          if (!response.ok) {
+            throw new Error(`Failed to get message: ${response.statusText}`);
           }
 
-          results.push({
-            groupId,
-            status: 'updated',
-            mediaCount: groupMedia.length,
-            caption: mediaWithCaption.caption
-          });
+          const data = await response.json();
+          if (data.ok && data.result.caption) {
+            const { error: updateError } = await supabase
+              .from('media')
+              .update({ caption: data.result.caption })
+              .eq('id', media.id);
 
-          // Log successful update
-          await supabase.from('edge_function_logs').insert({
-            function_name: 'sync-media-captions',
-            status: 'success',
-            message: `Updated captions for media group ${groupId} (${groupMedia.length} items) with caption: ${mediaWithCaption.caption}`
-          });
-        } else {
-          console.log(`No caption found in group ${groupId}`);
+            if (updateError) throw updateError;
+            results.updated++;
+          }
         }
-
+        results.processed++;
       } catch (error) {
-        console.error(`Error processing group ${groupId}:`, error);
-        errors.push({ groupId, error: error.message });
-
-        // Log error
-        await supabase.from('edge_function_logs').insert({
-          function_name: 'sync-media-captions',
-          status: 'error',
-          message: `Error updating group ${groupId}: ${error.message}`
-        });
+        console.error(`Error processing media ${media.id}:`, error);
+        results.errors.push(`Media ${media.id}: ${error.message}`);
       }
     }
 
-    // Log completion
-    await supabase.from('edge_function_logs').insert({
-      function_name: 'sync-media-captions',
-      status: errors.length ? 'error' : 'success',
-      message: `Sync completed with ${results.length} updates and ${errors.length} errors`
-    });
+    // Log the sync operation
+    await supabase
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'sync-media-captions',
+        status: results.errors.length > 0 ? 'partial' : 'success',
+        message: `Processed ${results.processed} items, updated ${results.updated} captions, ${results.errors.length} errors`
+      });
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        processed: results.length,
-        errors: errors.length,
-        details: { results, errors }
-      }),
-      { 
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      }
+      JSON.stringify(results),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
   } catch (error) {
     console.error('Error in sync-media-captions:', error);
-    
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    
-    // Log error
-    await supabase.from('edge_function_logs').insert({
-      function_name: 'sync-media-captions',
-      status: 'error',
-      message: `Error: ${error.message}`
-    });
-
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
-      }),
-      { 
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 500
-      }
+      JSON.stringify({ error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
