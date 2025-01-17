@@ -10,12 +10,14 @@ import { AddGlideAppDialog } from "./AddGlideAppDialog";
 
 interface TableActionsProps {
   onAddRow: () => void;
+  onSync: () => void;
   isAddingRow: boolean;
   selectedTableConfig: GlideTableConfig | null;
 }
 
 export function TableActions({ 
   onAddRow, 
+  onSync,
   isAddingRow, 
   selectedTableConfig 
 }: TableActionsProps) {
@@ -28,19 +30,7 @@ export function TableActions({
 
     setIsSyncing(true);
     try {
-      const { error } = await supabase.functions.invoke('glide-apps-sync', {
-        body: { 
-          tableConfig: selectedTableConfig,
-          operation: 'sync'
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Table synced successfully",
-      });
+      await onSync();
     } catch (error) {
       console.error('Error syncing table:', error);
       toast({

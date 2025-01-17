@@ -22,6 +22,24 @@ export function useGlideData(tableConfig: GlideTableConfig | null) {
     enabled: !!tableConfig,
   });
 
+  const syncTable = async () => {
+    if (!tableConfig) throw new Error('No table selected');
+
+    const { error } = await supabase.functions.invoke('glide-apps-sync', {
+      body: { 
+        tableConfig,
+        operation: 'sync'
+      }
+    });
+
+    if (error) throw error;
+    
+    // Invalidate the query to refetch latest data
+    queryClient.invalidateQueries({ 
+      queryKey: ['glide-table-data', tableConfig.id]
+    });
+  };
+
   const addRow = useMutation({
     mutationFn: async (newData: Record<string, any>) => {
       if (!tableConfig) throw new Error('No table selected');
@@ -40,7 +58,9 @@ export function useGlideData(tableConfig: GlideTableConfig | null) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['glide-table-data', tableConfig?.id] });
+      queryClient.invalidateQueries({ 
+        queryKey: ['glide-table-data', tableConfig?.id] 
+      });
       toast({ title: 'Success', description: 'Row added successfully' });
     },
     onError: (error) => {
@@ -67,7 +87,9 @@ export function useGlideData(tableConfig: GlideTableConfig | null) {
       return updatedData;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['glide-table-data', tableConfig?.id] });
+      queryClient.invalidateQueries({ 
+        queryKey: ['glide-table-data', tableConfig?.id] 
+      });
       toast({ title: 'Success', description: 'Row updated successfully' });
     },
     onError: (error) => {
@@ -91,7 +113,9 @@ export function useGlideData(tableConfig: GlideTableConfig | null) {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['glide-table-data', tableConfig?.id] });
+      queryClient.invalidateQueries({ 
+        queryKey: ['glide-table-data', tableConfig?.id] 
+      });
       toast({ title: 'Success', description: 'Row deleted successfully' });
     },
     onError: (error) => {
@@ -109,6 +133,7 @@ export function useGlideData(tableConfig: GlideTableConfig | null) {
     addRow: addRow.mutate,
     updateRow: updateRow.mutate,
     deleteRow: deleteRow.mutate,
+    syncTable,
     isModifying: addRow.isPending || updateRow.isPending || deleteRow.isPending
   };
 }

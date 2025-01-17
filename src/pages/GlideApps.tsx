@@ -6,22 +6,45 @@ import { AppSelector } from "@/components/glide/AppSelector";
 import { TableSelector } from "@/components/glide/TableSelector";
 import { TableActions } from "@/components/glide/TableActions";
 import { useGlideData } from "@/hooks/useGlideData";
+import { useToast } from "@/components/ui/use-toast";
 import type { GlideTableConfig } from "@/components/glide/types";
 
 const GlideApps = () => {
   const [selectedAppId, setSelectedAppId] = useState<string>("");
   const [selectedTableConfig, setSelectedTableConfig] = useState<GlideTableConfig | null>(null);
+  const { toast } = useToast();
+  
   const { 
     tableData, 
     isLoading, 
     addRow, 
     updateRow, 
     deleteRow, 
-    isModifying 
+    isModifying,
+    syncTable 
   } = useGlideData(selectedTableConfig);
 
   const handleTableSelect = (config: GlideTableConfig) => {
     setSelectedTableConfig(config);
+  };
+
+  const handleSync = async () => {
+    if (!selectedTableConfig) return;
+    
+    try {
+      await syncTable();
+      toast({
+        title: "Success",
+        description: "Table synced successfully",
+      });
+    } catch (error) {
+      console.error('Error syncing table:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync table",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCellEdited = (cell: any, newValue: any) => {
@@ -65,6 +88,7 @@ const GlideApps = () => {
         </div>
         <TableActions 
           onAddRow={handleAddRow}
+          onSync={handleSync}
           isAddingRow={isModifying}
           selectedTableConfig={selectedTableConfig}
         />
