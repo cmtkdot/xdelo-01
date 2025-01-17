@@ -188,6 +188,30 @@ export type Database = {
         }
         Relationships: []
       }
+      file_links: {
+        Row: {
+          file_name: string
+          id: number
+          public_url: string
+          uploaded_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          file_name: string
+          id?: never
+          public_url: string
+          uploaded_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          file_name?: string
+          id?: never
+          public_url?: string
+          uploaded_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       glide_apps: {
         Row: {
           app_id: string
