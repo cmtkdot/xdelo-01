@@ -6,6 +6,7 @@ import { FileSpreadsheet } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SheetConfiguration } from "@/components/google-sheets/SheetConfiguration";
 import { useToast } from "@/components/ui/use-toast";
+import { Json } from "@/integrations/supabase/types";
 
 export default function GoogleSheetSync() {
   const [googleSheetId, setGoogleSheetId] = useState<string | null>(null);
@@ -41,7 +42,22 @@ export default function GoogleSheetSync() {
     },
   });
 
-  const headerMapping = sheetsConfig?.[0]?.header_mapping || {};
+  // Parse the header mapping to ensure it's a Record<string, string>
+  const parseHeaderMapping = (mapping: Json | null): Record<string, string> => {
+    if (!mapping || typeof mapping !== 'object') {
+      return {};
+    }
+    
+    const result: Record<string, string> = {};
+    Object.entries(mapping).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        result[key] = value;
+      }
+    });
+    return result;
+  };
+
+  const headerMapping = parseHeaderMapping(sheetsConfig?.[0]?.header_mapping);
 
   return (
     <div className="container mx-auto p-4 space-y-4">
