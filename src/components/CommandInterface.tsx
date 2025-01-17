@@ -4,21 +4,13 @@ import { Input } from "./ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { AISettingsPanel, AISettings } from "./ai-chat/AISettings";
-import { handleAIResponse } from "./ai-chat/AIResponseHandler";
-import { checkAuth } from "./ai-chat/AuthHandler";
+import { checkAuth } from "@/lib/auth";
 
 const CommandInterface = () => {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [settings, setSettings] = useState<AISettings>({
-    temperature: 0.7,
-    maxTokens: 500,
-    streamResponse: true,
-    model: "claude-3-sonnet"
-  });
 
   useEffect(() => {
     const checkInitialAuth = async () => {
@@ -81,8 +73,6 @@ const CommandInterface = () => {
       });
 
       if (messageError) throw messageError;
-
-      await handleAIResponse(message, settings, user.id, messageId);
       setMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
@@ -109,14 +99,13 @@ const CommandInterface = () => {
     <div className="bg-transparent rounded-lg">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold text-white">Command Interface</h2>
-        <AISettingsPanel settings={settings} onSettingsChange={setSettings} />
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex gap-2">
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Ask a question, run a SQL query, or trigger a webhook..."
+            placeholder="Type your message..."
             disabled={isLoading}
             className="bg-black/40 border-white/10 text-white placeholder:text-gray-400"
           />
