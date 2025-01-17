@@ -40,45 +40,19 @@ serve(async (req) => {
     if (result.error) {
       console.error('[webhook-forwarder] Error processing media:', result.error);
       return new Response(
-        JSON.stringify({ error: result.error }), 
+        JSON.stringify({ error: result.error, details: result.details }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
-    // If we found an existing media entry
-    if (result.existingMedia) {
-      console.log('[webhook-forwarder] Found existing media:', result.existingMedia.id);
-      
-      // Only update if changes are needed
-      if (result.requiresUpdate) {
-        console.log('[webhook-forwarder] Updating existing media:', result.existingMedia.id);
-        
-        const { error: updateError } = await supabaseClient
-          .from('media')
-          .update({
-            chat_id: message.chat.id,
-            caption: message.caption,
-            metadata: result.mediaMetadata,
-            media_group_id: message.media_group_id,
-            updated_at: new Date().toISOString(),
-            ...(result.productInfo && {
-              product_name: result.productInfo.product_name,
-              units_available: result.productInfo.units_available,
-              po_product_id: result.productInfo.po_product_id,
-            })
-          })
-          .eq('id', result.existingMedia.id);
-
-        if (updateError) {
-          console.error('[webhook-forwarder] Error updating media:', updateError);
-          throw updateError;
-        }
-      }
-
+    // If it's a duplicate, return early with a 200 status
+    if (result.isDuplicate) {
+      console.log('[webhook-forwarder] Duplicate detected:', result.message);
       return new Response(
         JSON.stringify({ 
-          message: result.requiresUpdate ? 'Media record updated' : 'No updates needed', 
-          id: result.existingMedia.id
+          status: 'skipped',
+          message: result.message,
+          existingMediaId: result.existingMedia.id 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
@@ -120,6 +94,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
+        status: 'success',
         message: 'New media record created', 
         id: newMedia.id
       }),
