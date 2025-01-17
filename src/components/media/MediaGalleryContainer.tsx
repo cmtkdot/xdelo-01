@@ -1,19 +1,9 @@
 import { useEffect, useState } from "react";
-import useMediaData from "./hooks/useMediaData";
+import { useMediaData } from "./hooks/useMediaData";
 import useMediaSubscription from "./hooks/useMediaSubscription";
 import { MediaFilter, Channel } from "./types";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import MediaGalleryHeader from "./MediaGalleryHeader";
 import MediaFilters from "./MediaFilters";
 import MediaGalleryContent from "./MediaGalleryContent";

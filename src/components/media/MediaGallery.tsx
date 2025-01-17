@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import useMediaData from "./hooks/useMediaData";
+import { useMediaData } from "./hooks/useMediaData";
 import useMediaSubscription from "./hooks/useMediaSubscription";
 import { MediaFilter } from "./types";
 import { useToast } from "@/components/ui/use-toast";
@@ -82,10 +82,7 @@ const MediaGallery = () => {
     try {
       setDeletingDuplicates(true);
       const { error } = await supabase.functions.invoke('delete-duplicates', {
-        body: { keepNewest: true },
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        body: { keepNewest: true }
       });
 
       if (error) throw error;

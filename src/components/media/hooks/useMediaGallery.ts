@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { MediaFilter, Channel } from "../types";
+import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import useMediaData from "./useMediaData";
+import { supabase } from "@/integrations/supabase/client";
+import { useMediaData } from "./useMediaData";
 import useMediaSubscription from "./useMediaSubscription";
+import { MediaFilter } from "../types";
 
 export const useMediaGallery = () => {
   const [filter, setFilter] = useState<MediaFilter>({
@@ -11,7 +11,6 @@ export const useMediaGallery = () => {
     selectedType: "all",
     uploadStatus: "all"
   });
-  const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSyncingCaptions, setSyncingCaptions] = useState(false);
@@ -20,28 +19,6 @@ export const useMediaGallery = () => {
 
   const { data: mediaItems, isLoading, error, refetch } = useMediaData(filter);
   useMediaSubscription(() => refetch());
-
-  const fetchChannels = async () => {
-    const { data, error } = await supabase
-      .from('channels')
-      .select('title, chat_id');
-    
-    if (error) {
-      console.error('Error fetching channels:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load channels",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setChannels(data || []);
-  };
-
-  useEffect(() => {
-    fetchChannels();
-  }, []);
 
   const handleToggleSelect = (id: string) => {
     setSelectedMedia(prev => {
@@ -59,7 +36,10 @@ export const useMediaGallery = () => {
     try {
       setDeletingDuplicates(true);
       const { error } = await supabase.functions.invoke('delete-duplicates', {
-        body: { keepNewest: true }
+        body: { keepNewest: true },
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (error) throw error;
@@ -85,7 +65,12 @@ export const useMediaGallery = () => {
   const handleSyncCaptions = async () => {
     try {
       setSyncingCaptions(true);
-      const { error } = await supabase.functions.invoke('sync-media-captions');
+      const { error } = await supabase.functions.invoke('sync-media-captions', {
+        body: { action: "sync" }, // Provide a non-empty body
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
       if (error) throw error;
 
@@ -105,12 +90,13 @@ export const useMediaGallery = () => {
     } finally {
       setSyncingCaptions(false);
     }
+
   };
 
   return {
     filter,
     setFilter,
-    channels,
+    mediaItems,
     selectedMedia,
     handleToggleSelect,
     handleDeleteDuplicates,
@@ -119,7 +105,6 @@ export const useMediaGallery = () => {
     isDeletingDuplicates,
     isDeleteDialogOpen,
     setIsDeleteDialogOpen,
-    mediaItems,
     isLoading,
     error,
     refetch
