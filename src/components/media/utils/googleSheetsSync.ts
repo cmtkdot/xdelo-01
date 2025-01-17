@@ -65,13 +65,18 @@ export const syncWithGoogleSheets = async (
     const formattedData = mediaItems.map(item => {
       const row = [];
       for (const column of DEFAULT_SYNC_COLUMNS) {
-        let value = '';
+        let value: string = '';
         if (column.includes('.')) {
           // Handle nested properties (e.g., 'chat.title')
           const [parent, child] = column.split('.');
-          value = item[parent as keyof MediaItem]?.[child] || '';
+          const parentValue = item[parent as keyof MediaItem];
+          if (parentValue && typeof parentValue === 'object' && child in parentValue) {
+            value = String(parentValue[child as keyof typeof parentValue] || '');
+          }
         } else {
-          value = item[column as keyof MediaItem] || '';
+          const itemValue = item[column as keyof MediaItem];
+          // Convert any value to string
+          value = itemValue !== null && itemValue !== undefined ? String(itemValue) : '';
         }
         
         // Format dates
@@ -79,7 +84,7 @@ export const syncWithGoogleSheets = async (
           value = value ? new Date(value).toLocaleString() : '';
         }
         
-        row.push(value.toString());
+        row.push(value);
       }
       return row;
     });
