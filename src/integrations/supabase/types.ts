@@ -120,33 +120,6 @@ export type Database = {
         }
         Relationships: []
       }
-      expense: {
-        Row: {
-          amount: string | null
-          category: Database["public"]["Enums"]["expense_category"] | null
-          date: string | null
-          expense_note: string | null
-          expenses_row_id: string | null
-          uuid: number
-        }
-        Insert: {
-          amount?: string | null
-          category?: Database["public"]["Enums"]["expense_category"] | null
-          date?: string | null
-          expense_note?: string | null
-          expenses_row_id?: string | null
-          uuid?: number
-        }
-        Update: {
-          amount?: string | null
-          category?: Database["public"]["Enums"]["expense_category"] | null
-          date?: string | null
-          expense_note?: string | null
-          expenses_row_id?: string | null
-          uuid?: number
-        }
-        Relationships: []
-      }
       file_links: {
         Row: {
           file_name: string
@@ -198,6 +171,33 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      glide_expenses: {
+        Row: {
+          amount: string | null
+          category: Database["public"]["Enums"]["expense_category"] | null
+          date: string | null
+          expense_note: string | null
+          expenses_row_id: string | null
+          uuid: number
+        }
+        Insert: {
+          amount?: string | null
+          category?: Database["public"]["Enums"]["expense_category"] | null
+          date?: string | null
+          expense_note?: string | null
+          expenses_row_id?: string | null
+          uuid?: number
+        }
+        Update: {
+          amount?: string | null
+          category?: Database["public"]["Enums"]["expense_category"] | null
+          date?: string | null
+          expense_note?: string | null
+          expenses_row_id?: string | null
+          uuid?: number
         }
         Relationships: []
       }
