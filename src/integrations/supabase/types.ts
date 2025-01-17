@@ -320,48 +320,6 @@ export type Database = {
         }
         Relationships: []
       }
-      google_sheets_config: {
-        Row: {
-          auth_method: Database["public"]["Enums"]["auth_method"] | null
-          auto_sync: boolean | null
-          created_at: string | null
-          header_mapping: Json | null
-          id: string
-          is_headers_mapped: boolean | null
-          sheet_gid: string | null
-          sheet_name: string | null
-          spreadsheet_id: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          auth_method?: Database["public"]["Enums"]["auth_method"] | null
-          auto_sync?: boolean | null
-          created_at?: string | null
-          header_mapping?: Json | null
-          id?: string
-          is_headers_mapped?: boolean | null
-          sheet_gid?: string | null
-          sheet_name?: string | null
-          spreadsheet_id: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          auth_method?: Database["public"]["Enums"]["auth_method"] | null
-          auto_sync?: boolean | null
-          created_at?: string | null
-          header_mapping?: Json | null
-          id?: string
-          is_headers_mapped?: boolean | null
-          sheet_gid?: string | null
-          sheet_name?: string | null
-          spreadsheet_id?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       media: {
         Row: {
           additional_data: Json | null
@@ -733,7 +691,6 @@ export type Database = {
       }
     }
     Enums: {
-      auth_method: "oauth" | "service_account"
       expense_category:
         | "company_supplies"
         | "rent_utility"
