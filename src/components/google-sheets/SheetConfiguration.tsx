@@ -10,6 +10,7 @@ import { GoogleAuthButton } from "../media/google-sheets/GoogleAuthButton";
 import { ConnectionStatus } from "./components/ConnectionStatus";
 import { FieldMappingDisplay } from "./components/FieldMappingDisplay";
 import { SheetDataDisplay } from "./SheetDataDisplay";
+import { MediaItem } from "../media/types";
 
 interface SheetConfigurationProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -80,6 +81,52 @@ export const SheetConfiguration = ({
     },
   });
 
+  const formatMediaData = async () => {
+    // Fetch all media data
+    const { data: mediaData, error } = await supabase
+      .from('media')
+      .select(`
+        *,
+        chat:channels(title, username)
+      `);
+
+    if (error) throw error;
+
+    // Get the header mapping from sheets config
+    const { data: configData, error: configError } = await supabase
+      .from('google_sheets_config')
+      .select('header_mapping')
+      .eq('spreadsheet_id', googleSheetId)
+      .single();
+
+    if (configError) throw configError;
+
+    const headerMapping = configData?.header_mapping || {};
+
+    // Format data according to header mapping
+    return mediaData.map((item: MediaItem) => {
+      const row: string[] = [];
+      Object.entries(headerMapping).forEach(([sheetHeader, dbColumn]) => {
+        let value = '';
+        if (dbColumn.includes('.')) {
+          // Handle nested properties (e.g., 'chat.title')
+          const [parent, child] = dbColumn.split('.');
+          value = item[parent]?.[child] || '';
+        } else {
+          value = item[dbColumn] || '';
+        }
+        
+        // Format dates
+        if (dbColumn === 'created_at' || dbColumn === 'updated_at') {
+          value = value ? new Date(value).toLocaleString() : '';
+        }
+        
+        row.push(value.toString());
+      });
+      return row;
+    });
+  };
+
   const handleSyncWithMedia = async () => {
     try {
       const tokenStatus = checkGoogleTokenStatus();
@@ -115,7 +162,7 @@ export const SheetConfiguration = ({
         body: { 
           action: 'write',
           spreadsheetId: googleSheetId,
-          data: await formatMediaData() // You'll need to implement this
+          data: await formatMediaData()
         },
         headers: {
           Authorization: `Bearer ${accessToken}`
