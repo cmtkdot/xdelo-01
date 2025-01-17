@@ -3,10 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, CheckCircle, XCircle, Plus } from "lucide-react";
+import { Loader2, RefreshCw, CheckCircle, Plus } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -16,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
+import { GlideDataTable } from "@/components/glide/GlideDataTable";
 
 type GlideApp = Database['public']['Tables']['glide_apps']['Row'];
 type GlideTableConfig = Database['public']['Tables']['glide_table_configs']['Row'];
@@ -38,6 +38,30 @@ const GlideApps = () => {
       if (error) throw error;
       return data as GlideApp[];
     },
+  });
+
+  // Fetch table configs and data for selected app
+  const { data: tableData, isLoading: isLoadingTableData } = useQuery({
+    queryKey: ['glide-table-data', selectedTableId],
+    queryFn: async () => {
+      if (!selectedTableId) return null;
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('glide-apps-sync', {
+        body: { 
+          operation: { type: 'get' },
+          tableId: selectedTableId
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        }
+      });
+
+      if (response.error) throw response.error;
+      return response.data;
+    },
+    enabled: !!selectedTableId,
   });
 
   // Fetch table configs for selected app
@@ -89,13 +113,18 @@ const GlideApps = () => {
     }
   };
 
-  const handleAddTable = async () => {
+  const handleCellEdited = async (cell: any, newValue: any) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      const { error } = await supabase.functions.invoke('add-glide-table', {
+      const { error } = await supabase.functions.invoke('glide-apps-sync', {
         body: { 
-          appId: selectedAppId,
+          operation: { 
+            type: 'update',
+            rowId: tableData[cell[1]].id,
+            data: { [Object.keys(tableData[cell[1]])[cell[0]]]: newValue.data }
+          },
+          tableId: selectedTableId
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`
@@ -106,13 +135,13 @@ const GlideApps = () => {
       
       toast({
         title: "Success",
-        description: "New table configuration added",
+        description: "Data updated successfully",
       });
     } catch (error) {
-      console.error('Error adding table:', error);
+      console.error('Error updating data:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add table",
+        description: error instanceof Error ? error.message : "Failed to update data",
         variant: "destructive",
       });
     }
@@ -133,14 +162,6 @@ const GlideApps = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            onClick={handleAddTable}
-            disabled={!selectedAppId}
-            variant="outline"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Table
-          </Button>
           <Button 
             onClick={handleSync} 
             disabled={isSyncing || !selectedTableId}
@@ -199,79 +220,13 @@ const GlideApps = () => {
         </div>
       </div>
 
-      {selectedTableId && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="p-6">
-            <h3 className="font-semibold text-lg mb-2">Sync Direction</h3>
-            <Badge variant="secondary" className="text-lg">
-              {tableConfigs?.find(c => c.table_id === selectedTableId)?.sync_direction || 'N/A'}
-            </Badge>
-          </Card>
-          <Card className="p-6">
-            <h3 className="font-semibold text-lg mb-2">Last Sync</h3>
-            <p className="text-xl">
-              {tableConfigs?.find(c => c.table_id === selectedTableId)?.last_synced 
-                ? formatDate(tableConfigs.find(c => c.table_id === selectedTableId)?.last_synced || null) 
-                : 'Never'}
-            </p>
-          </Card>
-          <Card className="p-6">
-            <h3 className="font-semibold text-lg mb-2">Status</h3>
-            <div className="flex items-center space-x-2">
-              {isSyncing ? (
-                <Badge variant="secondary" className="text-lg py-1">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Syncing
-                </Badge>
-              ) : (
-                <Badge variant="default" className="text-lg py-1">
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Ready
-                </Badge>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {selectedTableId && (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Table Name</TableHead>
-                  <TableHead>Sync Direction</TableHead>
-                  <TableHead>Last Synced</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tableConfigs?.map((config) => (
-                  <TableRow key={config.id}>
-                    <TableCell className="font-medium">{config.table_name}</TableCell>
-                    <TableCell>{config.sync_direction}</TableCell>
-                    <TableCell>{formatDate(config.last_synced)}</TableCell>
-                    <TableCell>
-                      <Badge variant={config.is_active ? "default" : "secondary"}>
-                        {config.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedTableId(config.table_id)}
-                      >
-                        View Details
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+      {selectedTableId && tableData && (
+        <Card className="p-6">
+          <GlideDataTable
+            data={tableData}
+            columns={Object.keys(tableData[0] || {})}
+            onCellEdited={handleCellEdited}
+          />
         </Card>
       )}
     </div>
