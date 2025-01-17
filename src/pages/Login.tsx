@@ -1,105 +1,123 @@
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event, session) => {
+    // Check initial auth state
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate("/");
+        navigate("/dashboard");
+      }
+      setIsLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        navigate("/dashboard");
       }
     });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0F]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen relative overflow-hidden bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen relative overflow-hidden bg-[#0A0A0F] flex items-center justify-center">
       {/* Animated background */}
       <div className="absolute inset-0 w-full h-full">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-purple-900/20 to-black animate-gradient">
-          {/* Animated particles */}
-          <div className="absolute inset-0">
-            <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-blue-500/30 rounded-full blur-3xl animate-float"></div>
-            <div className="absolute top-3/4 right-1/4 w-40 h-40 bg-purple-500/30 rounded-full blur-3xl animate-float delay-1000"></div>
-            <div className="absolute bottom-1/4 left-1/2 w-36 h-36 bg-indigo-500/30 rounded-full blur-3xl animate-float delay-2000"></div>
-          </div>
-          
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-900/10 to-[#0A0A0F]">
           {/* Grid overlay */}
-          <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.075)_1px,transparent_1px)] bg-[size:32px_32px]"></div>
         </div>
         
-        {/* Animated borders */}
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent animate-pulse"></div>
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent animate-pulse"></div>
+        {/* Subtle animated borders */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
       </div>
 
-      {/* Login container */}
-      <div className="relative max-w-md w-full">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg blur-xl animate-pulse"></div>
-        <div className="relative backdrop-blur-xl bg-black/40 rounded-lg border border-white/10 p-8 shadow-2xl">
+      {/* Login container - Optimized for desktop and mobile */}
+      <div className="relative w-full sm:w-[600px] lg:w-[800px] xl:w-[1000px] mx-auto px-4">
+        <div className="relative backdrop-blur-xl bg-black/40 rounded-2xl border border-white/10 p-8 lg:p-12 shadow-2xl">
           {/* Logo */}
-          <div className="flex flex-col items-center justify-center gap-8 mb-8">
+          <div className="flex flex-col items-center justify-center mb-8 lg:mb-12">
             <img 
               src="/lovable-uploads/ed1ad7fe-b108-4e36-8479-42df7f19fd63.png"
               alt="Logo"
-              className="w-48 h-auto animate-float"
+              className="w-32 lg:w-40 h-auto"
             />
           </div>
 
-          {/* Auth component */}
-          <Auth
-            supabaseClient={supabase}
-            appearance={{
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: "#3b82f6",
-                    brandAccent: "#2563eb",
-                    defaultButtonBackground: "rgba(0,0,0,0.4)",
-                    defaultButtonBackgroundHover: "rgba(0,0,0,0.6)",
-                    inputBackground: "rgba(0, 0, 0, 0.2)",
-                    inputBorder: "rgba(255, 255, 255, 0.1)",
-                    inputBorderHover: "rgba(59, 130, 246, 0.5)",
-                    inputBorderFocus: "#3b82f6",
+          {/* Auth component - Centered with max width */}
+          <div className="max-w-md mx-auto flex flex-col items-center">
+            <Auth
+              supabaseClient={supabase}
+              appearance={{
+                theme: ThemeSupa,
+                variables: {
+                  default: {
+                    colors: {
+                      brand: "#3b82f6",
+                      brandAccent: "#2563eb",
+                      defaultButtonBackground: "rgba(0,0,0,0.4)",
+                      defaultButtonBackgroundHover: "rgba(0,0,0,0.6)",
+                      inputBackground: "rgba(0, 0, 0, 0.2)",
+                      inputBorder: "rgba(255, 255, 255, 0.1)",
+                      inputBorderHover: "rgba(59, 130, 246, 0.5)",
+                      inputBorderFocus: "#3b82f6",
+                    },
                   },
                 },
-              },
-              className: {
-                container: "text-white",
-                label: "text-white",
-                button: "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white transition-all duration-200",
-                input: "bg-black/20 border-white/10 text-white placeholder:text-white/50 focus:border-blue-500/50 transition-all duration-200",
-                anchor: "text-blue-400 hover:text-blue-300 transition-colors",
-                divider: "text-white/50",
-                message: "text-white bg-red-500 p-3 rounded-md",
-              },
-              style: {
-                input: {
-                  color: 'white',
+                className: {
+                  container: "text-white w-full flex flex-col items-center",
+                  label: "text-white/90 text-sm font-medium mb-1.5 self-start",
+                  button: "bg-blue-500 hover:bg-blue-600 text-white w-full py-2.5 rounded-lg transition-colors font-medium",
+                  input: "bg-black/20 border border-white/10 text-white w-full px-3 py-2.5 rounded-lg placeholder:text-white/30 focus:border-blue-500/50 transition-all mb-4",
+                  anchor: "text-blue-400 hover:text-blue-300 transition-colors text-sm",
+                  divider: "text-white/30 w-full text-center",
+                  message: "text-white bg-red-500/90 backdrop-blur-sm p-3 rounded-lg text-sm w-full",
                 },
-                message: {
-                  backgroundColor: '#dc2626',
-                  color: 'white',
-                  padding: '12px',
-                  borderRadius: '6px',
-                  marginBottom: '16px',
-                  fontWeight: '500',
+                style: {
+                  input: {
+                    color: 'white',
+                    fontSize: '14px',
+                    width: '100%',
+                  },
+                  message: {
+                    backgroundColor: 'rgba(220, 38, 38, 0.9)',
+                    color: 'white',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    marginBottom: '16px',
+                    fontWeight: '500',
+                    backdropFilter: 'blur(8px)',
+                    width: '100%',
+                  },
                 },
-              },
-            }}
-            providers={[]}
-          />
+              }}
+              providers={[]}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Additional animated elements */}
+      {/* Subtle glow effects */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute bottom-4 left-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl animate-pulse"></div>
-        <div className="absolute top-4 right-4 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl animate-pulse"></div>
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
       </div>
     </div>
   );
