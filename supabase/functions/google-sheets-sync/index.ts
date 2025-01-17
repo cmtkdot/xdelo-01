@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from '../_shared/cors.ts';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -14,19 +18,36 @@ serve(async (req) => {
     }
 
     // Get service account credentials from environment
-    const credentials = JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_CREDENTIALS") || "{}");
-    if (!credentials.client_email || !credentials.private_key) {
-      throw new Error('Invalid service account credentials');
+    const credentialsStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_CREDENTIALS");
+    if (!credentialsStr) {
+      throw new Error('Google service account credentials not found');
     }
 
-    // Create JWT token for service account authentication
-    const jwt = await createJWT(credentials);
+    let credentials;
+    try {
+      credentials = JSON.parse(credentialsStr);
+      console.log('Successfully parsed service account credentials');
+    } catch (e) {
+      console.error('Error parsing service account credentials:', e);
+      throw new Error('Invalid service account credentials format');
+    }
+
+    if (!credentials.client_email || !credentials.private_key) {
+      throw new Error('Invalid service account credentials: missing required fields');
+    }
+
+    // Clean up private key - replace literal '\n' with actual newlines
+    credentials.private_key = credentials.private_key
+      .replace(/\\n/g, '\n')
+      .replace(/["']/g, ''); // Remove any quotes
 
     console.log(`Processing ${action} request for spreadsheet: ${spreadsheetId}`);
 
     switch (action) {
       case 'init': {
         // Fetch sheet data using service account authentication
+        const jwt = await createJWT(credentials);
+        
         const response = await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ1`,
           {
@@ -53,6 +74,8 @@ serve(async (req) => {
         if (!data || !headerMapping) {
           throw new Error('Data and header mapping are required for sync');
         }
+
+        const jwt = await createJWT(credentials);
 
         // Prepare the request body for updating the sheet
         const updateBody = {
@@ -127,42 +150,52 @@ async function createJWT(credentials: any) {
     `${btoa(JSON.stringify(header))}.${btoa(JSON.stringify(claim))}`
   );
 
-  const key = await crypto.subtle.importKey(
-    'pkcs8',
-    str2ab(credentials.private_key),
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
+  try {
+    // Convert private key to proper format
+    const privateKey = credentials.private_key;
+    
+    const key = await crypto.subtle.importKey(
+      'pkcs8',
+      str2ab(privateKey),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
 
-  const signature = await crypto.subtle.sign(
-    { name: 'RSASSA-PKCS1-v1_5' },
-    key,
-    input
-  );
+    const signature = await crypto.subtle.sign(
+      { name: 'RSASSA-PKCS1-v1_5' },
+      key,
+      input
+    );
 
-  const jwt = `${btoa(JSON.stringify(header))}.${btoa(JSON.stringify(claim))}.${btoa(
-    String.fromCharCode.apply(null, new Uint8Array(signature))
-  )}`;
+    const jwt = `${btoa(JSON.stringify(header))}.${btoa(JSON.stringify(claim))}.${btoa(
+      String.fromCharCode.apply(null, new Uint8Array(signature))
+    )}`;
 
-  // Exchange JWT for access token
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
-    }),
-  });
+    // Exchange JWT for access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: jwt,
+      }),
+    });
 
-  if (!tokenResponse.ok) {
-    throw new Error('Failed to obtain access token');
+    if (!tokenResponse.ok) {
+      const error = await tokenResponse.json();
+      console.error('Token exchange error:', error);
+      throw new Error('Failed to obtain access token');
+    }
+
+    const { access_token } = await tokenResponse.json();
+    return access_token;
+  } catch (error) {
+    console.error('JWT creation error:', error);
+    throw error;
   }
-
-  const { access_token } = await tokenResponse.json();
-  return access_token;
 }
 
 // Helper function to convert string to ArrayBuffer
