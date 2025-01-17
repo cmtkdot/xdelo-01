@@ -7,15 +7,16 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
+import { GoogleAuthButton } from "@/components/media/google-sheets/GoogleAuthButton";
+import { getGoogleAuthMethod } from "@/components/media/utils/googleSheets/authManager";
 
 // Helper function to extract spreadsheet ID from URL
 const extractSpreadsheetId = (url: string): string | null => {
   try {
-    // Handle different Google Sheets URL formats
     const patterns = [
-      /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/, // Standard format
-      /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)\/edit/, // Edit URL
-      /^([a-zA-Z0-9-_]+)$/ // Direct ID
+      /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/,
+      /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)\/edit/,
+      /^([a-zA-Z0-9-_]+)$/
     ];
 
     for (const pattern of patterns) {
@@ -35,6 +36,17 @@ export default function GoogleSheetSync() {
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const [authMethod, setAuthMethod] = useState<'oauth' | 'service_account' | null>(null);
+
+  // Fetch auth method on component mount
+  useQuery({
+    queryKey: ['google-auth-method'],
+    queryFn: async () => {
+      const method = await getGoogleAuthMethod();
+      setAuthMethod(method);
+      return method;
+    },
+  });
 
   const { data: mediaCount } = useQuery({
     queryKey: ['media-count'],
@@ -70,9 +82,7 @@ export default function GoogleSheetSync() {
         }
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Success",
@@ -100,7 +110,6 @@ export default function GoogleSheetSync() {
 
     if (error) throw error;
 
-    // Add headers as first row
     const headers = [
       'ID',
       'File Name',
@@ -135,15 +144,20 @@ export default function GoogleSheetSync() {
             Google Sheets Sync
           </CardTitle>
           <CardDescription>
-            Sync your media data with Google Sheets using service account authentication
+            Sync your media data with Google Sheets using {authMethod === 'oauth' ? 'OAuth' : 'service account'} authentication
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <AlertDescription>
-              You can sync {mediaCount} media items to your Google Sheet. Make sure the sheet is shared with the service account email.
+              You can sync {mediaCount} media items to your Google Sheet. 
+              {authMethod === 'service_account' && " Make sure the sheet is shared with the service account email."}
             </AlertDescription>
           </Alert>
+
+          {authMethod === 'oauth' && !localStorage.getItem('google_access_token') && (
+            <GoogleAuthButton />
+          )}
 
           <div className="flex gap-4">
             <Input
@@ -154,7 +168,7 @@ export default function GoogleSheetSync() {
             />
             <Button 
               onClick={handleSync}
-              disabled={isLoading || !spreadsheetUrl}
+              disabled={isLoading || !spreadsheetUrl || (authMethod === 'oauth' && !localStorage.getItem('google_access_token'))}
               className="gap-2"
             >
               {isLoading ? (
