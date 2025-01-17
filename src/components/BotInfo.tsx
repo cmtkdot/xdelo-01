@@ -17,20 +17,24 @@ const BotInfo = () => {
   });
 
   return (
-    <Card className="bg-black/40 border border-white/10 backdrop-blur-xl">
+    <Card className="bg-black/40 border border-white/10 backdrop-blur-xl hover:bg-black/50 transition-all duration-300">
       <CardHeader className="flex flex-row items-center gap-4">
-        <div className="p-2 bg-purple-500/20 rounded-full backdrop-blur-md border border-purple-500/30 animate-pulse">
+        <div className="p-2.5 bg-purple-500/20 rounded-xl backdrop-blur-md border border-purple-500/30 animate-pulse">
           <Bot className="w-8 h-8 text-purple-400" />
         </div>
         <div>
-          <CardTitle className="text-xl font-bold text-white">{botInfo?.title || 'Loading...'}</CardTitle>
+          <CardTitle className="text-xl font-bold text-white">
+            {botInfo?.title || 'Loading...'}
+          </CardTitle>
           {botInfo?.username && (
-            <p className="text-sm text-purple-300">@{botInfo.username}</p>
+            <p className="text-sm text-purple-300/90">@{botInfo.username}</p>
           )}
         </div>
       </CardHeader>
       <CardContent>
-        <p className="text-gray-300">Telegram Bot Interface for managing media and messages</p>
+        <p className="text-gray-300/90">
+          Telegram Bot Interface for managing media and messages
+        </p>
       </CardContent>
     </Card>
   );

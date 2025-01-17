@@ -2,26 +2,24 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { 
   Home,
-  MessageSquare,
   Image,
+  MessageSquare,
   Settings,
-  Webhook,
   FileSpreadsheet,
-  Database,
   RefreshCw,
+  Database,
+  Webhook,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const navItems = [
-  { path: "/", icon: Home, label: "Home" },
-  { path: "/media", icon: Image, label: "Media" },
+  { path: "/", icon: Home, label: "Dashboard" },
+  { path: "/media", icon: Image, label: "Media Gallery" },
+  { path: "/media-table", icon: FileSpreadsheet, label: "Media Table" },
   { path: "/messages", icon: MessageSquare, label: "Messages" },
   { path: "/channel-sync", icon: RefreshCw, label: "Channel Sync" },
-  { path: "/media-table", icon: FileSpreadsheet, label: "Media Table" },
-  { path: "/google-sheet", icon: FileSpreadsheet, label: "Google Sheet" },
-  { path: "/google-sheet-sync", icon: FileSpreadsheet, label: "Sheet Sync" },
   { path: "/webhooks", icon: Webhook, label: "Webhooks" },
-  { path: "/database-chat", icon: Database, label: "Database Chat" },
+  { path: "/database-chat", icon: Database, label: "Database" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -44,11 +42,11 @@ const NavigationItems = ({ onClick, className }: NavigationItemsProps) => {
           <Button
             variant="ghost"
             className={cn(
-              "w-full justify-start text-white hover:bg-white/10 mb-1 transition-colors",
-              location.pathname === item.path && "bg-white/10 border border-white/20"
+              "w-full justify-start text-white hover:bg-white/10 mb-1.5 transition-colors",
+              location.pathname === item.path && "bg-white/10 border border-white/20 shadow-sm"
             )}
           >
-            <item.icon className="w-4 h-4 mr-2" />
+            <item.icon className="w-4 h-4 mr-3" />
             {item.label}
           </Button>
         </Link>
