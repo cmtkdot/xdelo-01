@@ -64,7 +64,11 @@ const MediaTable = () => {
       }
 
       if (selectedChannel !== 'all') {
-        query = query.eq('chat_id', selectedChannel);
+        // Convert string to number for chat_id comparison
+        const chatId = parseInt(selectedChannel, 10);
+        if (!isNaN(chatId)) {
+          query = query.eq('chat_id', chatId);
+        }
       }
 
       if (selectedType !== 'all') {
