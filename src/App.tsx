@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -13,12 +12,13 @@ import MediaData from "./pages/MediaData";
 import GoogleSheetSync from "./pages/GoogleSheetSync";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
-import AiChat from "./pages/AiChat";
 import DatabaseChat from "./pages/DatabaseChat";
 import Glide from "./pages/Glide";
 import ChannelSync from "./pages/ChannelSync";
+import GoogleSheet from "./pages/GoogleSheet";
 import { Toaster } from "./components/ui/toaster";
 import { SidebarProvider } from "./components/ui/sidebar";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
 
@@ -68,7 +68,6 @@ function App() {
                             <Route path="/media-data" element={<MediaData />} />
                             <Route path="/google-sheet-sync" element={<GoogleSheetSync />} />
                             <Route path="/settings" element={<Settings />} />
-                            <Route path="/ai-chat" element={<AiChat />} />
                             <Route path="/database-chat" element={<DatabaseChat />} />
                             <Route path="/glide" element={<Glide />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
