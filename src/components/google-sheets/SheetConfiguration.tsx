@@ -1,14 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileSpreadsheet, CheckCircle, ExternalLink, AlertTriangle } from "lucide-react";
+import { FileSpreadsheet, AlertTriangle } from "lucide-react";
 import { GoogleSheetsConfig } from "../media/GoogleSheetsConfig";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { SheetDataDisplay } from "./SheetDataDisplay";
 import { useToast } from "@/components/ui/use-toast";
 import { checkGoogleTokenStatus } from "../ai-chat/AuthHandler";
 import { GoogleAuthButton } from "../media/google-sheets/GoogleAuthButton";
+import { ConnectionStatus } from "./components/ConnectionStatus";
+import { FieldMappingDisplay } from "./components/FieldMappingDisplay";
+import { SheetDataDisplay } from "./SheetDataDisplay";
 
 interface SheetConfigurationProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -41,7 +42,6 @@ export const SheetConfiguration = ({
     queryFn: async () => {
       if (!googleSheetId) return [];
       
-      // Check Google token status before making the request
       const tokenStatus = checkGoogleTokenStatus();
       if (!tokenStatus.isValid) {
         throw new Error(`Google authentication required: ${tokenStatus.reason}`);
@@ -87,7 +87,6 @@ export const SheetConfiguration = ({
 
   const handleSyncWithMedia = async () => {
     try {
-      // Check Google token status before syncing
       const tokenStatus = checkGoogleTokenStatus();
       if (!tokenStatus.isValid) {
         toast({
@@ -120,7 +119,6 @@ export const SheetConfiguration = ({
         description: "The sheet is being synced with your media table.",
       });
       
-      // Refetch the sheet data after sync
       refetch();
     } catch (error) {
       console.error('Sync error:', error);
@@ -147,7 +145,7 @@ export const SheetConfiguration = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Alert variant="warning" className="mb-4">
+          <Alert variant="warning">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               Your Google authentication has expired. Please re-authenticate to continue using Google Sheets integration.
@@ -172,75 +170,20 @@ export const SheetConfiguration = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <GoogleSheetsConfig
-          onSpreadsheetIdSet={(id) => {
-            onSpreadsheetIdSet(id);
-          }}
+          onSpreadsheetIdSet={onSpreadsheetIdSet}
           sheetsConfig={sheetsConfig}
         />
 
         {googleSheetId && (
           <div className="space-y-4">
-            <Alert>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  <AlertDescription>
-                    Connected to Google Sheet
-                  </AlertDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleSyncWithMedia}
-                    className="text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    Sync with Media ({mediaCount} items)
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-blue-400 hover:text-blue-300 transition-colors"
-                    onClick={() => window.open(getSheetUrl(googleSheetId), '_blank')}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Open Sheet
-                  </Button>
-                </div>
-              </div>
-            </Alert>
+            <ConnectionStatus 
+              googleSheetId={googleSheetId}
+              mediaCount={mediaCount || 0}
+              onSyncWithMedia={handleSyncWithMedia}
+              getSheetUrl={getSheetUrl}
+            />
 
-            {Object.keys(parsedMapping).length === 0 && (
-              <Alert variant="warning">
-                <AlertTriangle className="h-5 w-5" />
-                <AlertDescription>
-                  No field mappings configured. Please set up field mappings to enable synchronization.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {Object.keys(parsedMapping).length > 0 && (
-              <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-white">Field Mappings</h3>
-                  <span className="text-xs text-gray-400">
-                    {Object.keys(parsedMapping).length} fields mapped
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(parsedMapping).map(([sheet, db]) => (
-                    <div 
-                      key={sheet} 
-                      className="flex items-center justify-between p-2 rounded bg-white/5"
-                    >
-                      <span className="text-sm text-white/80">{sheet}</span>
-                      <span className="text-sm text-blue-400">→</span>
-                      <span className="text-sm text-white/80">{db}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <FieldMappingDisplay parsedMapping={parsedMapping} />
 
             <SheetDataDisplay 
               isLoading={isDataLoading}
