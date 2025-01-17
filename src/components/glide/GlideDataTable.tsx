@@ -7,6 +7,7 @@ import {
   Theme,
   CompactSelection,
   EditableGridCell,
+  GridCellKind,
 } from "@glideapps/glide-data-grid";
 import "@glideapps/glide-data-grid/dist/index.css";
 
@@ -23,7 +24,7 @@ export function GlideDataTable({ data, columns, onCellEdited }: GlideDataTablePr
       const value = data[row][columnName];
       
       return {
-        kind: "text",
+        kind: GridCellKind.Text,
         allowOverlay: true,
         readonly: false,
         displayData: String(value ?? ""),
