@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SheetDataDisplay } from "./SheetDataDisplay";
 import { useToast } from "@/components/ui/use-toast";
+import { checkGoogleTokenStatus } from "../ai-chat/AuthHandler";
+import { GoogleAuthButton } from "../media/google-sheets/GoogleAuthButton";
 
 interface SheetConfigurationProps {
   onSpreadsheetIdSet: (id: string) => void;
@@ -38,6 +40,12 @@ export const SheetConfiguration = ({
     queryKey: ['sheet-data', googleSheetId],
     queryFn: async () => {
       if (!googleSheetId) return [];
+      
+      // Check Google token status before making the request
+      const tokenStatus = checkGoogleTokenStatus();
+      if (!tokenStatus.isValid) {
+        throw new Error(`Google authentication required: ${tokenStatus.reason}`);
+      }
       
       const { data, error } = await supabase.functions.invoke('google-sheets', {
         body: { 
@@ -71,6 +79,17 @@ export const SheetConfiguration = ({
 
   const handleSyncWithMedia = async () => {
     try {
+      // Check Google token status before syncing
+      const tokenStatus = checkGoogleTokenStatus();
+      if (!tokenStatus.isValid) {
+        toast({
+          title: "Authentication Required",
+          description: "Please re-authenticate with Google to continue.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase.functions.invoke('google-sheets', {
         body: { 
           action: 'sync-media',
@@ -96,6 +115,33 @@ export const SheetConfiguration = ({
       });
     }
   };
+
+  // Check if Google auth is needed
+  const tokenStatus = checkGoogleTokenStatus();
+  if (!tokenStatus.isValid) {
+    return (
+      <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-6 w-6" />
+            Google Sheets Authentication Required
+          </CardTitle>
+          <CardDescription>
+            Please authenticate with Google to access Google Sheets
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="warning" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Your Google authentication has expired. Please re-authenticate to continue using Google Sheets integration.
+            </AlertDescription>
+          </Alert>
+          <GoogleAuthButton />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-white/10 bg-black/40 backdrop-blur-xl">
