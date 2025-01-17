@@ -24,7 +24,7 @@ export const useMediaGallery = () => {
   const fetchChannels = async () => {
     const { data, error } = await supabase
       .from('channels')
-      .select('title, chat_id');
+      .select('id, user_id, chat_id, title, username, is_active, created_at, updated_at');
     
     if (error) {
       console.error('Error fetching channels:', error);

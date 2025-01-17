@@ -20,7 +20,7 @@ const MediaTable = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('channels')
-        .select('id, chat_id, title');
+        .select('id, user_id, chat_id, title, username, is_active, created_at, updated_at');
       
       if (error) throw error;
       return data;
