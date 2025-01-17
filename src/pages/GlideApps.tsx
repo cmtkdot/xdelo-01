@@ -2,10 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, CheckCircle, Plus } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -13,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 import { GlideDataTable } from "@/components/glide/GlideDataTable";
 
@@ -33,14 +31,46 @@ const GlideApps = () => {
       const { data, error } = await supabase
         .from('glide_apps')
         .select('*')
+        .eq('is_active', true)
         .order('display_order');
 
-      if (error) throw error;
+      if (error) {
+        toast({
+          title: "Error fetching apps",
+          description: error.message,
+          variant: "destructive",
+        });
+        throw error;
+      }
       return data as GlideApp[];
     },
   });
 
-  // Fetch table configs and data for selected app
+  // Fetch table configs for selected app
+  const { data: tableConfigs, isLoading: isLoadingTables } = useQuery({
+    queryKey: ['glide-table-configs', selectedAppId],
+    queryFn: async () => {
+      if (!selectedAppId) return [];
+      const { data, error } = await supabase
+        .from('glide_table_configs')
+        .select('*')
+        .eq('app_id', selectedAppId)
+        .eq('is_active', true);
+
+      if (error) {
+        toast({
+          title: "Error fetching tables",
+          description: error.message,
+          variant: "destructive",
+        });
+        throw error;
+      }
+      return data as GlideTableConfig[];
+    },
+    enabled: !!selectedAppId,
+  });
+
+  // Fetch table data for selected table
   const { data: tableData, isLoading: isLoadingTableData } = useQuery({
     queryKey: ['glide-table-data', selectedTableId],
     queryFn: async () => {
@@ -58,29 +88,29 @@ const GlideApps = () => {
         }
       });
 
-      if (response.error) throw response.error;
+      if (response.error) {
+        toast({
+          title: "Error fetching table data",
+          description: response.error.message,
+          variant: "destructive",
+        });
+        throw response.error;
+      }
       return response.data;
     },
     enabled: !!selectedTableId,
   });
 
-  // Fetch table configs for selected app
-  const { data: tableConfigs, isLoading: isLoadingTables } = useQuery({
-    queryKey: ['glide-table-configs', selectedAppId],
-    queryFn: async () => {
-      if (!selectedAppId) return [];
-      const { data, error } = await supabase
-        .from('glide_table_configs')
-        .select('*')
-        .eq('app_id', selectedAppId);
-
-      if (error) throw error;
-      return data as GlideTableConfig[];
-    },
-    enabled: !!selectedAppId,
-  });
-
   const handleSync = async () => {
+    if (!selectedTableId) {
+      toast({
+        title: "Error",
+        description: "Please select a table first",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsSyncing(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -147,11 +177,6 @@ const GlideApps = () => {
     }
   };
 
-  const formatDate = (date: string | null) => {
-    if (!date) return 'N/A';
-    return format(new Date(date), 'PP p');
-  };
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -161,34 +186,35 @@ const GlideApps = () => {
             Manage and monitor your Glide apps synchronization
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            onClick={handleSync} 
-            disabled={isSyncing || !selectedTableId}
-            className="min-w-[140px]"
-          >
-            {isSyncing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Syncing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Sync Now
-              </>
-            )}
-          </Button>
-        </div>
+        <Button 
+          onClick={handleSync} 
+          disabled={isSyncing || !selectedTableId}
+          className="min-w-[140px]"
+        >
+          {isSyncing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Syncing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Sync Now
+            </>
+          )}
+        </Button>
       </div>
 
       <div className="flex gap-4">
         <div className="w-1/2">
           <Select
             value={selectedAppId}
-            onValueChange={setSelectedAppId}
+            onValueChange={(value) => {
+              setSelectedAppId(value);
+              setSelectedTableId("");
+            }}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select Glide App" />
             </SelectTrigger>
             <SelectContent>
@@ -206,7 +232,7 @@ const GlideApps = () => {
             onValueChange={setSelectedTableId}
             disabled={!selectedAppId || !tableConfigs?.length}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select Table" />
             </SelectTrigger>
             <SelectContent>
@@ -219,6 +245,12 @@ const GlideApps = () => {
           </Select>
         </div>
       </div>
+
+      {(isLoadingApps || isLoadingTables || isLoadingTableData) && (
+        <div className="flex justify-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      )}
 
       {selectedTableId && tableData && (
         <Card className="p-6">
