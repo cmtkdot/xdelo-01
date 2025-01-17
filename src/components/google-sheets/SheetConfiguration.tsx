@@ -16,16 +16,18 @@ interface SheetConfigurationProps {
   onSpreadsheetIdSet: (id: string) => void;
   googleSheetId: string | null;
   parsedMapping: Record<string, string>;
+  sheetsConfig?: any[];
 }
 
 export const SheetConfiguration = ({ 
   onSpreadsheetIdSet, 
-  googleSheetId, 
-  parsedMapping 
+  googleSheetId,
+  parsedMapping,
+  sheetsConfig
 }: SheetConfigurationProps) => {
   const { toast } = useToast();
   
-  const { data: sheetsConfig, isLoading: isConfigLoading } = useQuery({
+  const { data: sheetsConfigData, isLoading: isConfigLoading } = useQuery({
     queryKey: ['google-sheets-config'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -82,7 +84,6 @@ export const SheetConfiguration = ({
   });
 
   const formatMediaData = async () => {
-    // Fetch all media data
     const { data: mediaData, error } = await supabase
       .from('media')
       .select(`
@@ -92,7 +93,6 @@ export const SheetConfiguration = ({
 
     if (error) throw error;
 
-    // Get the header mapping from sheets config
     const { data: configData, error: configError } = await supabase
       .from('google_sheets_config')
       .select('header_mapping')
@@ -103,20 +103,17 @@ export const SheetConfiguration = ({
 
     const headerMapping = configData?.header_mapping || {};
 
-    // Format data according to header mapping
     return mediaData.map((item: MediaItem) => {
       const row: string[] = [];
       Object.entries(headerMapping).forEach(([sheetHeader, dbColumn]) => {
         let value = '';
         if (dbColumn.includes('.')) {
-          // Handle nested properties (e.g., 'chat.title')
           const [parent, child] = dbColumn.split('.');
           value = item[parent]?.[child] || '';
         } else {
           value = item[dbColumn] || '';
         }
         
-        // Format dates
         if (dbColumn === 'created_at' || dbColumn === 'updated_at') {
           value = value ? new Date(value).toLocaleString() : '';
         }
@@ -144,7 +141,6 @@ export const SheetConfiguration = ({
         throw new Error('Google access token not found');
       }
 
-      // First verify sheet access
       const { error: verifyError } = await supabase.functions.invoke('sheets-operations', {
         body: { 
           action: 'verify',
@@ -157,7 +153,6 @@ export const SheetConfiguration = ({
       
       if (verifyError) throw verifyError;
 
-      // Then sync data
       const { error: syncError } = await supabase.functions.invoke('sheets-operations', {
         body: { 
           action: 'write',
@@ -191,7 +186,6 @@ export const SheetConfiguration = ({
     return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
   };
 
-  // Check if Google auth is needed
   const tokenStatus = checkGoogleTokenStatus();
   if (!tokenStatus.isValid) {
     return (
@@ -250,7 +244,7 @@ export const SheetConfiguration = ({
               isLoading={isDataLoading}
               sheetData={sheetData || []}
               onRefresh={() => refetch()}
-              lastSynced={sheetsConfig?.[0]?.updated_at}
+              lastSynced={sheetsConfigData?.[0]?.updated_at}
             />
           </div>
         )}
