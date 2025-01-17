@@ -15,7 +15,6 @@ export type Database = {
       channels: Channels;
       expense: Expense;
       glide_products: GlideProducts;
-      google_sheets_config: GoogleSheetsConfig;
       media: Media;
       messages: Messages;
       webhook_configurations: WebhookConfigurations;
@@ -36,7 +35,6 @@ import { BotUsers } from './tables/botUsers';
 import { Channels } from './tables/channels';
 import { Expense } from './tables/expense';
 import { GlideProducts } from './tables/glideProducts';
-import { GoogleSheetsConfig } from './tables/googleSheetsConfig';
 import { Media } from './tables/media';
 import { Messages } from './tables/messages';
 import { WebhookConfigurations } from './tables/webhookConfigurations';
@@ -52,7 +50,6 @@ export type {
   Channels,
   Expense,
   GlideProducts,
-  GoogleSheetsConfig,
   Media,
   Messages,
   WebhookConfigurations,
