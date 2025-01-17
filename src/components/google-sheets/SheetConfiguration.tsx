@@ -47,10 +47,18 @@ export const SheetConfiguration = ({
         throw new Error(`Google authentication required: ${tokenStatus.reason}`);
       }
       
-      const { data, error } = await supabase.functions.invoke('google-sheets', {
+      const accessToken = localStorage.getItem('google_access_token');
+      if (!accessToken) {
+        throw new Error('Google access token not found');
+      }
+
+      const { data, error } = await supabase.functions.invoke('google-sheets-sync', {
         body: { 
           action: 'sync',
           spreadsheetId: googleSheetId
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`
         }
       });
       
@@ -90,10 +98,18 @@ export const SheetConfiguration = ({
         return;
       }
 
-      const { error } = await supabase.functions.invoke('google-sheets', {
+      const accessToken = localStorage.getItem('google_access_token');
+      if (!accessToken) {
+        throw new Error('Google access token not found');
+      }
+
+      const { error } = await supabase.functions.invoke('google-sheets-sync', {
         body: { 
           action: 'sync-media',
           spreadsheetId: googleSheetId
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`
         }
       });
       
