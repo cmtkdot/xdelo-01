@@ -7,22 +7,31 @@ serve(async (req) => {
   }
 
   try {
-    const { spreadsheetId, action, data, headerMapping, gid, accessToken } = await req.json();
+    const { spreadsheetId, action, data, headerMapping, gid } = await req.json();
     
     if (!spreadsheetId) {
       throw new Error('Spreadsheet ID is required');
     }
 
+    // Get service account credentials from environment
+    const credentials = JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_CREDENTIALS") || "{}");
+    if (!credentials.client_email || !credentials.private_key) {
+      throw new Error('Invalid service account credentials');
+    }
+
+    // Create JWT token for service account authentication
+    const jwt = await createJWT(credentials);
+
     console.log(`Processing ${action} request for spreadsheet: ${spreadsheetId}`);
 
     switch (action) {
       case 'init': {
-        // Fetch sheet data using the access token
+        // Fetch sheet data using service account authentication
         const response = await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ1`,
           {
             headers: {
-              'Authorization': `Bearer ${accessToken}`,
+              'Authorization': `Bearer ${jwt}`,
               'Content-Type': 'application/json',
             },
           }
@@ -59,7 +68,7 @@ serve(async (req) => {
           {
             method: 'PUT',
             headers: {
-              'Authorization': `Bearer ${accessToken}`,
+              'Authorization': `Bearer ${jwt}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(updateBody)
@@ -96,3 +105,72 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to create JWT token for service account authentication
+async function createJWT(credentials: any) {
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT',
+  };
+
+  const now = Math.floor(Date.now() / 1000);
+  const claim = {
+    iss: credentials.client_email,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now,
+  };
+
+  const encoder = new TextEncoder();
+  const input = encoder.encode(
+    `${btoa(JSON.stringify(header))}.${btoa(JSON.stringify(claim))}`
+  );
+
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    str2ab(credentials.private_key),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    { name: 'RSASSA-PKCS1-v1_5' },
+    key,
+    input
+  );
+
+  const jwt = `${btoa(JSON.stringify(header))}.${btoa(JSON.stringify(claim))}.${btoa(
+    String.fromCharCode.apply(null, new Uint8Array(signature))
+  )}`;
+
+  // Exchange JWT for access token
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+
+  if (!tokenResponse.ok) {
+    throw new Error('Failed to obtain access token');
+  }
+
+  const { access_token } = await tokenResponse.json();
+  return access_token;
+}
+
+// Helper function to convert string to ArrayBuffer
+function str2ab(str: string): ArrayBuffer {
+  const buf = new ArrayBuffer(str.length);
+  const bufView = new Uint8Array(buf);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
+}
