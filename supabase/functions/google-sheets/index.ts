@@ -1,89 +1,64 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { action, spreadsheetId, data, headerMapping, gid } = await req.json();
-    const apiKey = Deno.env.get('GOOGLE_API_KEY');
-
-    if (!apiKey) {
-      throw new Error('Google API key not configured');
-    }
-
+    const { action, spreadsheetId, accessToken } = await req.json();
+    
     if (!spreadsheetId) {
       throw new Error('Spreadsheet ID is required');
     }
 
     console.log(`Processing ${action} request for spreadsheet: ${spreadsheetId}`);
 
-    const sheetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${gid ? `${gid}!` : ''}A1:ZZ`;
-
     switch (action) {
       case 'sync': {
-        // Get existing sheet data first
-        const getResponse = await fetch(`${sheetUrl}?key=${apiKey}`);
-        
-        if (!getResponse.ok) {
-          throw new Error(`Failed to fetch sheet data: ${getResponse.statusText}`);
-        }
-
-        const existingData = await getResponse.json();
-        const existingValues = existingData.values || [];
-        const headers = existingValues[0] || [];
-
-        // Prepare data for update
-        const updatedValues = data.map(row => {
-          const newRow = new Array(headers.length).fill('');
-          Object.entries(headerMapping || {}).forEach(([sheetHeader, dbColumn]) => {
-            const headerIndex = headers.indexOf(sheetHeader);
-            if (headerIndex !== -1) {
-              const value = row[dbColumn];
-              newRow[headerIndex] = value !== null && value !== undefined ? String(value) : '';
-            }
-          });
-          return newRow;
-        });
-
-        // Update only mapped columns
-        const updateResponse = await fetch(
-          `${sheetUrl}?valueInputOption=RAW&key=${apiKey}`,
+        // Fetch data from Google Sheets
+        const response = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:ZZ`,
           {
-            method: 'PUT',
-            body: JSON.stringify({
-              values: [headers, ...updatedValues],
-              majorDimension: 'ROWS',
-            })
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
           }
         );
 
-        if (!updateResponse.ok) {
-          throw new Error(`Failed to update sheet: ${updateResponse.statusText}`);
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('Google Sheets API error:', error);
+          throw new Error(`Failed to fetch sheet data: ${JSON.stringify(error)}`);
         }
 
-        const result = await updateResponse.json();
-        console.log('Sheet sync completed successfully');
-        
+        const data = await response.json();
         return new Response(
-          JSON.stringify({ success: true, data: result }),
+          JSON.stringify({ success: true, values: data.values || [] }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       default:
-        throw new Error(`Unsupported action: ${action}`);
+        throw new Error(`Unknown action: ${action}`);
     }
   } catch (error) {
-    console.error('Error in google-sheets function:', error);
+    console.error('Error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400 
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
       }
     );
   }
