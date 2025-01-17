@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import MediaGallery from "@/components/MediaGallery";
-import { Channel } from "@/components/media/types";
+import { Channels } from "@/integrations/supabase/types/tables";
 
 const ChannelSync = () => {
   const [isSyncing, setSyncing] = useState(false);
@@ -30,7 +30,7 @@ const ChannelSync = () => {
         throw error;
       }
       console.log('Channels fetched successfully:', data);
-      return data as Channel[];
+      return data as Channels[];
     },
   });
 
