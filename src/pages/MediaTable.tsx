@@ -1,12 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { MediaItem, Channel } from "@/components/media/types";
 import { useToast } from "@/hooks/use-toast";
 import { MediaTableContent } from "@/components/media/table/MediaTableContent";
 import { useMediaTableSort } from "@/components/media/table/hooks/useMediaTableSort";
 import { useMediaTableSelection } from "@/components/media/table/hooks/useMediaTableSelection";
 import MediaTableFilters from "@/components/media/table/MediaTableFilters";
 import { MediaTableToolbar } from "@/components/media/table/MediaTableToolbar";
+import { useEffect } from "react";
+
+const GOOGLE_CLIENT_ID = "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com";
 
 const MediaTable = () => {
   const { toast } = useToast();
@@ -20,10 +25,10 @@ const MediaTable = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('channels')
-        .select('id, user_id, chat_id, title, username, is_active, created_at, updated_at');
+        .select('id, chat_id, title');
       
       if (error) throw error;
-      return data;
+      return data as Channel[];
     },
   });
 
@@ -69,37 +74,41 @@ const MediaTable = () => {
         throw error;
       }
       
-      return data;
+      return data as MediaItem[];
     },
   });
 
-  // Subscribe to real-time updates
+  // Set up real-time subscription
   useEffect(() => {
-    console.log('Setting up real-time subscription for media table');
-    
     const channel = supabase
       .channel('media_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'media'
-        },
-        (payload) => {
-          console.log('Received real-time update:', payload);
-          refetch();
-        }
-      )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-      });
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'media' 
+      }, async (payload) => {
+        console.log('Media change received:', payload);
+        await refetch();
+        
+        const eventMessages = {
+          INSERT: 'New media file added',
+          UPDATE: 'Media file updated',
+          DELETE: 'Media file removed'
+        };
+
+        toast({
+          title: eventMessages[payload.eventType as keyof typeof eventMessages] || 'Media changed',
+          description: `The media gallery has been updated`,
+          variant: "default",
+        });
+      })
+      .subscribe();
 
     return () => {
-      console.log('Cleaning up real-time subscription');
-      supabase.removeChannel(channel);
+      console.log("Cleaning up subscription");
+      channel.unsubscribe();
     };
-  }, [refetch]);
+  }, [refetch, toast]);
 
   const { sortedMediaItems, handleSort, sortConfig } = useMediaTableSort(mediaItems);
   const {
@@ -118,52 +127,50 @@ const MediaTable = () => {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-12rem)] text-center">
         <div className="p-6 max-w-sm mx-auto bg-red-500/10 rounded-lg border border-red-500/20">
-          <p className="text-red-400">Error: {error.message}</p>
+          <p className="text-red-400">Error: {(error as Error).message}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg overflow-hidden">
-        <div className="p-4 border-b border-white/10">
-          <MediaTableFilters
-            selectedChannel={selectedChannel}
-            setSelectedChannel={setSelectedChannel}
-            selectedType={selectedType}
-            setSelectedType={setSelectedType}
-            uploadStatus={uploadStatus}
-            setUploadStatus={setUploadStatus}
-            channels={channels}
-          />
-          <MediaTableToolbar
-            selectedChannels={[selectedChannel]}
-            setSelectedChannels={([channel]) => setSelectedChannel(channel)}
-            selectedTypes={[selectedType]}
-            setSelectedTypes={([type]) => setSelectedType(type)}
-            uploadStatus={uploadStatus}
-            setUploadStatus={setUploadStatus}
-            channels={channels || []}
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <div className="space-y-6">
+        <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-lg overflow-hidden">
+          <div className="p-4 border-b border-white/10">
+            <div className="mb-4">
+              <MediaTableFilters
+                selectedChannel={selectedChannel}
+                setSelectedChannel={setSelectedChannel}
+                selectedType={selectedType}
+                setSelectedType={setSelectedType}
+                uploadStatus={uploadStatus}
+                setUploadStatus={setUploadStatus}
+                channels={channels}
+              />
+            </div>
+
+            <MediaTableToolbar
+              onDeleteSuccess={() => refetch()}
+            />
+          </div>
+
+          <MediaTableContent
+            isLoading={isLoading}
+            mediaItems={sortedMediaItems}
+            onSort={handleSort}
+            onSelectAll={handleSelectAll}
+            allSelected={allSelected}
+            someSelected={someSelected}
+            selectedMedia={selectedMedia}
+            onToggleSelect={handleToggleSelect}
+            onOpenFile={openFileInNewTab}
+            sortConfig={sortConfig}
             onRefetch={() => refetch()}
           />
         </div>
-
-        <MediaTableContent
-          isLoading={isLoading}
-          mediaItems={sortedMediaItems}
-          onSort={handleSort}
-          onSelectAll={handleSelectAll}
-          allSelected={allSelected}
-          someSelected={someSelected}
-          selectedMedia={selectedMedia}
-          onToggleSelect={handleToggleSelect}
-          onOpenFile={openFileInNewTab}
-          sortConfig={sortConfig}
-          onRefetch={() => refetch()}
-        />
       </div>
-    </div>
+    </GoogleOAuthProvider>
   );
 };
 
