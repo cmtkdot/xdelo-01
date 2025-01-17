@@ -378,6 +378,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_app_id"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "glide_apps"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "glide_table_configs_app_id_fkey"
             columns: ["app_id"]
             isOneToOne: false
