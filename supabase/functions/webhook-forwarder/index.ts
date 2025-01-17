@@ -8,11 +8,9 @@ const corsHeaders = {
 
 function extractProductInfo(caption: string) {
   if (!caption) return null;
-
-  // Match pattern: Product Name x Number #ID
   const regex = /^(.*?)\s*x\s*(\d+)\s*#([A-Z0-9]+)/;
   const matches = caption.match(regex);
-
+  
   if (matches) {
     return {
       product_name: matches[1].trim(),
@@ -24,7 +22,6 @@ function extractProductInfo(caption: string) {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -51,7 +48,7 @@ serve(async (req) => {
       );
     }
 
-    // Extract media info
+    // Extract media info with proper file_unique_id handling
     const photo = message.photo?.[message.photo?.length - 1];
     const video = message.video;
     const document = message.document;
@@ -71,11 +68,11 @@ serve(async (req) => {
       message_id: message.message_id
     });
 
-    // Check for existing media with same file_unique_id
+    // Check for existing media with file_unique_id
     const { data: existingMedia, error: queryError } = await supabaseClient
       .from('media')
       .select('*')
-      .eq('metadata->file_unique_id', mediaItem.file_unique_id)
+      .eq('file_unique_id', mediaItem.file_unique_id)
       .maybeSingle();
 
     if (queryError) {
@@ -100,7 +97,6 @@ serve(async (req) => {
     if (existingMedia) {
       console.log('Updating existing media:', existingMedia.id);
       
-      // Update existing media record
       const { error: updateError } = await supabaseClient
         .from('media')
         .update({
@@ -109,6 +105,7 @@ serve(async (req) => {
           metadata: mediaMetadata,
           media_group_id: message.media_group_id,
           updated_at: new Date().toISOString(),
+          file_unique_id: mediaItem.file_unique_id,
           ...(productInfo && {
             product_name: productInfo.product_name,
             units_available: productInfo.units_available,
@@ -173,7 +170,7 @@ serve(async (req) => {
     // Generate public URL
     const publicUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/telegram-media/${fileName}`;
 
-    // Insert new media record
+    // Insert new media record with file_unique_id
     const { data: newMedia, error: insertError } = await supabaseClient
       .from('media')
       .insert({
@@ -185,6 +182,7 @@ serve(async (req) => {
         caption: message.caption,
         metadata: mediaMetadata,
         media_group_id: message.media_group_id,
+        file_unique_id: mediaItem.file_unique_id,
         ...(productInfo && {
           product_name: productInfo.product_name,
           units_available: productInfo.units_available,
@@ -202,6 +200,7 @@ serve(async (req) => {
     console.log('Successfully processed media:', {
       id: newMedia.id,
       file_name: fileName,
+      file_unique_id: mediaItem.file_unique_id,
       productInfo
     });
 

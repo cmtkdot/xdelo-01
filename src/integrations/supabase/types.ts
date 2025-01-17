@@ -402,6 +402,7 @@ export type Database = {
           chat_id: number | null
           created_at: string | null
           file_name: string
+          file_unique_id: string | null
           file_url: string
           glide_row_id: string | null
           google_drive_id: string | null
@@ -424,6 +425,7 @@ export type Database = {
           chat_id?: number | null
           created_at?: string | null
           file_name: string
+          file_unique_id?: string | null
           file_url: string
           glide_row_id?: string | null
           google_drive_id?: string | null
@@ -446,6 +448,7 @@ export type Database = {
           chat_id?: number | null
           created_at?: string | null
           file_name?: string
+          file_unique_id?: string | null
           file_url?: string
           glide_row_id?: string | null
           google_drive_id?: string | null
