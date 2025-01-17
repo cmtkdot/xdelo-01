@@ -7,12 +7,8 @@ serve(async (req) => {
   }
 
   try {
-    const { spreadsheetId, action, accessToken } = await req.json();
+    const { spreadsheetId, action, data, headerMapping, gid, accessToken } = await req.json();
     
-    if (!accessToken) {
-      throw new Error('Access token is required');
-    }
-
     if (!spreadsheetId) {
       throw new Error('Spreadsheet ID is required');
     }
@@ -38,9 +34,46 @@ serve(async (req) => {
           throw new Error(`Failed to fetch sheet data: ${JSON.stringify(error, null, 2)}`);
         }
 
-        const data = await response.json();
+        const sheetData = await response.json();
         return new Response(
-          JSON.stringify({ success: true, headers: data.values?.[0] || [] }),
+          JSON.stringify({ success: true, headers: sheetData.values?.[0] || [] }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      case 'sync': {
+        if (!data || !headerMapping) {
+          throw new Error('Data and header mapping are required for sync');
+        }
+
+        // Prepare the request body for updating the sheet
+        const updateBody = {
+          values: data,
+          majorDimension: "ROWS"
+        };
+
+        // Use the sheet's gid if provided
+        const sheetParam = gid ? `gid=${gid}` : '';
+        
+        const response = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A2:ZZ?${sheetParam}`,
+          {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updateBody)
+          }
+        );
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('Google Sheets API error:', error);
+          throw new Error(`Failed to update sheet: ${JSON.stringify(error, null, 2)}`);
+        }
+
+        return new Response(
+          JSON.stringify({ success: true }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

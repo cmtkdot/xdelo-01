@@ -52,7 +52,8 @@ export const initializeSpreadsheet = async (spreadsheetId: string, gid?: string)
 export const syncWithGoogleSheets = async (
   spreadsheetId: string,
   mediaItems: MediaItem[],
-  gid?: string
+  gid?: string,
+  accessToken?: string
 ) => {
   try {
     console.log('Starting Google Sheets sync...');
@@ -91,13 +92,14 @@ export const syncWithGoogleSheets = async (
       return row;
     });
 
-    const { data, error } = await supabase.functions.invoke('google-sheets', {
+    const { data, error } = await supabase.functions.invoke('google-sheets-sync', {
       body: {
         action: 'sync',
         spreadsheetId,
         gid,
         data: formattedData,
-        headerMapping
+        headerMapping,
+        accessToken
       },
     });
 
