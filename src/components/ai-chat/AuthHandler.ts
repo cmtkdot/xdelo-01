@@ -30,6 +30,39 @@ export const checkAuth = async () => {
     
     if (!googleToken || !tokenExpiry || new Date().getTime() > parseInt(tokenExpiry)) {
       console.log("Google token expired or not found");
+      // Attempt to refresh the token using the refresh token if available
+      const refreshToken = localStorage.getItem('google_refresh_token');
+      if (refreshToken) {
+        try {
+          const response = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              client_id: GOOGLE_CLIENT_ID,
+              refresh_token: refreshToken,
+              grant_type: 'refresh_token',
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('google_access_token', data.access_token);
+            const newExpiry = new Date().getTime() + (data.expires_in * 1000);
+            localStorage.setItem('google_token_expiry', newExpiry.toString());
+            return { 
+              isAuthenticated: true, 
+              user,
+              googleClientId: GOOGLE_CLIENT_ID,
+              needsGoogleReauth: false 
+            };
+          }
+        } catch (refreshError) {
+          console.error("Token refresh failed:", refreshError);
+        }
+      }
+      
       return { 
         isAuthenticated: true, 
         user,
@@ -61,23 +94,35 @@ export const initGoogleAuth = () => {
 export const checkGoogleTokenStatus = () => {
   const token = localStorage.getItem('google_access_token');
   const expiry = localStorage.getItem('google_token_expiry');
+  const refreshToken = localStorage.getItem('google_refresh_token');
   
   if (!token || !expiry) {
-    return { isValid: false, reason: 'No token found' };
+    return { isValid: false, reason: 'No token found', canRefresh: !!refreshToken };
   }
   
   const expiryTime = parseInt(expiry);
   const currentTime = new Date().getTime();
   
   if (currentTime > expiryTime) {
-    return { isValid: false, reason: 'Token expired' };
+    return { isValid: false, reason: 'Token expired', canRefresh: !!refreshToken };
   }
   
-  return { isValid: true };
+  return { isValid: true, canRefresh: !!refreshToken };
 };
 
 // Add function to clear Google auth data
 export const clearGoogleAuth = () => {
   localStorage.removeItem('google_access_token');
   localStorage.removeItem('google_token_expiry');
+  // Don't remove refresh token to allow automatic re-authentication
+};
+
+// Add function to store Google auth data
+export const storeGoogleAuth = (response: any) => {
+  localStorage.setItem('google_access_token', response.access_token);
+  const expiryTime = new Date().getTime() + (response.expires_in * 1000);
+  localStorage.setItem('google_token_expiry', expiryTime.toString());
+  if (response.refresh_token) {
+    localStorage.setItem('google_refresh_token', response.refresh_token);
+  }
 };

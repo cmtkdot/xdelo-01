@@ -1,14 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FileSpreadsheet } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SheetConfiguration } from "@/components/google-sheets/SheetConfiguration";
+import { checkAuth } from "@/components/ai-chat/AuthHandler";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function GoogleSheetSync() {
   const [googleSheetId, setGoogleSheetId] = useState<string | null>(null);
   const [parsedMapping, setParsedMapping] = useState<Record<string, string>>({});
+  const { toast } = useToast();
+
+  // Check Google auth on mount
+  useEffect(() => {
+    const verifyAuth = async () => {
+      const authStatus = await checkAuth();
+      if (authStatus.needsGoogleReauth) {
+        toast({
+          title: "Authentication Required",
+          description: "Please authenticate with Google to continue.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    verifyAuth();
+  }, []);
 
   // Get media count for display
   const { data: mediaCount } = useQuery({
