@@ -52,9 +52,9 @@ export const SheetConfiguration = ({
         throw new Error('Google access token not found');
       }
 
-      const { data, error } = await supabase.functions.invoke('google-sheets-sync', {
+      const { data, error } = await supabase.functions.invoke('sheets-operations', {
         body: { 
-          action: 'sync',
+          action: 'read',
           spreadsheetId: googleSheetId
         },
         headers: {
@@ -63,13 +63,13 @@ export const SheetConfiguration = ({
       });
       
       if (error) throw error;
-      return data?.values || [];
+      return data?.data || [];
     },
     enabled: !!googleSheetId,
   });
 
   const { data: mediaCount } = useQuery({
-    queryKey: ['media-count', googleSheetId],
+    queryKey: ['media-count'],
     queryFn: async () => {
       const { count, error } = await supabase
         .from('media')
@@ -79,11 +79,6 @@ export const SheetConfiguration = ({
       return count || 0;
     },
   });
-
-  const getSheetUrl = (sheetId: string, gid?: string) => {
-    const baseUrl = `https://docs.google.com/spreadsheets/d/${sheetId}`;
-    return gid ? `${baseUrl}/edit#gid=${gid}` : `${baseUrl}/edit`;
-  };
 
   const handleSyncWithMedia = async () => {
     try {
@@ -102,9 +97,10 @@ export const SheetConfiguration = ({
         throw new Error('Google access token not found');
       }
 
-      const { error } = await supabase.functions.invoke('google-sheets-sync', {
+      // First verify sheet access
+      const { error: verifyError } = await supabase.functions.invoke('sheets-operations', {
         body: { 
-          action: 'sync-media',
+          action: 'verify',
           spreadsheetId: googleSheetId
         },
         headers: {
@@ -112,7 +108,21 @@ export const SheetConfiguration = ({
         }
       });
       
-      if (error) throw error;
+      if (verifyError) throw verifyError;
+
+      // Then sync data
+      const { error: syncError } = await supabase.functions.invoke('sheets-operations', {
+        body: { 
+          action: 'write',
+          spreadsheetId: googleSheetId,
+          data: await formatMediaData() // You'll need to implement this
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+      
+      if (syncError) throw syncError;
       
       toast({
         title: "Sync Started",
@@ -128,6 +138,10 @@ export const SheetConfiguration = ({
         variant: "destructive",
       });
     }
+  };
+
+  const getSheetUrl = (sheetId: string) => {
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
   };
 
   // Check if Google auth is needed
