@@ -52,13 +52,13 @@ serve(async (req) => {
         : message.video || message.document;
 
       if (mediaItem?.file_id) {
-        console.log('Checking for duplicate media with file_id:', mediaItem.file_id);
+        console.log('Checking for duplicate media with file_unique_id:', mediaItem.file_unique_id);
         
-        // Enhanced duplicate check using both file_id and file_unique_id
+        // Only check for duplicates using file_unique_id
         const { data: existingMedia, error: queryError } = await supabaseClient
           .from('media')
           .select('id, file_name, metadata')
-          .or(`metadata->file_id.eq.${mediaItem.file_id},metadata->file_unique_id.eq.${mediaItem.file_unique_id}`)
+          .eq('metadata->file_unique_id', mediaItem.file_unique_id)
           .maybeSingle();
 
         if (queryError) {
@@ -87,7 +87,7 @@ serve(async (req) => {
             supabaseClient,
             'webhook-forwarder',
             'info',
-            `Skipped duplicate media with file_id: ${mediaItem.file_id}`
+            `Skipped duplicate media with file_unique_id: ${mediaItem.file_unique_id}`
           );
           
           return new Response(
@@ -126,7 +126,7 @@ serve(async (req) => {
         // Upload to storage
         const publicUrl = await uploadToStorage(supabaseClient, fileName, buffer, mediaType);
 
-        // Create media record with file_id in metadata
+        // Create media record with file_unique_id in metadata
         const metadata = {
           file_id: mediaItem.file_id,
           file_unique_id: mediaItem.file_unique_id,
@@ -135,6 +135,7 @@ serve(async (req) => {
           width: mediaItem.width,
           height: mediaItem.height,
           duration: mediaItem.duration,
+          message_id: message.message_id
         };
 
         const { data: media, error: insertError } = await supabaseClient
@@ -148,6 +149,7 @@ serve(async (req) => {
             caption: message.caption,
             metadata,
             media_group_id: message.media_group_id,
+            public_url: publicUrl,
           })
           .select()
           .single();
