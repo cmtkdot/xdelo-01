@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
 import { useGoogleLogin } from '@react-oauth/google';
 import { useToast } from "@/components/ui/use-toast";
-import { storeGoogleAuth } from "@/components/ai-chat/AuthHandler";
+import { storeGoogleAuth } from "../utils/googleSheets/authHandler";
 
 export const GoogleAuthButton = () => {
   const { toast } = useToast();
@@ -12,6 +12,8 @@ export const GoogleAuthButton = () => {
     scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
     onSuccess: async (codeResponse) => {
       try {
+        console.log('Google login successful, exchanging code for tokens...');
+        
         // Exchange code for tokens
         const tokens = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
@@ -28,6 +30,12 @@ export const GoogleAuthButton = () => {
           }),
         }).then(r => r.json());
 
+        if (tokens.error) {
+          throw new Error(tokens.error_description || 'Failed to exchange code for tokens');
+        }
+
+        console.log('Tokens received successfully, storing...');
+        
         // Store the tokens
         storeGoogleAuth(tokens);
         
@@ -42,12 +50,13 @@ export const GoogleAuthButton = () => {
         console.error('Error exchanging code for tokens:', error);
         toast({
           title: "Error",
-          description: "Failed to complete authentication",
+          description: error instanceof Error ? error.message : "Failed to complete authentication",
           variant: "destructive",
         });
       }
     },
     onError: () => {
+      console.error('Google login failed');
       toast({
         title: "Error",
         description: "Failed to authenticate with Google. Please try again.",

@@ -9,39 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      ai_training_data: {
-        Row: {
-          category: string
-          content: string
-          created_at: string | null
-          id: string
-          metadata: Json | null
-          title: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          category: string
-          content: string
-          created_at?: string | null
-          id?: string
-          metadata?: Json | null
-          title: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          category?: string
-          content?: string
-          created_at?: string | null
-          id?: string
-          metadata?: Json | null
-          title?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       bot_activities: {
         Row: {
           chat_id: number
@@ -402,18 +369,25 @@ export type Database = {
           chat_id: number | null
           created_at: string | null
           file_name: string
+          file_size_mb: number | null
           file_unique_id: string | null
           file_url: string
           glide_row_id: string | null
           google_drive_id: string | null
           google_drive_url: string | null
           id: string
+          is_forwarded: boolean | null
           media_group_id: string | null
           media_type: string
+          message_date: string | null
           metadata: Json | null
+          original_source: string | null
+          photo_height: number | null
+          photo_width: number | null
           po_product_id: string | null
           product_name: string | null
           public_url: string | null
+          source_channel: string | null
           units_available: number | null
           updated_at: string | null
           user_id: string
@@ -425,18 +399,25 @@ export type Database = {
           chat_id?: number | null
           created_at?: string | null
           file_name: string
+          file_size_mb?: number | null
           file_unique_id?: string | null
           file_url: string
           glide_row_id?: string | null
           google_drive_id?: string | null
           google_drive_url?: string | null
           id?: string
+          is_forwarded?: boolean | null
           media_group_id?: string | null
           media_type: string
+          message_date?: string | null
           metadata?: Json | null
+          original_source?: string | null
+          photo_height?: number | null
+          photo_width?: number | null
           po_product_id?: string | null
           product_name?: string | null
           public_url?: string | null
+          source_channel?: string | null
           units_available?: number | null
           updated_at?: string | null
           user_id: string
@@ -448,18 +429,25 @@ export type Database = {
           chat_id?: number | null
           created_at?: string | null
           file_name?: string
+          file_size_mb?: number | null
           file_unique_id?: string | null
           file_url?: string
           glide_row_id?: string | null
           google_drive_id?: string | null
           google_drive_url?: string | null
           id?: string
+          is_forwarded?: boolean | null
           media_group_id?: string | null
           media_type?: string
+          message_date?: string | null
           metadata?: Json | null
+          original_source?: string | null
+          photo_height?: number | null
+          photo_width?: number | null
           po_product_id?: string | null
           product_name?: string | null
           public_url?: string | null
+          source_channel?: string | null
           units_available?: number | null
           updated_at?: string | null
           user_id?: string
