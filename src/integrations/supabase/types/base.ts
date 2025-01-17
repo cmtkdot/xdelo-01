@@ -6,10 +6,9 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
-      ai_training_data: AITrainingData;
       bot_activities: BotActivities;
       bot_users: BotUsers;
       channels: Channels;
@@ -20,16 +19,12 @@ export type Database = {
       webhook_configurations: WebhookConfigurations;
       webhook_history: WebhookHistory;
       webhook_urls: WebhookUrls;
+      sync_logs: SyncLogs;
+      sync_sessions: SyncSessions;
     };
-    Views: {};
-    Functions: DatabaseFunctions;
-    Enums: {};
-    CompositeTypes: {};
   };
-};
+}
 
-// Import all table types
-import { AITrainingData } from './tables/aiTrainingData';
 import { BotActivities } from './tables/botActivities';
 import { BotUsers } from './tables/botUsers';
 import { Channels } from './tables/channels';
@@ -40,11 +35,10 @@ import { Messages } from './tables/messages';
 import { WebhookConfigurations } from './tables/webhookConfigurations';
 import { WebhookHistory } from './tables/webhookHistory';
 import { WebhookUrls } from './tables/webhookUrls';
-import { DatabaseFunctions } from './functions';
+import { SyncLogs } from './tables/syncLogs';
+import { SyncSessions } from './tables/syncSessions';
 
-// Re-export all types
 export type {
-  AITrainingData,
   BotActivities,
   BotUsers,
   Channels,
@@ -55,4 +49,6 @@ export type {
   WebhookConfigurations,
   WebhookHistory,
   WebhookUrls,
+  SyncLogs,
+  SyncSessions,
 };
