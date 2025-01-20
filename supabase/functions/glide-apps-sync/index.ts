@@ -15,6 +15,22 @@ serve(async (req) => {
   }
 
   try {
+    // Get Glide API token
+    const glideApiToken = Deno.env.get('GLIDE_API_TOKEN');
+    if (!glideApiToken) {
+      console.error('Missing GLIDE_API_TOKEN in environment variables');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Configuration error: Missing Glide API token',
+          details: 'Please ensure GLIDE_API_TOKEN is set in the edge function secrets'
+        }), 
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -51,25 +67,9 @@ serve(async (req) => {
     }
 
     const { operation } = await req.json();
-    const glideApiToken = Deno.env.get('GLIDE_API_TOKEN');
-    
     console.log('Operation requested:', operation);
     console.log('Auth header present:', !!authHeader);
     
-    if (!glideApiToken) {
-      console.error('Missing GLIDE_API_TOKEN in environment variables');
-      return new Response(
-        JSON.stringify({ 
-          error: 'Configuration error: Missing Glide API token',
-          details: 'Please ensure GLIDE_API_TOKEN is set in the edge function secrets'
-        }), 
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
     switch (operation) {
       case 'list-apps': {
         console.log('Fetching apps list from Glide API');
