@@ -1,8 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from '../_shared/cors.ts';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+};
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -11,11 +17,14 @@ serve(async (req) => {
     const { operation, appId } = await req.json();
     const glideApiToken = Deno.env.get('GLIDE_API_TOKEN');
     
+    console.log('Operation requested:', operation);
+    
     if (!glideApiToken) {
       console.error('Missing GLIDE_API_TOKEN in environment variables');
       return new Response(
         JSON.stringify({ 
-          error: 'Configuration error: Missing Glide API token' 
+          error: 'Configuration error: Missing Glide API token',
+          details: 'Please ensure GLIDE_API_TOKEN is set in the edge function secrets'
         }), 
         { 
           status: 500,
@@ -24,7 +33,7 @@ serve(async (req) => {
       );
     }
 
-    // Test the token with a simple API call before proceeding
+    // Test the token with a simple API call
     const testResponse = await fetch('https://api.glideapp.io/api/apps/list', {
       method: 'GET',
       headers: {
@@ -35,10 +44,13 @@ serve(async (req) => {
 
     if (!testResponse.ok) {
       console.error(`Glide API authentication failed: ${testResponse.status}`);
+      const errorText = await testResponse.text();
+      console.error('Error details:', errorText);
+      
       return new Response(
         JSON.stringify({ 
           error: `Glide API error: ${testResponse.status}`,
-          details: await testResponse.text()
+          details: errorText || 'Invalid or expired API token'
         }), 
         { 
           status: testResponse.status,
@@ -49,6 +61,7 @@ serve(async (req) => {
 
     switch (operation) {
       case 'list-apps': {
+        console.log('Fetching apps list from Glide API');
         const response = await fetch('https://api.glideapp.io/api/apps/list', {
           method: 'GET',
           headers: {
@@ -62,6 +75,8 @@ serve(async (req) => {
         }
 
         const data = await response.json();
+        console.log('Successfully fetched apps list');
+        
         return new Response(
           JSON.stringify({ apps: data }), 
           {
@@ -81,6 +96,7 @@ serve(async (req) => {
           );
         }
 
+        console.log('Fetching tables for app:', appId);
         const response = await fetch(`https://api.glideapp.io/api/apps/${appId}/tables`, {
           method: 'GET',
           headers: {
@@ -94,6 +110,8 @@ serve(async (req) => {
         }
 
         const data = await response.json();
+        console.log('Successfully fetched tables for app:', appId);
+        
         return new Response(
           JSON.stringify({ tables: data }), 
           {
