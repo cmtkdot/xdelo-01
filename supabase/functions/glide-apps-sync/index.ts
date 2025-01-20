@@ -38,7 +38,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: `Glide API error: ${testResponse.status}`,
-          details: 'Invalid or expired API token'
+          details: await testResponse.text()
         }), 
         { 
           status: testResponse.status,
@@ -119,7 +119,7 @@ serve(async (req) => {
         details: 'An unexpected error occurred while processing your request'
       }),
       { 
-        status: 400,
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
