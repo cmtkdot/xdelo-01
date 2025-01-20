@@ -14,27 +14,40 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
 
+  try {
+    console.log("[webhook-forwarder] Starting webhook processing");
+    
     const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
     if (!telegramBotToken) {
+      console.error("[webhook-forwarder] Missing TELEGRAM_BOT_TOKEN");
       throw new Error('Missing TELEGRAM_BOT_TOKEN');
     }
 
     const update = await req.json();
-    const message = update.message || update.channel_post;
+    console.log("[webhook-forwarder] Received update:", JSON.stringify(update));
     
+    const message = update.message || update.channel_post;
     if (!message) {
-      console.error('No message in update:', update);
+      console.error('[webhook-forwarder] No message in update:', update);
       return new Response(
         JSON.stringify({ error: 'No message in update' }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
+
+    // Log message details
+    console.log("[webhook-forwarder] Processing message:", {
+      message_id: message.message_id,
+      chat_id: message.chat.id,
+      has_photo: !!message.photo,
+      has_video: !!message.video,
+      has_document: !!message.document
+    });
 
     // Handle channel update
     const channelResult = await handleChannelUpdate(supabaseClient, message);
@@ -46,6 +59,8 @@ serve(async (req) => {
       );
     }
 
+    console.log("[webhook-forwarder] Channel processed successfully:", channelResult);
+
     // Handle user update if it's a user message
     if (message.from) {
       const userResult = await handleUserUpdate(supabaseClient, message.from);
@@ -56,6 +71,7 @@ serve(async (req) => {
 
     // Process media if present
     if (message.photo || message.video || message.document) {
+      console.log("[webhook-forwarder] Processing media message");
       const result = await processMediaMessage(supabaseClient, message, telegramBotToken);
       
       if (result.error) {
@@ -68,8 +84,18 @@ serve(async (req) => {
 
       console.log('[webhook-forwarder] Successfully processed media:', {
         id: result.mediaId,
-        channelId: channelResult.channelId
+        channelId: channelResult.channelId,
+        publicUrl: result.publicUrl
       });
+
+      // Log to edge_function_logs table
+      await supabaseClient
+        .from('edge_function_logs')
+        .insert({
+          function_name: 'webhook-forwarder',
+          status: 'success',
+          message: `Processed media for message ${message.message_id} in channel ${message.chat.id}`
+        });
     }
 
     // Insert message record
@@ -88,16 +114,33 @@ serve(async (req) => {
       console.error('[webhook-forwarder] Error inserting message:', messageError);
     }
 
+    console.log("[webhook-forwarder] Webhook processing completed successfully");
+
     return new Response(
       JSON.stringify({ 
         status: 'success',
-        message: 'Webhook processed successfully'
+        message: 'Webhook processed successfully',
+        details: {
+          message_id: message.message_id,
+          chat_id: message.chat.id,
+          has_media: !!(message.photo || message.video || message.document)
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
 
   } catch (error) {
     console.error('[webhook-forwarder] Error processing webhook:', error);
+    
+    // Log error to edge_function_logs table
+    await supabaseClient
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'webhook-forwarder',
+        status: 'error',
+        message: `Error processing webhook: ${error.message}`
+      });
+
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
