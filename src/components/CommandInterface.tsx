@@ -4,7 +4,7 @@ import { Input } from "./ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { checkAuth } from "@/lib/auth";
+import { checkAuth, handleAuthError } from "@/lib/auth";
 
 const CommandInterface = () => {
   const [message, setMessage] = useState("");
@@ -14,9 +14,13 @@ const CommandInterface = () => {
 
   useEffect(() => {
     const checkInitialAuth = async () => {
-      const { isAuthenticated, error } = await checkAuth();
+      const { isAuthenticated, error, botUser } = await checkAuth();
       if (!isAuthenticated) {
         handleAuthError();
+      }
+      // Log bot user status for debugging
+      if (botUser) {
+        console.log("Linked Telegram user:", botUser);
       }
     };
 
@@ -57,7 +61,7 @@ const CommandInterface = () => {
 
     setIsLoading(true);
     try {
-      const { isAuthenticated, user } = await checkAuth();
+      const { isAuthenticated, user, botUser } = await checkAuth();
       if (!isAuthenticated || !user) {
         handleAuthError();
         return;
@@ -67,7 +71,7 @@ const CommandInterface = () => {
 
       const { error: messageError } = await supabase.from("messages").insert({
         user_id: user.id,
-        sender_name: "User",
+        sender_name: botUser?.username || "User",
         text: message,
         message_id: messageId,
       });
