@@ -19,6 +19,7 @@ export const useMediaData = (filter?: MediaFilter) => {
         `)
         .order('created_at', { ascending: false });
 
+      // Apply filters if provided
       if (filter?.selectedChannel !== "all") {
         query = query.eq('chat_id', parseInt(filter.selectedChannel));
       }
@@ -48,8 +49,8 @@ export const useMediaData = (filter?: MediaFilter) => {
       console.log("Media data fetched:", data?.length, "items");
       return data || [];
     },
-    staleTime: 0,
-    refetchInterval: 1000,
+    staleTime: 0, // Always fetch fresh data
+    refetchInterval: 1000, // Poll every second for updates
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
