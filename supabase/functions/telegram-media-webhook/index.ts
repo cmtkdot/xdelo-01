@@ -9,7 +9,7 @@ import { logOperation } from "../_shared/database.ts";
 serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-telegram-bot-api-secret-token',
   };
 
   if (req.method === 'OPTIONS') {
@@ -28,12 +28,20 @@ serve(async (req) => {
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
 
     if (!webhookSecret || !botToken) {
+      console.error('[telegram-media-webhook] Missing required environment variables');
       throw new Error('Missing required environment variables');
     }
 
     // Validate webhook secret
     if (!validateWebhookSecret(req.headers, webhookSecret)) {
-      throw new Error('Invalid webhook secret');
+      console.error('[telegram-media-webhook] Invalid webhook secret');
+      return new Response(
+        JSON.stringify({ error: 'Invalid webhook secret' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     const update = await req.json();
