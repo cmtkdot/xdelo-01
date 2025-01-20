@@ -1,6 +1,4 @@
 import { GlideDataView } from "@/components/glide/GlideDataView";
-import { MediaSyncSection } from "@/components/settings/MediaSyncSection";
-import { MediaMigrationSection } from "@/components/settings/MediaMigrationSection";
 import { EdgeFunctionLogs } from "@/components/settings/EdgeFunctionLogs";
 
 export default function Settings() {
@@ -10,8 +8,6 @@ export default function Settings() {
       
       <div className="space-y-8">
         <GlideDataView />
-        <MediaSyncSection />
-        <MediaMigrationSection />
         <EdgeFunctionLogs />
       </div>
     </div>
