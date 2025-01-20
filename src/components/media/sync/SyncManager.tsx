@@ -3,7 +3,7 @@ import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { SyncLog, SyncStatus } from "../types";
+import { SyncLog } from "../types";
 
 interface SyncManagerProps {
   channelId: string;
@@ -17,22 +17,30 @@ export const SyncManager: React.FC<SyncManagerProps> = ({ channelId }) => {
 
   useEffect(() => {
     const getChannelInfo = async () => {
-      const { data } = await supabase
-        .from('telegram_channels')
-        .select('last_sync_at')
-        .eq('id', channelId)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('telegram_channels')
+          .select('last_sync_at')
+          .eq('id', channelId)
+          .single();
 
-      if (data) {
-        setLastSync(data.last_sync_at);
+        if (error) {
+          console.error('Error fetching channel info:', error);
+          return;
+        }
+
+        if (data) {
+          setLastSync(data.last_sync_at);
+        }
+      } catch (error) {
+        console.error('Error in getChannelInfo:', error);
       }
     };
 
     getChannelInfo();
 
     // Subscribe to sync progress updates
-    const channel = supabase
-      .channel('sync_progress')
+    const channel = supabase.channel('sync_progress')
       .on(
         'postgres_changes',
         { 
