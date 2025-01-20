@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { GlideTableConfig } from './types';
 
 interface TableSelectorProps {
@@ -14,40 +15,49 @@ export function TableSelector({
   selectedTableConfig, 
   onTableSelect 
 }: TableSelectorProps) {
-  const { data: tableConfigs, isLoading } = useQuery({
-    queryKey: ['glide-table-configs', selectedAppId],
+  const { data: tables, isLoading, error } = useQuery({
+    queryKey: ['glide-tables', selectedAppId],
     queryFn: async () => {
       if (!selectedAppId) return [];
       
-      const { data, error } = await supabase
-        .from('glide_table_configs')
-        .select('*')
-        .eq('app_id', selectedAppId)
-        .eq('is_active', true)
-        .order('table_name');
+      const { data: response, error: functionError } = await supabase.functions.invoke('glide-apps-sync', {
+        body: { 
+          operation: 'list-tables',
+          appId: selectedAppId
+        }
+      });
 
-      if (error) throw error;
-      return data as GlideTableConfig[];
+      if (functionError) throw functionError;
+      return response.tables as GlideTableConfig[];
     },
     enabled: !!selectedAppId,
   });
+
+  if (error) {
+    console.error('Error fetching Glide tables:', error);
+    return <div className="text-red-500">Error loading tables</div>;
+  }
+
+  if (isLoading) {
+    return <Skeleton className="h-10 w-full" />;
+  }
 
   return (
     <Select
       value={selectedTableConfig?.id}
       onValueChange={(value) => {
-        const config = tableConfigs?.find(c => c.id === value);
+        const config = tables?.find(t => t.id === value);
         if (config) onTableSelect(config);
       }}
-      disabled={isLoading || !selectedAppId || !tableConfigs?.length}
+      disabled={isLoading || !selectedAppId}
     >
       <SelectTrigger className="w-full">
         <SelectValue placeholder="Select Table" />
       </SelectTrigger>
       <SelectContent>
-        {tableConfigs?.map((config) => (
-          <SelectItem key={config.id} value={config.id}>
-            {config.table_name}
+        {tables?.map((table) => (
+          <SelectItem key={table.id} value={table.id}>
+            {table.table_name}
           </SelectItem>
         ))}
       </SelectContent>

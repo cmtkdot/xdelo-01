@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { GlideApp } from './types';
 
 interface AppSelectorProps {
@@ -9,22 +10,26 @@ interface AppSelectorProps {
 }
 
 export function AppSelector({ selectedAppId, onAppSelect }: AppSelectorProps) {
-  const { data: apps, isLoading } = useQuery({
+  const { data: apps, isLoading, error } = useQuery({
     queryKey: ['glide-apps'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('glide_apps')
-        .select('*')
-        .eq('is_active', true)
-        .order('app_name');
+      const { data: response, error: functionError } = await supabase.functions.invoke('glide-apps-sync', {
+        body: { operation: 'list-apps' }
+      });
 
-      if (error) {
-        console.error('Error fetching Glide apps:', error);
-        throw error;
-      }
-      return data as GlideApp[];
+      if (functionError) throw functionError;
+      return response.apps as GlideApp[];
     },
   });
+
+  if (error) {
+    console.error('Error fetching Glide apps:', error);
+    return <div className="text-red-500">Error loading apps</div>;
+  }
+
+  if (isLoading) {
+    return <Skeleton className="h-10 w-full" />;
+  }
 
   return (
     <div className="w-full">
