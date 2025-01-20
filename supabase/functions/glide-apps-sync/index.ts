@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,13 +18,39 @@ serve(async (req) => {
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('No authorization header provided');
       return new Response(
         JSON.stringify({ error: 'No authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { operation, appId } = await req.json();
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing Supabase configuration');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Verify the JWT token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+    
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { operation } = await req.json();
     const glideApiToken = Deno.env.get('GLIDE_API_TOKEN');
     
     console.log('Operation requested:', operation);
@@ -43,32 +70,6 @@ serve(async (req) => {
       );
     }
 
-    // Test the Glide API token
-    const testResponse = await fetch('https://api.glideapp.io/api/apps/list', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${glideApiToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!testResponse.ok) {
-      console.error(`Glide API authentication failed: ${testResponse.status}`);
-      const errorText = await testResponse.text();
-      console.error('Error details:', errorText);
-      
-      return new Response(
-        JSON.stringify({ 
-          error: `Glide API error: ${testResponse.status}`,
-          details: errorText || 'Invalid or expired API token'
-        }), 
-        { 
-          status: testResponse.status,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
     switch (operation) {
       case 'list-apps': {
         console.log('Fetching apps list from Glide API');
@@ -81,7 +82,19 @@ serve(async (req) => {
         });
 
         if (!response.ok) {
-          throw new Error(`Glide API error: ${response.status}`);
+          const errorText = await response.text();
+          console.error(`Glide API error (${response.status}):`, errorText);
+          
+          return new Response(
+            JSON.stringify({ 
+              error: `Glide API error: ${response.status}`,
+              details: errorText
+            }), 
+            { 
+              status: response.status,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
         }
 
         const data = await response.json();
@@ -89,41 +102,6 @@ serve(async (req) => {
         
         return new Response(
           JSON.stringify({ apps: data }), 
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
-      }
-
-      case 'list-tables': {
-        if (!appId) {
-          return new Response(
-            JSON.stringify({ error: 'App ID is required' }), 
-            { 
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            }
-          );
-        }
-
-        console.log('Fetching tables for app:', appId);
-        const response = await fetch(`https://api.glideapp.io/api/apps/${appId}/tables`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${glideApiToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Glide API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('Successfully fetched tables for app:', appId);
-        
-        return new Response(
-          JSON.stringify({ tables: data }), 
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }

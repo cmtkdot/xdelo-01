@@ -30,12 +30,18 @@ export function AppSelector({ selectedAppId, onAppSelect }: AppSelectorProps) {
   const { data: apps, isLoading, error } = useQuery({
     queryKey: ['glide-apps', session?.access_token],
     queryFn: async () => {
-      if (!session) throw new Error('Not authenticated');
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
 
+      console.log('Fetching Glide apps with session token');
+      
       const { data: response, error: functionError } = await supabase.functions.invoke('glide-apps-sync', {
-        body: { operation: 'list-apps' },
+        body: { 
+          operation: 'list-apps'
+        },
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
@@ -43,10 +49,15 @@ export function AppSelector({ selectedAppId, onAppSelect }: AppSelectorProps) {
         console.error('Function error:', functionError);
         throw functionError;
       }
+
+      if (!response?.apps) {
+        console.error('Invalid response format:', response);
+        throw new Error('Invalid response format from Glide apps sync');
+      }
       
       return response.apps as GlideApp[];
     },
-    enabled: !!session,
+    enabled: !!session?.access_token,
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
