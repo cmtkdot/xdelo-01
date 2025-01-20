@@ -14,10 +14,20 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { operation, appId } = await req.json();
     const glideApiToken = Deno.env.get('GLIDE_API_TOKEN');
     
     console.log('Operation requested:', operation);
+    console.log('Auth header present:', !!authHeader);
     
     if (!glideApiToken) {
       console.error('Missing GLIDE_API_TOKEN in environment variables');
@@ -33,7 +43,7 @@ serve(async (req) => {
       );
     }
 
-    // Test the token with a simple API call
+    // Test the Glide API token
     const testResponse = await fetch('https://api.glideapp.io/api/apps/list', {
       method: 'GET',
       headers: {
