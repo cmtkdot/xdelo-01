@@ -18,8 +18,7 @@ export async function handleChannelUpdate(
       .maybeSingle();
 
     if (fetchError) {
-      console.error('[handleChannelUpdate] Error fetching channel:', fetchError);
-      return { error: fetchError.message };
+      throw fetchError;
     }
 
     if (!existingChannel) {
@@ -37,15 +36,14 @@ export async function handleChannelUpdate(
         .single();
 
       if (insertError) {
-        console.error('[handleChannelUpdate] Error inserting channel:', insertError);
-        return { error: insertError.message };
+        throw insertError;
       }
 
       console.log('[handleChannelUpdate] Created new channel:', newChannel.id);
       return { channelId: newChannel.id };
     }
 
-    // Update existing channel if needed
+    // Update existing channel
     const { error: updateError } = await supabase
       .from('channels')
       .update({
@@ -56,8 +54,7 @@ export async function handleChannelUpdate(
       .eq('chat_id', chat.id);
 
     if (updateError) {
-      console.error('[handleChannelUpdate] Error updating channel:', updateError);
-      return { error: updateError.message };
+      throw updateError;
     }
 
     return { channelId: existingChannel.id };

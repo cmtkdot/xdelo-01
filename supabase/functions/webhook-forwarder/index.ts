@@ -24,7 +24,6 @@ serve(async (req) => {
     
     const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
     if (!telegramBotToken) {
-      console.error("[webhook-forwarder] Missing TELEGRAM_BOT_TOKEN");
       throw new Error('Missing TELEGRAM_BOT_TOKEN');
     }
 
@@ -34,11 +33,7 @@ serve(async (req) => {
     // Handle both channel posts and regular messages
     const message = update.message || update.channel_post;
     if (!message) {
-      console.error('[webhook-forwarder] No message in update:', update);
-      return new Response(
-        JSON.stringify({ error: 'No message in update' }), 
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      throw new Error('No message in update');
     }
 
     // Log message details
@@ -53,17 +48,11 @@ serve(async (req) => {
       media_group_id: message.media_group_id
     });
 
-    // Handle channel update
+    // Handle channel update first
     const channelResult = await handleChannelUpdate(supabaseClient, message);
     if (channelResult.error) {
-      console.error('[webhook-forwarder] Error handling channel:', channelResult.error);
-      return new Response(
-        JSON.stringify({ error: channelResult.error }), 
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      throw new Error(`Channel handling error: ${channelResult.error}`);
     }
-
-    console.log("[webhook-forwarder] Channel processed successfully:", channelResult);
 
     // Handle user update if it's a user message
     if (message.from) {
@@ -73,43 +62,15 @@ serve(async (req) => {
       }
     }
 
-    // Process media if present (photos, videos, documents, animations)
+    // Process media if present
+    let mediaResult = null;
     if (message.photo || message.video || message.document || message.animation) {
       console.log("[webhook-forwarder] Processing media message");
-      const result = await processMediaMessage(supabaseClient, message, telegramBotToken);
+      mediaResult = await processMediaMessage(supabaseClient, message, telegramBotToken);
       
-      if (result.error) {
-        console.error('[webhook-forwarder] Error processing media:', result.error);
-        
-        // Log error to edge_function_logs
-        await supabaseClient
-          .from('edge_function_logs')
-          .insert({
-            function_name: 'webhook-forwarder',
-            status: 'error',
-            message: `Error processing media: ${result.error}`
-          });
-
-        return new Response(
-          JSON.stringify({ error: result.error, details: result.details }), 
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-        );
+      if (mediaResult.error) {
+        throw new Error(`Media processing error: ${mediaResult.error}`);
       }
-
-      console.log('[webhook-forwarder] Successfully processed media:', {
-        id: result.mediaId,
-        channelId: channelResult.channelId,
-        publicUrl: result.publicUrl
-      });
-
-      // Log successful media processing
-      await supabaseClient
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'webhook-forwarder',
-          status: 'success',
-          message: `Processed media for message ${message.message_id} in channel ${message.chat.id}`
-        });
     }
 
     // Insert message record
@@ -121,23 +82,24 @@ serve(async (req) => {
         sender_name: message.from?.first_name || message.chat.title || 'Unknown',
         text: message.caption || message.text,
         user_id: message.from?.id ? message.from.id.toString() : null,
+        media_type: mediaResult?.mediaType || null,
+        media_url: mediaResult?.publicUrl || null,
+        public_url: mediaResult?.publicUrl || null,
         created_at: new Date(message.date * 1000).toISOString()
       });
 
     if (messageError) {
-      console.error('[webhook-forwarder] Error inserting message:', messageError);
-      
-      // Log error to edge_function_logs
-      await supabaseClient
-        .from('edge_function_logs')
-        .insert({
-          function_name: 'webhook-forwarder',
-          status: 'error',
-          message: `Error inserting message: ${messageError.message}`
-        });
+      throw new Error(`Message insert error: ${messageError.message}`);
     }
 
-    console.log("[webhook-forwarder] Webhook processing completed successfully");
+    // Log success to edge_function_logs
+    await supabaseClient
+      .from('edge_function_logs')
+      .insert({
+        function_name: 'webhook-forwarder',
+        status: 'success',
+        message: `Successfully processed message ${message.message_id} from chat ${message.chat.id}`
+      });
 
     return new Response(
       JSON.stringify({ 
@@ -147,14 +109,15 @@ serve(async (req) => {
           message_id: message.message_id,
           chat_id: message.chat.id,
           chat_type: message.chat.type,
-          has_media: !!(message.photo || message.video || message.document || message.animation)
+          has_media: !!(message.photo || message.video || message.document || message.animation),
+          media_result: mediaResult
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
 
   } catch (error) {
-    console.error('[webhook-forwarder] Error processing webhook:', error);
+    console.error('[webhook-forwarder] Error:', error);
     
     // Log error to edge_function_logs
     await supabaseClient
@@ -162,7 +125,7 @@ serve(async (req) => {
       .insert({
         function_name: 'webhook-forwarder',
         status: 'error',
-        message: `Error processing webhook: ${error.message}`
+        message: `Error: ${error.message}`
       });
 
     return new Response(

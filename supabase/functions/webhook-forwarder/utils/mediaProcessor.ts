@@ -46,25 +46,22 @@ export async function processMediaMessage(
       height = message.animation.height;
       fileSize = message.animation.file_size;
     } else {
-      console.log("[processMediaMessage] No media found in message");
       return { error: 'No media found in message' };
     }
 
-    console.log(`[processMediaMessage] Processing ${mediaType} with file ID: ${fileId}`);
-
-    // Check if file already exists for this chat
+    // Check if file already exists
     const { data: existingMedia } = await supabase
       .from('media')
       .select('id, file_url, public_url')
-      .eq('chat_id', message.chat.id)
       .eq('file_unique_id', fileUniqueId)
-      .maybeSingle();
+      .single();
 
     if (existingMedia) {
-      console.log('[processMediaMessage] Media already exists, returning existing record:', existingMedia.id);
+      console.log('[processMediaMessage] Media already exists:', existingMedia.id);
       return {
         mediaId: existingMedia.id,
         publicUrl: existingMedia.public_url || existingMedia.file_url,
+        mediaType,
         existing: true
       };
     }
@@ -72,10 +69,8 @@ export async function processMediaMessage(
     // Download file from Telegram
     const { buffer, filePath } = await getAndDownloadTelegramFile(fileId, botToken);
     
-    // Generate a unique filename
-    const fileName = `${Date.now()}-${filePath.split('/').pop()}`;
-
-    console.log("[processMediaMessage] Uploading file to storage:", fileName);
+    // Generate unique filename
+    const fileName = `${Date.now()}-${fileUniqueId}-${filePath.split('/').pop()}`;
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase
@@ -89,8 +84,7 @@ export async function processMediaMessage(
       });
 
     if (uploadError) {
-      console.error('[processMediaMessage] Upload error:', uploadError);
-      return { error: 'Failed to upload media', details: uploadError };
+      throw uploadError;
     }
 
     // Get public URL
@@ -99,58 +93,47 @@ export async function processMediaMessage(
       .from('telegram-media')
       .getPublicUrl(fileName);
 
-    console.log("[processMediaMessage] File uploaded successfully, public URL:", publicUrl);
+    // Create media record
+    const { data: mediaData, error: insertError } = await supabase
+      .from('media')
+      .insert({
+        user_id: message.from?.id ? message.from.id.toString() : null,
+        chat_id: message.chat.id,
+        file_name: fileName,
+        file_url: publicUrl,
+        public_url: publicUrl,
+        media_type: mediaType,
+        caption: caption,
+        media_group_id: message.media_group_id,
+        file_size_mb: fileSize ? Number((fileSize / (1024 * 1024)).toFixed(2)) : null,
+        photo_width: width,
+        photo_height: height,
+        message_date: new Date(message.date * 1000).toISOString(),
+        source_channel: message.chat.title || message.chat.username,
+        is_forwarded: !!message.forward_from || !!message.forward_from_chat,
+        original_source: message.forward_from_chat?.title || message.forward_from?.first_name,
+        file_unique_id: fileUniqueId,
+        metadata: {
+          message_id: message.message_id,
+          file_id: fileId,
+          original_file_name: filePath.split('/').pop(),
+          forward_info: message.forward_from || message.forward_from_chat,
+          chat_type: message.chat.type
+        }
+      })
+      .select()
+      .single();
 
-    try {
-      // Create media record with enhanced metadata
-      const { data: mediaData, error: insertError } = await supabase
-        .from('media')
-        .insert({
-          user_id: message.from?.id ? message.from.id.toString() : null,
-          chat_id: message.chat.id,
-          file_name: fileName,
-          file_url: publicUrl,
-          public_url: publicUrl,
-          media_type: mediaType,
-          caption: caption,
-          media_group_id: message.media_group_id,
-          file_size_mb: fileSize ? Number((fileSize / (1024 * 1024)).toFixed(2)) : null,
-          photo_width: width,
-          photo_height: height,
-          message_date: new Date(message.date * 1000).toISOString(),
-          source_channel: message.chat.title || message.chat.username,
-          is_forwarded: !!message.forward_from || !!message.forward_from_chat,
-          original_source: message.forward_from_chat?.title || message.forward_from?.first_name,
-          file_unique_id: fileUniqueId,
-          metadata: {
-            message_id: message.message_id,
-            file_id: fileId,
-            original_file_name: filePath.split('/').pop(),
-            forward_info: message.forward_from || message.forward_from_chat,
-            chat_type: message.chat.type
-          }
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('[processMediaMessage] Insert error:', insertError);
-        return { error: 'Failed to create media record', details: insertError };
-      }
-
-      console.log('[processMediaMessage] Media record created successfully:', mediaData.id);
-
-      return { 
-        mediaId: mediaData.id,
-        publicUrl: publicUrl
-      };
-
-    } catch (dbError) {
-      console.error('[processMediaMessage] Database error:', dbError);
-      // Clean up uploaded file if database insert fails
-      await supabase.storage.from('telegram-media').remove([fileName]);
-      return { error: 'Database operation failed', details: dbError };
+    if (insertError) {
+      throw insertError;
     }
+
+    return { 
+      mediaId: mediaData.id,
+      publicUrl,
+      mediaType,
+      existing: false
+    };
 
   } catch (error) {
     console.error('[processMediaMessage] Error:', error);
