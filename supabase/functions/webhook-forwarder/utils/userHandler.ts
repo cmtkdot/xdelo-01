@@ -1,7 +1,7 @@
-import { SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export async function handleUserUpdate(
-  supabase: SupabaseClient,
+  supabase: ReturnType<typeof createClient>,
   user: any
 ) {
   try {
@@ -21,35 +21,35 @@ export async function handleUserUpdate(
       return { error: fetchError.message };
     }
 
+    const userData = {
+      telegram_user_id: user.id.toString(),
+      username: user.username,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      updated_at: new Date().toISOString()
+    };
+
     if (!existingUser) {
       // Insert new user
-      const { error: insertError } = await supabase
+      const { data: newUser, error: insertError } = await supabase
         .from('bot_users')
-        .insert({
-          telegram_user_id: user.id.toString(),
-          username: user.username,
-          first_name: user.first_name,
-          last_name: user.last_name
-        });
+        .insert(userData)
+        .select()
+        .single();
 
       if (insertError) {
         console.error('[handleUserUpdate] Error inserting user:', insertError);
         return { error: insertError.message };
       }
 
-      console.log('[handleUserUpdate] Created new bot user:', user.id);
-      return { success: true };
+      console.log('[handleUserUpdate] Created new user:', newUser.id);
+      return { userId: newUser.id };
     }
 
     // Update existing user
     const { error: updateError } = await supabase
       .from('bot_users')
-      .update({
-        username: user.username,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        updated_at: new Date().toISOString()
-      })
+      .update(userData)
       .eq('telegram_user_id', user.id.toString());
 
     if (updateError) {
@@ -57,7 +57,7 @@ export async function handleUserUpdate(
       return { error: updateError.message };
     }
 
-    return { success: true };
+    return { userId: existingUser.id };
   } catch (error) {
     console.error('[handleUserUpdate] Error:', error);
     return { error: error.message };
