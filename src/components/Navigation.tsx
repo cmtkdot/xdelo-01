@@ -12,6 +12,9 @@ const Navigation = () => {
 
   return (
     <>
+      {/* Navigation Spacer */}
+      <div className="h-16" /> {/* This pushes content below fixed header */}
+      
       {/* Desktop Header Navigation */}
       <div className="hidden md:flex fixed top-0 left-0 right-0 h-16 backdrop-blur-xl bg-white/90 dark:bg-black/40 border-b border-gray-200/50 dark:border-white/10 z-40 px-4 shadow-sm">
         <div className="flex items-center justify-between w-full max-w-[1400px] mx-auto">

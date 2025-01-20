@@ -69,6 +69,7 @@ serve(async (req) => {
     const { operation } = await req.json();
     console.log('Operation requested:', operation);
     console.log('Auth header present:', !!authHeader);
+    console.log('Glide API token present:', !!glideApiToken);
     
     switch (operation) {
       case 'list-apps': {
@@ -85,12 +86,16 @@ serve(async (req) => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Glide API error (${response.status}):`, errorText);
+          console.error('Request headers:', {
+            'Authorization': `Bearer ${glideApiToken.substring(0, 5)}...`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          });
           
           return new Response(
             JSON.stringify({ 
               error: `Glide API error: ${response.status}`,
               details: errorText,
-              token: `Bearer ${glideApiToken.substring(0, 5)}...` // Log partial token for debugging
             }), 
             { 
               status: response.status,
