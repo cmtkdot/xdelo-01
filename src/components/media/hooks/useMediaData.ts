@@ -64,8 +64,8 @@ export const useMediaData = (filter?: MediaFilter) => {
         throw error;
       }
     },
-    staleTime: 0,
-    refetchInterval: 1000,
+    staleTime: 0, // Always fetch fresh data
+    refetchInterval: 1000, // Refetch every second to keep data fresh
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });

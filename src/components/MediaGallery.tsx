@@ -13,8 +13,13 @@ import DeleteMediaDialog from "./media/DeleteMediaDialog";
 import { SyncManager } from "./media/sync/SyncManager";
 import SyncChannelButton from "./media/sync/SyncChannelButton";
 import { useMediaGallery } from "./media/hooks/useMediaGallery";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const MediaGallery = () => {
+  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const {
     filter,
     setFilter,
@@ -33,6 +38,36 @@ const MediaGallery = () => {
     refetch
   } = useMediaGallery();
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+    };
+    
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (isAuthenticated === false) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>
+            Please sign in to view the media gallery
+          </AlertDescription>
+        </Alert>
+        <Button onClick={() => navigate("/login")}>
+          Sign In
+        </Button>
+      </div>
+    );
+  }
+
   if (error) {
     console.error("Error loading media:", error);
     return (
@@ -44,7 +79,7 @@ const MediaGallery = () => {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || isAuthenticated === null) {
     return <MediaGallerySkeleton />;
   }
 
