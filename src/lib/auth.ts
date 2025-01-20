@@ -16,7 +16,7 @@ export const checkAuth = async () => {
       .from('bot_users')
       .select('*')
       .eq('id', session.user.id)
-      .single();
+      .maybeSingle();
 
     if (botError && !botError.message.includes('No rows found')) {
       console.error('Error fetching bot user:', botError);
@@ -58,43 +58,10 @@ export const handleAuthError = (error: AuthError) => {
   };
 };
 
-export const linkTelegramUser = async (telegramUserId: string, username?: string) => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) throw new Error('No authenticated user');
-
-    const { error } = await supabase
-      .from('bot_users')
-      .upsert({
-        id: user.id,
-        telegram_user_id: telegramUserId,
-        username: username,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'id'
-      });
-
-    if (error) throw error;
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error linking Telegram user:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    };
-  }
-};
-
 export const cleanupUserSession = async () => {
   try {
-    // Clear any stored tokens or session data
     await supabase.auth.signOut();
-    
-    // Clear any local storage items related to the session
     localStorage.removeItem('telegram_auth');
-    
     return { success: true };
   } catch (error) {
     console.error('Error cleaning up session:', error);

@@ -13,32 +13,20 @@ const Login = () => {
 
   useEffect(() => {
     const init = async () => {
-      // Clean up any existing sessions on login page load
-      await cleanupUserSession();
-      
-      // Check initial auth state
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/dashboard");
+        navigate("/media");
       }
       setIsLoading(false);
     };
 
     init();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("Auth event:", event);
       
       if (event === 'SIGNED_IN' && session) {
-        navigate("/dashboard");
-      } else if (event === 'SIGNED_OUT') {
-        await cleanupUserSession();
-      } else if (event === 'USER_UPDATED') {
-        // Handle user updates (e.g., email verification)
-        if (session) {
-          navigate("/dashboard");
-        }
+        navigate("/media");
       }
     });
 
@@ -46,36 +34,6 @@ const Login = () => {
       subscription.unsubscribe();
     };
   }, [navigate]);
-
-  const handleAuthStateChange = async (event: string, session: any) => {
-    if (event === 'SIGNED_IN' && session) {
-      try {
-        // Verify the session is valid
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
-        if (error) {
-          const { title, description } = handleAuthError(error);
-          toast({
-            title,
-            description,
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (user) {
-          navigate("/dashboard");
-        }
-      } catch (error) {
-        console.error("Error handling auth state change:", error);
-        toast({
-          title: "Error",
-          description: "An unexpected error occurred. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
 
   if (isLoading) {
     return (
@@ -89,11 +47,9 @@ const Login = () => {
     <div className="min-h-screen relative overflow-hidden bg-[#0A0A0F] flex items-center justify-center">
       <div className="absolute inset-0 w-full h-full">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-900/10 to-[#0A0A0F]">
-          {/* Grid overlay */}
           <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.075)_1px,transparent_1px)] bg-[size:32px_32px]"></div>
         </div>
         
-        {/* Subtle animated borders */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
       </div>
@@ -141,11 +97,6 @@ const Login = () => {
             />
           </div>
         </div>
-      </div>
-
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute -top-32 -right-32 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
       </div>
     </div>
   );

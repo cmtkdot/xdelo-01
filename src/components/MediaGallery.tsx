@@ -19,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 
 const MediaGallery = () => {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const {
     filter,
     setFilter,
@@ -41,31 +41,28 @@ const MediaGallery = () => {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
+      
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+      
+      setAuthChecked(true);
     };
     
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
+      if (!session) {
+        navigate("/login");
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
-  if (isAuthenticated === false) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
-        <Alert variant="destructive" className="mb-4">
-          <AlertDescription>
-            Please sign in to view the media gallery
-          </AlertDescription>
-        </Alert>
-        <Button onClick={() => navigate("/login")}>
-          Sign In
-        </Button>
-      </div>
-    );
+  if (!authChecked || isLoading) {
+    return <MediaGallerySkeleton />;
   }
 
   if (error) {
@@ -77,10 +74,6 @@ const MediaGallery = () => {
         </p>
       </div>
     );
-  }
-
-  if (isLoading || isAuthenticated === null) {
-    return <MediaGallerySkeleton />;
   }
 
   return (
