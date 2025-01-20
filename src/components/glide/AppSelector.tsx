@@ -27,21 +27,23 @@ export function AppSelector({ selectedAppId, onAppSelect }: AppSelectorProps) {
   });
 
   return (
-    <Select
-      value={selectedAppId}
-      onValueChange={onAppSelect}
-      disabled={isLoading}
-    >
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select Glide App" />
-      </SelectTrigger>
-      <SelectContent>
-        {apps?.map((app) => (
-          <SelectItem key={app.id} value={app.id}>
-            {app.app_name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="w-full">
+      <Select
+        value={selectedAppId}
+        onValueChange={onAppSelect}
+        disabled={isLoading}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Select Glide App" />
+        </SelectTrigger>
+        <SelectContent>
+          {apps?.map((app) => (
+            <SelectItem key={app.id} value={app.id}>
+              {app.app_name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
