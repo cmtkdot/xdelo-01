@@ -16,7 +16,7 @@ export const createMessageRecord = async (
         user_id: message.from?.id ? message.from.id.toString() : 'system',
         media_type: mediaResult?.mediaType || null,
         media_url: mediaResult?.fileUrl || null,
-        public_url: mediaResult?.fileUrl || null,
+        public_url: mediaResult?.publicUrl || null,
         created_at: new Date(message.date * 1000).toISOString()
       });
 

@@ -11,19 +11,3 @@ export const validateWebhookSecret = (headers: Headers, webhookSecret: string): 
   }
   return providedSecret === webhookSecret;
 };
-
-export const validateUser = async (supabase: any, userId: string) => {
-  try {
-    const { data: user, error } = await supabase
-      .from('bot_users')
-      .select('*')
-      .eq('telegram_user_id', userId)
-      .single();
-
-    if (error) throw error;
-    return user;
-  } catch (error) {
-    console.error('[validateUser] Error:', error);
-    return null;
-  }
-};

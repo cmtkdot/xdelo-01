@@ -1,12 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { validateWebhookSecret, validateUser, corsHeaders } from "./utils/security.ts";
+import { validateWebhookSecret } from "./utils/security.ts";
 import { handleChannel } from "./utils/channelHandler.ts";
 import { processMedia } from "./utils/mediaProcessor.ts";
 import { createMessageRecord } from "./utils/messageHandler.ts";
 import { logOperation } from "../_shared/database.ts";
 
 serve(async (req) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -52,10 +57,15 @@ serve(async (req) => {
       media_group_id: message.media_group_id
     });
 
-    // Validate user if it's a private message
+    // Set default user ID
     let userId = 'system';
     if (message.from) {
-      const user = await validateUser(supabaseClient, message.from.id.toString());
+      const { data: user } = await supabaseClient
+        .from('bot_users')
+        .select('id')
+        .eq('telegram_user_id', message.from.id.toString())
+        .maybeSingle();
+      
       if (user) {
         userId = user.id;
       }
