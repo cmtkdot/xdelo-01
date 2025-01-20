@@ -68,8 +68,6 @@ serve(async (req) => {
 
     const { operation } = await req.json();
     console.log('Operation requested:', operation);
-    console.log('Auth header present:', !!authHeader);
-    console.log('Glide API token present:', !!glideApiToken);
     
     switch (operation) {
       case 'list-apps': {
@@ -87,6 +85,13 @@ serve(async (req) => {
           const errorText = await response.text();
           console.error(`Glide API error (${response.status}):`, errorText);
           
+          // Log the error to edge_function_logs
+          await supabase.from('edge_function_logs').insert({
+            function_name: 'glide-apps-sync',
+            status: 'error',
+            message: `Glide API error: ${response.status} - ${errorText}`
+          });
+          
           return new Response(
             JSON.stringify({ 
               error: `Glide API error: ${response.status}`,
@@ -101,6 +106,13 @@ serve(async (req) => {
 
         const data = await response.json();
         console.log('Successfully fetched apps list');
+        
+        // Log successful operation
+        await supabase.from('edge_function_logs').insert({
+          function_name: 'glide-apps-sync',
+          status: 'success',
+          message: 'Successfully fetched Glide apps list'
+        });
         
         return new Response(
           JSON.stringify({ apps: data }), 
@@ -121,6 +133,19 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error('Error in glide-apps-sync:', error);
+    
+    // Log the error
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (supabaseUrl && supabaseKey) {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      await supabase.from('edge_function_logs').insert({
+        function_name: 'glide-apps-sync',
+        status: 'error',
+        message: error.message
+      });
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: error.message,
