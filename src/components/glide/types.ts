@@ -1,10 +1,9 @@
-import type { Database } from '@/integrations/supabase/types';
-
-export type GlideApp = Database['public']['Tables']['glide_apps']['Row'];
-export type GlideTableConfig = Database['public']['Tables']['glide_table_configs']['Row'];
-export type GlideProduct = Database['public']['Tables']['glide_products']['Row'];
-
-export interface GlideTableData {
+export interface GlideApp {
   id: string;
-  [key: string]: any;
+  app_id: string;
+  app_name: string;
+  display_order: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  is_active: boolean | null;
 }

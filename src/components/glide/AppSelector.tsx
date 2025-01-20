@@ -18,7 +18,10 @@ export function AppSelector({ selectedAppId, onAppSelect }: AppSelectorProps) {
         .eq('is_active', true)
         .order('app_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching Glide apps:', error);
+        throw error;
+      }
       return data as GlideApp[];
     },
   });
