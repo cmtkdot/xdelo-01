@@ -5,6 +5,7 @@ import { handleChannel } from "./utils/channelHandler.ts";
 import { processMedia } from "./utils/mediaProcessor.ts";
 import { createMessageRecord } from "./utils/messageHandler.ts";
 import { logOperation } from "../_shared/database.ts";
+import { forwardUpdate } from "./utils/forwardHandler.ts";
 
 serve(async (req) => {
   const corsHeaders = {
@@ -22,19 +23,19 @@ serve(async (req) => {
   );
 
   try {
-    console.log("[telegram-media-webhook] Starting webhook processing");
+    console.log("[telegram-webhook] Starting webhook processing");
     
     const webhookSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET');
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
 
     if (!webhookSecret || !botToken) {
-      console.error('[telegram-media-webhook] Missing required environment variables');
+      console.error('[telegram-webhook] Missing required environment variables');
       throw new Error('Missing required environment variables');
     }
 
     // Validate webhook secret
     if (!validateWebhookSecret(req.headers, webhookSecret)) {
-      console.error('[telegram-media-webhook] Invalid webhook secret');
+      console.error('[telegram-webhook] Invalid webhook secret');
       return new Response(
         JSON.stringify({ error: 'Invalid webhook secret' }),
         { 
@@ -45,7 +46,7 @@ serve(async (req) => {
     }
 
     const update = await req.json();
-    console.log("[telegram-media-webhook] Received update:", JSON.stringify(update));
+    console.log("[telegram-webhook] Received update:", JSON.stringify(update));
     
     // Handle both channel posts and regular messages
     const message = update.message || update.channel_post;
@@ -54,7 +55,7 @@ serve(async (req) => {
     }
 
     // Log message details
-    console.log("[telegram-media-webhook] Processing message:", {
+    console.log("[telegram-webhook] Processing message:", {
       message_id: message.message_id,
       chat_id: message.chat.id,
       chat_type: message.chat.type,
@@ -88,10 +89,13 @@ serve(async (req) => {
     // Create message record
     await createMessageRecord(supabaseClient, message, mediaResult);
 
+    // Forward update if needed (webhook forwarding functionality)
+    const forwardResult = await forwardUpdate(supabaseClient, update, message, mediaResult);
+
     // Log success
     await logOperation(
       supabaseClient,
-      'telegram-media-webhook',
+      'telegram-webhook',
       'success',
       `Successfully processed message ${message.message_id} from chat ${message.chat.id}`
     );
@@ -105,18 +109,19 @@ serve(async (req) => {
           chat_id: message.chat.id,
           chat_type: message.chat.type,
           has_media: !!mediaResult,
-          media_result: mediaResult
+          media_result: mediaResult,
+          forward_result: forwardResult
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
 
   } catch (error) {
-    console.error('[telegram-media-webhook] Error:', error);
+    console.error('[telegram-webhook] Error:', error);
     
     await logOperation(
       supabaseClient,
-      'telegram-media-webhook',
+      'telegram-webhook',
       'error',
       `Error: ${error.message}`
     );
