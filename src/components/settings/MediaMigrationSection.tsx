@@ -9,7 +9,7 @@ import { Channel } from "../media/types";
 import { RefreshCw } from "lucide-react";
 import { validateMediaUrl } from "../media/utils/urlValidation";
 
-const MediaMigrationSection = () => {
+export const MediaMigrationSection = () => {
   const [isMigrating, setMigrating] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
 
@@ -159,5 +159,3 @@ const MediaMigrationSection = () => {
     </Card>
   );
 };
-
-export default MediaMigrationSection;

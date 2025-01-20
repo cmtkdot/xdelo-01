@@ -16,7 +16,7 @@ interface Channel {
   chat_id: number;
 }
 
-const MediaSyncSection = () => {
+export const MediaSyncSection = () => {
   const [isSyncing, setSyncing] = useState(false);
   const [selectedChannels, setSelectedChannels] = useState<Set<number>>(new Set());
 
@@ -218,5 +218,3 @@ const MediaSyncSection = () => {
     </Card>
   );
 };
-
-export default MediaSyncSection;
