@@ -78,6 +78,7 @@ serve(async (req) => {
           headers: {
             'Authorization': `Bearer ${glideApiToken}`,
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
         });
 
@@ -88,7 +89,8 @@ serve(async (req) => {
           return new Response(
             JSON.stringify({ 
               error: `Glide API error: ${response.status}`,
-              details: errorText
+              details: errorText,
+              token: `Bearer ${glideApiToken.substring(0, 5)}...` // Log partial token for debugging
             }), 
             { 
               status: response.status,
