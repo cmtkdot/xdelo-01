@@ -4,33 +4,40 @@ export const handleChannel = async (
   supabase: ReturnType<typeof createClient>,
   message: any
 ) => {
-  console.log("[handleChannel] Processing channel:", message.chat.id);
-
-  const { data: existingChannel, error: channelError } = await supabase
-    .from('channels')
-    .select('id')
-    .eq('chat_id', message.chat.id)
-    .maybeSingle();
-
-  if (channelError) {
-    throw new Error(`Channel fetch error: ${channelError.message}`);
-  }
-
-  if (!existingChannel) {
-    const { error: insertError } = await supabase
-      .from('channels')
-      .insert({
-        chat_id: message.chat.id,
-        title: message.chat.title || `Channel ${message.chat.id}`,
-        username: message.chat.username,
-        user_id: message.from?.id ? message.from.id.toString() : 'system',
-        is_active: true
-      });
-
-    if (insertError) {
-      throw new Error(`Channel insert error: ${insertError.message}`);
+  try {
+    if (!message.chat?.id) {
+      throw new Error('No chat ID in message');
     }
-  }
 
-  return existingChannel;
+    const { data: existingChannel, error: selectError } = await supabase
+      .from('channels')
+      .select('*')
+      .eq('chat_id', message.chat.id)
+      .single();
+
+    if (selectError && selectError.code !== 'PGRST116') { // PGRST116 is "not found"
+      throw selectError;
+    }
+
+    if (!existingChannel) {
+      const { error: insertError } = await supabase
+        .from('channels')
+        .insert({
+          chat_id: message.chat.id,
+          title: message.chat.title || 'Unknown',
+          username: message.chat.username,
+          user_id: message.from?.id ? message.from.id.toString() : 'system',
+          is_active: true
+        });
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      console.log('[handleChannel] Created new channel record');
+    }
+  } catch (error) {
+    console.error('[handleChannel] Error:', error);
+    throw error;
+  }
 };

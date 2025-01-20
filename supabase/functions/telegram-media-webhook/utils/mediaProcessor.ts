@@ -6,7 +6,8 @@ import { createMediaRecord } from "../../_shared/database.ts";
 export const processMedia = async (
   supabase: ReturnType<typeof createClient>,
   message: any,
-  botToken: string
+  botToken: string,
+  userId: string
 ) => {
   if (!message.photo && !message.video && !message.document && !message.animation) {
     return null;
@@ -20,6 +21,7 @@ export const processMedia = async (
   let height = null;
   let fileSize = null;
 
+  // Determine media type and get file details
   if (message.photo) {
     const photo = message.photo[message.photo.length - 1];
     fileId = photo.file_id;
@@ -84,7 +86,7 @@ export const processMedia = async (
   // Create media record
   const mediaData = await createMediaRecord(
     supabase,
-    message.from?.id ? message.from.id.toString() : 'system',
+    userId,
     message.chat.id,
     fileName,
     fileUrl,
@@ -96,7 +98,14 @@ export const processMedia = async (
       file_unique_id: fileUniqueId,
       media_group_id: message.media_group_id,
       chat_type: message.chat.type,
-      forward_info: message.forward_from || message.forward_from_chat
+      forward_info: message.forward_from || message.forward_from_chat,
+      file_size_mb: fileSize ? Number((fileSize / (1024 * 1024)).toFixed(2)) : null,
+      photo_width: width,
+      photo_height: height,
+      message_date: new Date(message.date * 1000).toISOString(),
+      source_channel: message.chat.title || message.chat.username,
+      is_forwarded: !!message.forward_from || !!message.forward_from_chat,
+      original_source: message.forward_from_chat?.title || message.forward_from?.first_name
     },
     message.media_group_id,
     fileUrl

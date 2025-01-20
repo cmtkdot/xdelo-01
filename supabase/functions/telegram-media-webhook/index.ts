@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { validateWebhookSecret, corsHeaders } from "./utils/security.ts";
+import { validateWebhookSecret, validateUser, corsHeaders } from "./utils/security.ts";
 import { handleChannel } from "./utils/channelHandler.ts";
 import { processMedia } from "./utils/mediaProcessor.ts";
 import { createMessageRecord } from "./utils/messageHandler.ts";
@@ -52,11 +52,20 @@ serve(async (req) => {
       media_group_id: message.media_group_id
     });
 
+    // Validate user if it's a private message
+    let userId = 'system';
+    if (message.from) {
+      const user = await validateUser(supabaseClient, message.from.id.toString());
+      if (user) {
+        userId = user.id;
+      }
+    }
+
     // Handle channel
     await handleChannel(supabaseClient, message);
 
     // Process media if present
-    const mediaResult = await processMedia(supabaseClient, message, botToken);
+    const mediaResult = await processMedia(supabaseClient, message, botToken, userId);
 
     // Create message record
     await createMessageRecord(supabaseClient, message, mediaResult);
