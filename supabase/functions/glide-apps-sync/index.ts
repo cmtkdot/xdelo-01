@@ -86,11 +86,6 @@ serve(async (req) => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Glide API error (${response.status}):`, errorText);
-          console.error('Request headers:', {
-            'Authorization': `Bearer ${glideApiToken.substring(0, 5)}...`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          });
           
           return new Response(
             JSON.stringify({ 
