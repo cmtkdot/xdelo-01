@@ -15,25 +15,36 @@ export async function processMediaMessage(
     let width = null;
     let height = null;
     let fileSize = null;
+    let fileUniqueId = null;
 
     // Determine file ID and media type
     if (message.photo) {
       const photo = message.photo[message.photo.length - 1];
       fileId = photo.file_id;
+      fileUniqueId = photo.file_unique_id;
       mediaType = 'image';
       width = photo.width;
       height = photo.height;
       fileSize = photo.file_size;
     } else if (message.video) {
       fileId = message.video.file_id;
+      fileUniqueId = message.video.file_unique_id;
       mediaType = 'video';
       width = message.video.width;
       height = message.video.height;
       fileSize = message.video.file_size;
     } else if (message.document) {
       fileId = message.document.file_id;
+      fileUniqueId = message.document.file_unique_id;
       mediaType = 'document';
       fileSize = message.document.file_size;
+    } else if (message.animation) {
+      fileId = message.animation.file_id;
+      fileUniqueId = message.animation.file_unique_id;
+      mediaType = 'animation';
+      width = message.animation.width;
+      height = message.animation.height;
+      fileSize = message.animation.file_size;
     } else {
       console.log("[processMediaMessage] No media found in message");
       return { error: 'No media found in message' };
@@ -46,7 +57,7 @@ export async function processMediaMessage(
       .from('media')
       .select('id, file_url, public_url')
       .eq('chat_id', message.chat.id)
-      .eq('file_unique_id', message.photo?.[0]?.file_unique_id || message.video?.file_unique_id || message.document?.file_unique_id)
+      .eq('file_unique_id', fileUniqueId)
       .maybeSingle();
 
     if (existingMedia) {
@@ -110,12 +121,13 @@ export async function processMediaMessage(
           source_channel: message.chat.title || message.chat.username,
           is_forwarded: !!message.forward_from || !!message.forward_from_chat,
           original_source: message.forward_from_chat?.title || message.forward_from?.first_name,
-          file_unique_id: message.photo?.[0]?.file_unique_id || message.video?.file_unique_id || message.document?.file_unique_id,
+          file_unique_id: fileUniqueId,
           metadata: {
             message_id: message.message_id,
             file_id: fileId,
             original_file_name: filePath.split('/').pop(),
-            forward_info: message.forward_from || message.forward_from_chat
+            forward_info: message.forward_from || message.forward_from_chat,
+            chat_type: message.chat.type
           }
         })
         .select()
