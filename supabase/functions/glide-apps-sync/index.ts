@@ -72,10 +72,20 @@ serve(async (req) => {
     switch (operation) {
       case 'list-apps': {
         console.log('Fetching apps list from Glide API');
-        const response = await fetch('https://api.glideapp.io/api/apps/list', {
+        console.log('Using Glide API Token:', glideApiToken.substring(0, 8) + '...');
+        
+        // Ensure token is properly formatted
+        const token = glideApiToken.trim();
+        if (!token.match(/^[a-f0-9-]{36}$/)) {
+          console.error('Invalid Glide API token format');
+          throw new Error('Invalid Glide API token format');
+        }
+
+        // Using the v3 API endpoint
+        const response = await fetch('https://api.glideapp.io/api/v3/apps', {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${glideApiToken}`,
+            'X-Glide-API-Key': token,
             'Content-Type': 'application/json',
             'Accept': 'application/json',
           },
@@ -84,6 +94,11 @@ serve(async (req) => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Glide API error (${response.status}):`, errorText);
+          console.error('Request headers:', {
+            'X-Glide-API-Key': token.substring(0, 8) + '...',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          });
           
           // Log the error to edge_function_logs
           await supabase.from('edge_function_logs').insert({
@@ -92,16 +107,11 @@ serve(async (req) => {
             message: `Glide API error: ${response.status} - ${errorText}`
           });
           
-          return new Response(
-            JSON.stringify({ 
-              error: `Glide API error: ${response.status}`,
-              details: errorText,
-            }), 
-            { 
-              status: response.status,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            }
-          );
+          if (response.status === 401) {
+            throw new Error('Invalid Glide API token. Please check your token and try again.');
+          }
+          
+          throw new Error(`Glide API error: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
