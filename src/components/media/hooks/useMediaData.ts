@@ -1,7 +1,7 @@
-import { supabase } from "@/integrations/supabase/client";
-import { MediaItem, MediaFilter } from "../types";
-import { useToast } from "@/components/ui/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { MediaFilter } from "../types";
+import { useToast } from "@/hooks/use-toast";
 
 export const useMediaData = (filter?: MediaFilter) => {
   const { toast } = useToast();
@@ -10,6 +10,7 @@ export const useMediaData = (filter?: MediaFilter) => {
     queryKey: ['media', filter],
     queryFn: async () => {
       console.log("Fetching media with filter:", filter);
+      
       let query = supabase
         .from('media')
         .select(`
@@ -18,6 +19,7 @@ export const useMediaData = (filter?: MediaFilter) => {
         `)
         .order('created_at', { ascending: false });
 
+      // Apply filters if provided
       if (filter?.selectedChannel !== "all") {
         query = query.eq('chat_id', parseInt(filter.selectedChannel));
       }
@@ -45,9 +47,11 @@ export const useMediaData = (filter?: MediaFilter) => {
       }
 
       console.log("Media data fetched:", data?.length, "items");
-      return data as MediaItem[];
+      return data || [];
     },
-    staleTime: 0,
-    refetchInterval: 1000,
+    staleTime: 0, // Always fetch fresh data
+    refetchInterval: 1000, // Poll every second for updates
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 };

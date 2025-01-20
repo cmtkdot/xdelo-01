@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -9,16 +9,42 @@ import { useMediaTableSort } from "@/components/media/table/hooks/useMediaTableS
 import { useMediaTableSelection } from "@/components/media/table/hooks/useMediaTableSelection";
 import MediaTableFilters from "@/components/media/table/MediaTableFilters";
 import { MediaTableToolbar } from "@/components/media/table/MediaTableToolbar";
-import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const GOOGLE_CLIENT_ID = "241566560647-0ovscpbnp0r9767brrb14dv6gjfq5uc4.apps.googleusercontent.com";
 
 const MediaTable = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [uploadStatus, setUploadStatus] = useState<string>("all");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [authChecked, setAuthChecked] = useState(false);
   
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+      
+      setAuthChecked(true);
+    };
+    
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        navigate("/login");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
   // Sorting and selection hooks
   const { sortedMediaItems, handleSort, sortConfig } = useMediaTableSort([]);
   const { 
@@ -45,12 +71,6 @@ const MediaTable = () => {
   const { data: mediaItems, isLoading, error, refetch } = useQuery({
     queryKey: ['media-table', uploadStatus, selectedChannel, selectedType],
     queryFn: async () => {
-      const { data: session } = await supabase.auth.getSession();
-      
-      if (!session?.session) {
-        throw new Error('You must be logged in to view media');
-      }
-
       let query = supabase
         .from('media')
         .select(`
@@ -64,7 +84,6 @@ const MediaTable = () => {
       }
 
       if (selectedChannel !== 'all') {
-        // Convert string to number for chat_id comparison
         const chatId = parseInt(selectedChannel, 10);
         if (!isNaN(chatId)) {
           query = query.eq('chat_id', chatId);
@@ -91,6 +110,10 @@ const MediaTable = () => {
       });
     }
   }, [error, toast]);
+
+  if (!authChecked || isLoading) {
+    return <div>Loading...</div>;
+  }
 
   const openFileInNewTab = (url: string) => {
     window.open(url, '_blank');

@@ -9,7 +9,7 @@ import { useGlideData } from "@/hooks/useGlideData";
 import { useToast } from "@/components/ui/use-toast";
 import type { GlideTableConfig } from "@/components/glide/types";
 
-const GlideApps = () => {
+export function GlideDataView() {
   const [selectedAppId, setSelectedAppId] = useState<string>("");
   const [selectedTableConfig, setSelectedTableConfig] = useState<GlideTableConfig | null>(null);
   const { toast } = useToast();
@@ -78,12 +78,12 @@ const GlideApps = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6 mt-16">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Glide Apps Dashboard</h1>
+          <h2 className="text-2xl font-bold">Glide Data Manager</h2>
           <p className="text-muted-foreground mt-1">
-            Manage and monitor your Glide apps synchronization
+            Manage and sync your Glide app data
           </p>
         </div>
         <TableActions 
@@ -131,6 +131,4 @@ const GlideApps = () => {
       )}
     </div>
   );
-};
-
-export default GlideApps;
+}

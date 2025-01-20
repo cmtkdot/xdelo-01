@@ -19,13 +19,17 @@ serve(async (req) => {
     }
 
     // Get media items with empty captions or in media groups
+    // Fixed query syntax by using separate or conditions
     const { data: mediaItems, error: fetchError } = await supabase
       .from('media')
       .select('*')
-      .or('caption.is.null,media_group_id.is.not.null')
+      .or('caption.is.null,media_group_id.not.is.null')
       .order('created_at', { ascending: false });
 
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error('Error fetching media:', fetchError);
+      throw fetchError;
+    }
 
     console.log(`Found ${mediaItems?.length || 0} media items to process`);
 
@@ -42,13 +46,18 @@ serve(async (req) => {
           // Process media group
           processedGroups.add(media.media_group_id);
           
-          const { data: groupMedia } = await supabase
+          const { data: groupMedia, error: groupError } = await supabase
             .from('media')
             .select('*')
             .eq('media_group_id', media.media_group_id)
             .order('created_at', { ascending: false })
             .limit(1)
             .single();
+
+          if (groupError) {
+            console.error('Error fetching group media:', groupError);
+            throw groupError;
+          }
 
           if (groupMedia?.metadata?.message_id) {
             const response = await fetch(

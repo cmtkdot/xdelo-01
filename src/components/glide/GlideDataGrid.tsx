@@ -4,25 +4,45 @@ import {
   GridColumn,
   GridCell,
   Item,
-  Theme,
-  CompactSelection,
   EditableGridCell,
   GridCellKind,
 } from "@glideapps/glide-data-grid";
 import "@glideapps/glide-data-grid/dist/index.css";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 
-interface GlideDataTableProps {
+interface GlideDataGridProps {
   data: any[];
   columns: string[];
   onCellEdited?: (cell: Item, newValue: EditableGridCell) => void;
+  onRowDelete?: (rowIndex: number) => void;
 }
 
-export function GlideDataTable({ data, columns, onCellEdited }: GlideDataTableProps) {
+export function GlideDataGrid({ 
+  data, 
+  columns, 
+  onCellEdited,
+  onRowDelete 
+}: GlideDataGridProps) {
   const getContent = useCallback(
     ([col, row]: Item): GridCell => {
       const columnName = columns[col];
       const value = data[row][columnName];
       
+      if (columnName === "actions") {
+        return {
+          kind: GridCellKind.Custom,
+          allowOverlay: true,
+          readonly: false,
+          copyData: "",
+          data: {
+            kind: "button-cell",
+            onClick: () => onRowDelete?.(row),
+            icon: <Trash2 className="h-4 w-4" />,
+          },
+        };
+      }
+
       return {
         kind: GridCellKind.Text,
         allowOverlay: true,
@@ -31,25 +51,21 @@ export function GlideDataTable({ data, columns, onCellEdited }: GlideDataTablePr
         data: value,
       };
     },
-    [data, columns]
+    [data, columns, onRowDelete]
   );
 
   const cols = useMemo(
-    (): GridColumn[] =>
-      columns.map((col) => ({
+    (): GridColumn[] => [
+      ...columns.map((col) => ({
         title: col,
         width: 150,
       })),
+      {
+        title: "Actions",
+        width: 100,
+      },
+    ],
     [columns]
-  );
-
-  const onCellEdit = useCallback(
-    (cell: Item, newValue: EditableGridCell) => {
-      if (onCellEdited) {
-        onCellEdited(cell, newValue);
-      }
-    },
-    [onCellEdited]
   );
 
   return (
@@ -59,7 +75,7 @@ export function GlideDataTable({ data, columns, onCellEdited }: GlideDataTablePr
       rows={data.length}
       columns={cols}
       getCellContent={getContent}
-      onCellEdited={onCellEdit}
+      onCellEdited={onCellEdited}
       smoothScrollX
       smoothScrollY
       isDraggable={false}

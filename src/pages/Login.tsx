@@ -3,28 +3,36 @@ import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { handleAuthError, cleanupUserSession } from "@/lib/auth";
 
 const Login = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Check initial auth state
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/dashboard");
+        navigate("/media");
       }
       setIsLoading(false);
-    });
+    };
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth event:", event);
+      
       if (event === 'SIGNED_IN' && session) {
-        navigate("/dashboard");
+        navigate("/media");
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   if (isLoading) {
@@ -37,22 +45,17 @@ const Login = () => {
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-[#0A0A0F] flex items-center justify-center">
-      {/* Animated background */}
       <div className="absolute inset-0 w-full h-full">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-900/10 to-[#0A0A0F]">
-          {/* Grid overlay */}
           <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.075)_1px,transparent_1px)] bg-[size:32px_32px]"></div>
         </div>
         
-        {/* Subtle animated borders */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
       </div>
 
-      {/* Login container - Optimized for desktop and mobile */}
       <div className="relative w-full sm:w-[600px] lg:w-[800px] xl:w-[1000px] mx-auto px-4">
         <div className="relative backdrop-blur-xl bg-black/40 rounded-2xl border border-white/10 p-8 lg:p-12 shadow-2xl">
-          {/* Logo */}
           <div className="flex flex-col items-center justify-center mb-8 lg:mb-12">
             <img 
               src="/lovable-uploads/ed1ad7fe-b108-4e36-8479-42df7f19fd63.png"
@@ -61,7 +64,6 @@ const Login = () => {
             />
           </div>
 
-          {/* Auth component - Centered with max width */}
           <div className="max-w-md mx-auto flex flex-col items-center">
             <Auth
               supabaseClient={supabase}
@@ -90,34 +92,11 @@ const Login = () => {
                   divider: "text-white/30 w-full text-center",
                   message: "text-white bg-red-500/90 backdrop-blur-sm p-3 rounded-lg text-sm w-full",
                 },
-                style: {
-                  input: {
-                    color: 'white',
-                    fontSize: '14px',
-                    width: '100%',
-                  },
-                  message: {
-                    backgroundColor: 'rgba(220, 38, 38, 0.9)',
-                    color: 'white',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    marginBottom: '16px',
-                    fontWeight: '500',
-                    backdropFilter: 'blur(8px)',
-                    width: '100%',
-                  },
-                },
               }}
               providers={[]}
             />
           </div>
         </div>
-      </div>
-
-      {/* Subtle glow effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute -top-32 -right-32 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
       </div>
     </div>
   );

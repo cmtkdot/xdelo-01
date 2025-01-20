@@ -120,6 +120,33 @@ export type Database = {
         }
         Relationships: []
       }
+      expensessa: {
+        Row: {
+          amount: string | null
+          category: Database["public"]["Enums"]["expense_category"] | null
+          date: string | null
+          expense_note: string | null
+          expenses_row_id: string | null
+          uuid: number
+        }
+        Insert: {
+          amount?: string | null
+          category?: Database["public"]["Enums"]["expense_category"] | null
+          date?: string | null
+          expense_note?: string | null
+          expenses_row_id?: string | null
+          uuid?: number
+        }
+        Update: {
+          amount?: string | null
+          category?: Database["public"]["Enums"]["expense_category"] | null
+          date?: string | null
+          expense_note?: string | null
+          expenses_row_id?: string | null
+          uuid?: number
+        }
+        Relationships: []
+      }
       file_links: {
         Row: {
           file_name: string
@@ -141,6 +168,30 @@ export type Database = {
           public_url?: string
           uploaded_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      glide_accounts: {
+        Row: {
+          account_data: Json | null
+          created_at: string | null
+          glide_row_id: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_data?: Json | null
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_data?: Json | null
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -174,30 +225,171 @@ export type Database = {
         }
         Relationships: []
       }
-      glide_expenses: {
+      glide_customer_credits: {
         Row: {
-          amount: string | null
-          category: Database["public"]["Enums"]["expense_category"] | null
-          date: string | null
-          expense_note: string | null
-          expenses_row_id: string | null
-          uuid: number
+          created_at: string | null
+          credit_data: Json | null
+          glide_row_id: string | null
+          id: string
+          updated_at: string | null
         }
         Insert: {
-          amount?: string | null
-          category?: Database["public"]["Enums"]["expense_category"] | null
-          date?: string | null
-          expense_note?: string | null
-          expenses_row_id?: string | null
-          uuid?: number
+          created_at?: string | null
+          credit_data?: Json | null
+          glide_row_id?: string | null
+          id?: string
+          updated_at?: string | null
         }
         Update: {
-          amount?: string | null
-          category?: Database["public"]["Enums"]["expense_category"] | null
-          date?: string | null
-          expense_note?: string | null
-          expenses_row_id?: string | null
-          uuid?: number
+          created_at?: string | null
+          credit_data?: Json | null
+          glide_row_id?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      glide_customer_payments: {
+        Row: {
+          created_at: string | null
+          glide_row_id: string | null
+          id: string
+          payment_data: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          payment_data?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          payment_data?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      glide_estimate_lines: {
+        Row: {
+          created_at: string | null
+          glide_row_id: string | null
+          id: string
+          line_data: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          line_data?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          line_data?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      glide_estimates: {
+        Row: {
+          created_at: string | null
+          estimate_data: Json | null
+          glide_row_id: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          estimate_data?: Json | null
+          glide_row_id?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          estimate_data?: Json | null
+          glide_row_id?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      glide_invoice_lines: {
+        Row: {
+          created_at: string | null
+          glide_row_id: string | null
+          id: string
+          line_data: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          line_data?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          line_data?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      glide_invoices: {
+        Row: {
+          created_at: string | null
+          glide_row_id: string | null
+          id: string
+          invoice_data: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          invoice_data?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          invoice_data?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      glide_po_orders: {
+        Row: {
+          created_at: string | null
+          glide_row_id: string | null
+          id: string
+          po_data: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          po_data?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          po_data?: Json | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -236,6 +428,7 @@ export type Database = {
           supabase_google_url: string | null
           supabase_media_id: string | null
           supabase_video_link: string | null
+          table_config_id: string | null
           total_qty_purchased: number | null
           total_units_behind_sample: number | null
           updated_at: string | null
@@ -279,6 +472,7 @@ export type Database = {
           supabase_google_url?: string | null
           supabase_media_id?: string | null
           supabase_video_link?: string | null
+          table_config_id?: string | null
           total_qty_purchased?: number | null
           total_units_behind_sample?: number | null
           updated_at?: string | null
@@ -322,6 +516,7 @@ export type Database = {
           supabase_google_url?: string | null
           supabase_media_id?: string | null
           supabase_video_link?: string | null
+          table_config_id?: string | null
           total_qty_purchased?: number | null
           total_units_behind_sample?: number | null
           updated_at?: string | null
@@ -331,7 +526,15 @@ export type Database = {
           vendor_uid?: string | null
           vpay_row_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "glide_products_table_config_id_fkey"
+            columns: ["table_config_id"]
+            isOneToOne: false
+            referencedRelation: "glide_table_configs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       glide_table_configs: {
         Row: {
@@ -378,6 +581,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_app_id"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "glide_apps"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "glide_table_configs_app_id_fkey"
             columns: ["app_id"]
             isOneToOne: false
@@ -385,6 +595,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      glide_tp_submissions: {
+        Row: {
+          created_at: string | null
+          glide_row_id: string | null
+          id: string
+          submission_data: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          submission_data?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          submission_data?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      glide_vendor_payments: {
+        Row: {
+          created_at: string | null
+          glide_row_id: string | null
+          id: string
+          payment_data: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          payment_data?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          glide_row_id?: string | null
+          id?: string
+          payment_data?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       media: {
         Row: {

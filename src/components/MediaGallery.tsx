@@ -13,8 +13,13 @@ import DeleteMediaDialog from "./media/DeleteMediaDialog";
 import { SyncManager } from "./media/sync/SyncManager";
 import SyncChannelButton from "./media/sync/SyncChannelButton";
 import { useMediaGallery } from "./media/hooks/useMediaGallery";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const MediaGallery = () => {
+  const navigate = useNavigate();
+  const [authChecked, setAuthChecked] = useState(false);
   const {
     filter,
     setFilter,
@@ -33,6 +38,33 @@ const MediaGallery = () => {
     refetch
   } = useMediaGallery();
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+      
+      setAuthChecked(true);
+    };
+    
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        navigate("/login");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  if (!authChecked || isLoading) {
+    return <MediaGallerySkeleton />;
+  }
+
   if (error) {
     console.error("Error loading media:", error);
     return (
@@ -42,10 +74,6 @@ const MediaGallery = () => {
         </p>
       </div>
     );
-  }
-
-  if (isLoading) {
-    return <MediaGallerySkeleton />;
   }
 
   return (
