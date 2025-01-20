@@ -12,6 +12,7 @@ export function AddGlideAppDialog() {
   const [appName, setAppName] = useState("");
   const [tableId, setTableId] = useState("");
   const [tableName, setTableName] = useState("");
+  const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,6 +25,7 @@ export function AddGlideAppDialog() {
         .insert([{
           app_id: appId,
           app_name: appName,
+          is_active: true
         }])
         .select()
         .single();
@@ -37,6 +39,7 @@ export function AddGlideAppDialog() {
           app_id: appData.id,
           table_id: tableId,
           table_name: tableName,
+          is_active: true
         }]);
 
       if (tableError) throw tableError;
@@ -46,11 +49,12 @@ export function AddGlideAppDialog() {
         description: "Glide app and table configuration added successfully",
       });
 
-      // Reset form
+      // Reset form and close dialog
       setAppId("");
       setAppName("");
       setTableId("");
       setTableName("");
+      setOpen(false);
     } catch (error) {
       console.error('Error adding Glide app:', error);
       toast({
@@ -62,7 +66,7 @@ export function AddGlideAppDialog() {
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
           <PlusCircle className="mr-2 h-4 w-4" />
