@@ -66,7 +66,7 @@ serve(async (req) => {
           chat_id: message.chat.id,
           title: message.chat.title || `Channel ${message.chat.id}`,
           username: message.chat.username,
-          user_id: message.from?.id ? message.from.id.toString() : null,
+          user_id: message.from?.id ? message.from.id.toString() : 'system',
           is_active: true
         });
 
@@ -186,7 +186,7 @@ serve(async (req) => {
         message_id: message.message_id,
         sender_name: message.from?.first_name || message.chat.title || 'Unknown',
         text: message.caption || message.text,
-        user_id: message.from?.id ? message.from.id.toString() : null,
+        user_id: message.from?.id ? message.from.id.toString() : 'system',
         media_type: mediaResult?.mediaType || null,
         media_url: mediaResult?.fileUrl || null,
         public_url: mediaResult?.fileUrl || null,
