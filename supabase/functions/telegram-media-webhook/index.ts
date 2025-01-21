@@ -3,20 +3,22 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateWebhookSecret, corsHeaders } from "./utils/security.ts";
 import { handleChannel } from "./utils/channelHandler.ts";
 import { processMedia } from "./utils/mediaProcessor.ts";
-import { createMessageRecord } from "./utils/messageHandler.ts";
+import { queueMessage, startMessageProcessor } from "./utils/messageHandler.ts";
 import { logOperation } from "../_shared/database.ts";
 import { forwardUpdate } from "./utils/forwardHandler.ts";
+
+// Initialize message processor
+const supabaseClient = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+startMessageProcessor(supabaseClient);
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-
-  const supabaseClient = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
 
   try {
     console.log("[telegram-webhook] Starting webhook processing");
@@ -30,7 +32,6 @@ serve(async (req) => {
       throw new Error('Missing required environment variables');
     }
 
-    // Enhanced webhook secret validation with detailed logging
     if (!validateWebhookSecret(req.headers, webhookSecret)) {
       console.error('[telegram-webhook] Invalid webhook secret');
       await logOperation(
@@ -68,19 +69,6 @@ serve(async (req) => {
       );
     }
 
-    // Log message details
-    console.log("[telegram-webhook] Processing message:", {
-      message_id: message.message_id,
-      chat_id: message.chat.id,
-      chat_type: message.chat.type,
-      has_photo: !!message.photo,
-      has_video: !!message.video,
-      has_document: !!message.document,
-      has_animation: !!message.animation,
-      media_group_id: message.media_group_id,
-      is_edited: !!update.edited_message || !!update.edited_channel_post
-    });
-
     // Set default user ID for all users
     const userId = 'system';
 
@@ -90,8 +78,8 @@ serve(async (req) => {
     // Process media if present
     const mediaResult = await processMedia(supabaseClient, message, botToken, userId);
 
-    // Create/Update message record
-    await createMessageRecord(supabaseClient, message, mediaResult);
+    // Queue message for processing instead of immediate processing
+    queueMessage(message, mediaResult);
 
     // Forward update if needed
     const forwardResult = await forwardUpdate(supabaseClient, update, message, mediaResult);
@@ -101,13 +89,13 @@ serve(async (req) => {
       supabaseClient,
       'telegram-webhook',
       'success',
-      `Successfully processed message ${message.message_id} from chat ${message.chat.id}`
+      `Successfully queued message ${message.message_id} from chat ${message.chat.id}`
     );
 
     return new Response(
       JSON.stringify({ 
         status: 'success',
-        message: 'Webhook processed successfully',
+        message: 'Message queued for processing',
         details: {
           message_id: message.message_id,
           chat_id: message.chat.id,

@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Message queue to store incoming messages
+const messageQueue: any[] = [];
+const BATCH_SIZE = 10;
+const PROCESS_INTERVAL = 1000; // 1 second
+
 export const createMessageRecord = async (
   supabase: ReturnType<typeof createClient>,
   message: any,
@@ -44,4 +49,33 @@ export const createMessageRecord = async (
     console.error('[createMessageRecord] Error:', error);
     throw error;
   }
+};
+
+export const processBatchMessages = async (
+  supabase: ReturnType<typeof createClient>,
+  messages: any[]
+) => {
+  console.log(`[processBatchMessages] Processing batch of ${messages.length} messages`);
+  
+  for (const message of messages) {
+    try {
+      await createMessageRecord(supabase, message.message, message.mediaResult);
+    } catch (error) {
+      console.error(`[processBatchMessages] Error processing message ${message.message.message_id}:`, error);
+      // Continue processing other messages even if one fails
+    }
+  }
+};
+
+export const queueMessage = (message: any, mediaResult: any) => {
+  messageQueue.push({ message, mediaResult });
+};
+
+export const startMessageProcessor = async (supabase: ReturnType<typeof createClient>) => {
+  setInterval(async () => {
+    if (messageQueue.length === 0) return;
+
+    const batch = messageQueue.splice(0, BATCH_SIZE);
+    await processBatchMessages(supabase, batch);
+  }, PROCESS_INTERVAL);
 };
