@@ -3,11 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw } from "lucide-react";
-import { format } from "date-fns";
+import { GlideDataGrid } from "@/components/glide/GlideDataGrid";
 import type { Database } from "@/integrations/supabase/types";
 
 type GlideProduct = Database['public']['Tables']['glide_products']['Row'];
@@ -17,7 +15,7 @@ const Glide = () => {
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Fetch Glide products
-  const { data: products, isLoading: isLoadingProducts } = useQuery({
+  const { data: products, isLoading: isLoadingProducts, refetch } = useQuery({
     queryKey: ['glide-products'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -48,6 +46,8 @@ const Glide = () => {
       
       if (error) throw error;
       
+      await refetch();
+      
       toast({
         title: "Success",
         description: "Products synced successfully",
@@ -64,9 +64,62 @@ const Glide = () => {
     }
   };
 
-  const formatDate = (date: string | null) => {
-    if (!date) return 'N/A';
-    return format(new Date(date), 'PP p');
+  const handleCellEdited = async (cell: any, newValue: any) => {
+    if (!products) return;
+    
+    const rowData = products[cell[1]];
+    const columnName = Object.keys(rowData)[cell[0]];
+    
+    try {
+      const { error } = await supabase
+        .from('glide_products')
+        .update({ [columnName]: newValue.data })
+        .eq('glide_product_row_id', rowData.glide_product_row_id);
+
+      if (error) throw error;
+      
+      refetch();
+      
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update product",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteRow = async (rowIndex: number) => {
+    if (!products) return;
+    const product = products[rowIndex];
+    
+    try {
+      const { error } = await supabase
+        .from('glide_products')
+        .delete()
+        .eq('glide_product_row_id', product.glide_product_row_id);
+
+      if (error) throw error;
+      
+      refetch();
+      
+      toast({
+        title: "Success",
+        description: "Product deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete product",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -98,30 +151,22 @@ const Glide = () => {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product Name</TableHead>
-                <TableHead>Last Synced</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products?.map((product) => (
-                <TableRow key={product.glide_product_row_id}>
-                  <TableCell className="font-medium">{product.product_name || 'Unnamed Product'}</TableCell>
-                  <TableCell>{formatDate(product.last_synced)}</TableCell>
-                  <TableCell>
-                    <Badge variant="default">
-                      Synced
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        {isLoadingProducts ? (
+          <div className="flex justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : products && products.length > 0 ? (
+          <GlideDataGrid
+            data={products}
+            columns={Object.keys(products[0]).filter(key => key !== 'id')}
+            onCellEdited={handleCellEdited}
+            onRowDelete={handleDeleteRow}
+          />
+        ) : (
+          <div className="p-8 text-center text-muted-foreground">
+            No products found
+          </div>
+        )}
       </Card>
     </div>
   );
