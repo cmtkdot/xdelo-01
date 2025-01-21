@@ -3,15 +3,13 @@ export const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-telegram-bot-api-secret-token',
 };
 
-export const validateWebhookSecret = (headers: Headers, webhookSecret: string): boolean => {
-  // Get the secret token from the header
-  const providedSecret = headers.get('x-telegram-bot-api-secret-token');
+export const validateWebhookSecret = async (secret: string | null): Promise<boolean> => {
+  const webhookSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET');
   
   console.log('[validateWebhookSecret] Starting webhook secret validation');
-  console.log('[validateWebhookSecret] Headers received:', Array.from(headers.entries()));
   
-  if (!providedSecret) {
-    console.error('[validateWebhookSecret] No secret token provided in headers');
+  if (!secret) {
+    console.error('[validateWebhookSecret] No secret provided in request');
     return false;
   }
 
@@ -20,7 +18,7 @@ export const validateWebhookSecret = (headers: Headers, webhookSecret: string): 
     return false;
   }
 
-  const isValid = providedSecret === webhookSecret;
+  const isValid = secret === webhookSecret;
   console.log('[validateWebhookSecret] Secret validation result:', isValid ? 'success' : 'failed');
   
   return isValid;
