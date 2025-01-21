@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { validateWebhookSecret } from "./utils/security.ts";
+import { validateWebhookSecret, corsHeaders } from "./utils/security.ts";
 import { handleChannel } from "./utils/channelHandler.ts";
 import { processMedia } from "./utils/mediaProcessor.ts";
 import { createMessageRecord } from "./utils/messageHandler.ts";
@@ -8,11 +8,6 @@ import { logOperation } from "../_shared/database.ts";
 import { forwardUpdate } from "./utils/forwardHandler.ts";
 
 serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-telegram-bot-api-secret-token',
-  };
-
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -25,6 +20,7 @@ serve(async (req) => {
 
   try {
     console.log("[telegram-webhook] Starting webhook processing");
+    console.log("[telegram-webhook] Request headers:", Array.from(req.headers.entries()));
     
     const webhookSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET');
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
@@ -34,7 +30,7 @@ serve(async (req) => {
       throw new Error('Missing required environment variables');
     }
 
-    // Enhanced webhook secret validation
+    // Enhanced webhook secret validation with detailed logging
     if (!validateWebhookSecret(req.headers, webhookSecret)) {
       console.error('[telegram-webhook] Invalid webhook secret');
       await logOperation(
@@ -46,7 +42,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'Invalid webhook secret',
-          message: 'Please provide the correct webhook secret token'
+          message: 'Please provide the correct webhook secret token in x-telegram-bot-api-secret-token header'
         }),
         { 
           status: 401, 

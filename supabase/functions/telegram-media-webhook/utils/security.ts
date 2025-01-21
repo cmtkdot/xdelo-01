@@ -8,10 +8,10 @@ export const validateWebhookSecret = (headers: Headers, webhookSecret: string): 
   const providedSecret = headers.get('x-telegram-bot-api-secret-token');
   
   console.log('[validateWebhookSecret] Starting webhook secret validation');
+  console.log('[validateWebhookSecret] Headers received:', Array.from(headers.entries()));
   
   if (!providedSecret) {
     console.error('[validateWebhookSecret] No secret token provided in headers');
-    console.log('[validateWebhookSecret] Available headers:', Array.from(headers.keys()));
     return false;
   }
 
