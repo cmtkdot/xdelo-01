@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +22,8 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const webhookUrl = `${supabaseUrl}/functions/v1/telegram-media-webhook`;
 
+    console.log('[setup-webhook] Setting webhook URL:', webhookUrl);
+
     // Set webhook URL with Telegram
     const setWebhookUrl = `https://api.telegram.org/bot${botToken}/setWebhook`;
     const response = await fetch(setWebhookUrl, {
@@ -34,11 +35,12 @@ serve(async (req) => {
         url: webhookUrl,
         secret_token: webhookSecret,
         allowed_updates: ["message", "channel_post", "edited_message", "edited_channel_post"],
-        drop_pending_updates: true
+        drop_pending_updates: false // Changed to false to keep pending updates
       })
     });
 
     const result = await response.json();
+    console.log('[setup-webhook] Webhook setup result:', result);
 
     if (!result.ok) {
       throw new Error(`Failed to set webhook: ${result.description}`);
@@ -47,6 +49,7 @@ serve(async (req) => {
     // Get webhook info to verify setup
     const getWebhookInfoUrl = `https://api.telegram.org/bot${botToken}/getWebhookInfo`;
     const webhookInfo = await fetch(getWebhookInfoUrl).then(res => res.json());
+    console.log('[setup-webhook] Webhook info:', webhookInfo);
 
     return new Response(
       JSON.stringify({
@@ -62,7 +65,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error setting up webhook:', error);
+    console.error('[setup-webhook] Error:', error);
     return new Response(
       JSON.stringify({
         success: false,

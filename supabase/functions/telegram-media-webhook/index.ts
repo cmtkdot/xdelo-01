@@ -13,6 +13,7 @@ serve(async (req) => {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-telegram-bot-api-secret-token',
   };
 
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -33,11 +34,14 @@ serve(async (req) => {
       throw new Error('Missing required environment variables');
     }
 
-    // Validate webhook secret
+    // Simplified webhook secret validation
     if (!validateWebhookSecret(req.headers, webhookSecret)) {
       console.error('[telegram-webhook] Invalid webhook secret');
       return new Response(
-        JSON.stringify({ error: 'Invalid webhook secret' }),
+        JSON.stringify({ 
+          error: 'Invalid webhook secret',
+          message: 'Please provide the correct webhook secret token'
+        }),
         { 
           status: 401, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -66,19 +70,8 @@ serve(async (req) => {
       media_group_id: message.media_group_id
     });
 
-    // Set default user ID
-    let userId = 'system';
-    if (message.from) {
-      const { data: user } = await supabaseClient
-        .from('bot_users')
-        .select('id')
-        .eq('telegram_user_id', message.from.id.toString())
-        .maybeSingle();
-      
-      if (user) {
-        userId = user.id;
-      }
-    }
+    // Set default user ID for all users
+    const userId = 'system';
 
     // Handle channel
     await handleChannel(supabaseClient, message);
@@ -89,7 +82,7 @@ serve(async (req) => {
     // Create message record
     await createMessageRecord(supabaseClient, message, mediaResult);
 
-    // Forward update if needed (webhook forwarding functionality)
+    // Forward update if needed
     const forwardResult = await forwardUpdate(supabaseClient, update, message, mediaResult);
 
     // Log success
@@ -113,7 +106,10 @@ serve(async (req) => {
           forward_result: forwardResult
         }
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+        status: 200 
+      }
     );
 
   } catch (error) {
@@ -128,7 +124,10 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+        status: 500 
+      }
     );
   }
 });
