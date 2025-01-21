@@ -34,9 +34,15 @@ serve(async (req) => {
       throw new Error('Missing required environment variables');
     }
 
-    // Simplified webhook secret validation
+    // Enhanced webhook secret validation
     if (!validateWebhookSecret(req.headers, webhookSecret)) {
       console.error('[telegram-webhook] Invalid webhook secret');
+      await logOperation(
+        supabaseClient,
+        'telegram-webhook',
+        'error',
+        'Invalid webhook secret token provided'
+      );
       return new Response(
         JSON.stringify({ 
           error: 'Invalid webhook secret',

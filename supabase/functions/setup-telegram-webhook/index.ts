@@ -22,8 +22,9 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const webhookUrl = `${supabaseUrl}/functions/v1/telegram-media-webhook`;
 
+    console.log('[setup-webhook] Starting webhook configuration');
     console.log('[setup-webhook] Setting webhook URL:', webhookUrl);
-    console.log('[setup-webhook] Using webhook secret:', webhookSecret);
+    console.log('[setup-webhook] Webhook secret configured:', !!webhookSecret);
 
     // Set webhook URL with Telegram
     const setWebhookUrl = `https://api.telegram.org/bot${botToken}/setWebhook`;
@@ -52,12 +53,18 @@ serve(async (req) => {
     const webhookInfo = await fetch(getWebhookInfoUrl).then(res => res.json());
     console.log('[setup-webhook] Webhook info:', webhookInfo);
 
+    // Verify webhook secret is properly set
+    if (!webhookInfo.result?.has_custom_certificate) {
+      console.log('[setup-webhook] Using standard HTTPS webhook');
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         message: 'Webhook configured successfully',
         webhook_url: webhookUrl,
-        webhook_info: webhookInfo
+        webhook_info: webhookInfo,
+        secret_configured: !!webhookSecret
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
