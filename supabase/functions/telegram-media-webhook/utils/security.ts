@@ -4,11 +4,20 @@ export const corsHeaders = {
 };
 
 export const validateWebhookSecret = (headers: Headers, webhookSecret: string): boolean => {
-  // Simple token validation - just check if it exists and matches
+  // Get the secret token from the header
   const providedSecret = headers.get('x-telegram-bot-api-secret-token');
   
+  console.log('[validateWebhookSecret] Validating webhook secret');
+  console.log('[validateWebhookSecret] Provided secret:', providedSecret);
+  console.log('[validateWebhookSecret] Expected secret:', webhookSecret);
+  
   if (!providedSecret) {
-    console.error('[validateWebhookSecret] No secret token provided');
+    console.error('[validateWebhookSecret] No secret token provided in headers');
+    return false;
+  }
+
+  if (!webhookSecret) {
+    console.error('[validateWebhookSecret] No webhook secret configured in environment');
     return false;
   }
 

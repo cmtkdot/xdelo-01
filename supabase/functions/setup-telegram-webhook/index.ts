@@ -23,6 +23,7 @@ serve(async (req) => {
     const webhookUrl = `${supabaseUrl}/functions/v1/telegram-media-webhook`;
 
     console.log('[setup-webhook] Setting webhook URL:', webhookUrl);
+    console.log('[setup-webhook] Using webhook secret:', webhookSecret);
 
     // Set webhook URL with Telegram
     const setWebhookUrl = `https://api.telegram.org/bot${botToken}/setWebhook`;
@@ -35,7 +36,7 @@ serve(async (req) => {
         url: webhookUrl,
         secret_token: webhookSecret,
         allowed_updates: ["message", "channel_post", "edited_message", "edited_channel_post"],
-        drop_pending_updates: false // Changed to false to keep pending updates
+        drop_pending_updates: false
       })
     });
 
