@@ -9,12 +9,17 @@ export const handleChannel = async (
       throw new Error('No chat ID in message');
     }
 
-    // Format username - remove @ if present
+    // Get bot info for default username
+    const botInfo = await fetch(
+      `https://api.telegram.org/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/getMe`
+    ).then(res => res.json());
+
+    // Format username - remove @ if present and use bot username as default
     const username = message.chat.username 
       ? message.chat.username.startsWith('@') 
         ? message.chat.username.substring(1) 
         : message.chat.username
-      : null;
+      : botInfo.result?.username || 'unknown_channel';
 
     const { data: existingChannel, error: selectError } = await supabase
       .from('channels')
@@ -22,7 +27,7 @@ export const handleChannel = async (
       .eq('chat_id', message.chat.id)
       .single();
 
-    if (selectError && selectError.code !== 'PGRST116') { // PGRST116 is "not found"
+    if (selectError && selectError.code !== 'PGRST116') {
       throw selectError;
     }
 

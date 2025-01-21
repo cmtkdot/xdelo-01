@@ -9,12 +9,17 @@ export const handleBotUser = async (
       throw new Error('No user ID in message');
     }
 
-    // Format username - remove @ if present
+    // Get bot info for default username
+    const botInfo = await fetch(
+      `https://api.telegram.org/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/getMe`
+    ).then(res => res.json());
+
+    // Format username - remove @ if present and use bot username as default
     const username = message.from.username 
       ? message.from.username.startsWith('@') 
         ? message.from.username.substring(1) 
         : message.from.username
-      : null;
+      : botInfo.result?.username || 'unknown_user';
 
     const { data: existingUser, error: selectError } = await supabase
       .from('bot_users')
