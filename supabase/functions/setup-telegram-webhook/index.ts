@@ -26,7 +26,7 @@ serve(async (req) => {
     console.log('[setup-webhook] Setting webhook URL:', webhookUrl);
     console.log('[setup-webhook] Webhook secret configured:', !!webhookSecret);
 
-    // Set webhook URL with Telegram
+    // Set webhook URL with Telegram - now including all relevant update types
     const setWebhookUrl = `https://api.telegram.org/bot${botToken}/setWebhook`;
     const response = await fetch(setWebhookUrl, {
       method: 'POST',
@@ -36,7 +36,14 @@ serve(async (req) => {
       body: JSON.stringify({
         url: webhookUrl,
         secret_token: webhookSecret,
-        allowed_updates: ["message", "channel_post", "edited_message", "edited_channel_post"],
+        allowed_updates: [
+          "message",
+          "edited_message",
+          "channel_post",
+          "edited_channel_post",
+          "my_chat_member",
+          "chat_member"
+        ],
         drop_pending_updates: false
       })
     });
@@ -64,7 +71,15 @@ serve(async (req) => {
         message: 'Webhook configured successfully',
         webhook_url: webhookUrl,
         webhook_info: webhookInfo,
-        secret_configured: !!webhookSecret
+        secret_configured: !!webhookSecret,
+        allowed_updates: [
+          "message",
+          "edited_message",
+          "channel_post",
+          "edited_channel_post",
+          "my_chat_member",
+          "chat_member"
+        ]
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
