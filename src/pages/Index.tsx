@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import Stats from "@/components/Stats";
-import MediaGallery from "@/components/media/MediaGallery";
+import MediaGallery from "@/components/MediaGallery";
 import { useNavigate } from "react-router-dom";
 
 const Index = () => {
