@@ -9,7 +9,10 @@ export const processMedia = async (
   botToken: string,
   userId: string
 ) => {
+  console.log('[processMedia] Processing message:', message.message_id);
+
   if (!message.photo && !message.video && !message.document && !message.animation) {
+    console.log('[processMedia] No media found in message');
     return null;
   }
 
@@ -51,69 +54,77 @@ export const processMedia = async (
     fileSize = message.animation.file_size;
   }
 
-  // Check for existing media
-  const { data: existingMedia } = await supabase
-    .from('media')
-    .select('id, file_url')
-    .eq('file_unique_id', fileUniqueId)
-    .single();
+  try {
+    // Check for existing media
+    const { data: existingMedia } = await supabase
+      .from('media')
+      .select('id, file_url')
+      .eq('file_unique_id', fileUniqueId)
+      .single();
 
-  if (existingMedia) {
-    console.log('[processMedia] Media already exists:', existingMedia.id);
+    if (existingMedia) {
+      console.log('[processMedia] Media already exists:', existingMedia.id);
+      return {
+        mediaId: existingMedia.id,
+        fileUrl: existingMedia.file_url,
+        mediaType
+      };
+    }
+
+    // Download and process new media
+    console.log('[processMedia] Downloading new media file');
+    const { buffer, filePath } = await getAndDownloadTelegramFile(fileId, botToken);
+    
+    // Generate unique filename
+    const fileName = `${Date.now()}-${fileUniqueId}-${filePath.split('/').pop()}`;
+    
+    // Upload to Supabase Storage
+    console.log('[processMedia] Uploading to storage:', fileName);
+    const fileUrl = await uploadToStorage(
+      supabase,
+      fileName,
+      buffer,
+      mediaType === 'image' ? 'image/jpeg' : 
+      mediaType === 'video' ? 'video/mp4' : 
+      'application/octet-stream'
+    );
+
+    // Create media record
+    console.log('[processMedia] Creating media record');
+    const mediaData = await createMediaRecord(
+      supabase,
+      userId,
+      message.chat.id,
+      fileName,
+      fileUrl,
+      mediaType,
+      caption,
+      {
+        message_id: message.message_id,
+        file_id: fileId,
+        file_unique_id: fileUniqueId,
+        media_group_id: message.media_group_id,
+        chat_type: message.chat.type,
+        file_size_mb: fileSize ? Number((fileSize / (1024 * 1024)).toFixed(2)) : null,
+        photo_width: width,
+        photo_height: height,
+        message_date: new Date(message.date * 1000).toISOString(),
+        source_channel: message.chat.title || message.chat.username,
+        is_forwarded: !!message.forward_from || !!message.forward_from_chat,
+        original_source: message.forward_from_chat?.title || message.forward_from?.first_name
+      },
+      message.media_group_id,
+      fileUrl
+    );
+
+    console.log('[processMedia] Successfully processed media:', mediaData.id);
     return {
-      mediaId: existingMedia.id,
-      fileUrl: existingMedia.file_url,
+      mediaId: mediaData.id,
+      fileUrl,
       mediaType
     };
+  } catch (error) {
+    console.error('[processMedia] Error processing media:', error);
+    throw error;
   }
-
-  // Download and process new media
-  const { buffer, filePath } = await getAndDownloadTelegramFile(fileId, botToken);
-  
-  // Generate unique filename
-  const fileName = `${Date.now()}-${fileUniqueId}-${filePath.split('/').pop()}`;
-  
-  // Upload to Supabase Storage
-  const fileUrl = await uploadToStorage(
-    supabase,
-    fileName,
-    buffer,
-    mediaType === 'image' ? 'image/jpeg' : 
-    mediaType === 'video' ? 'video/mp4' : 
-    'application/octet-stream'
-  );
-
-  // Create media record
-  const mediaData = await createMediaRecord(
-    supabase,
-    userId,
-    message.chat.id,
-    fileName,
-    fileUrl,
-    mediaType,
-    caption,
-    {
-      message_id: message.message_id,
-      file_id: fileId,
-      file_unique_id: fileUniqueId,
-      media_group_id: message.media_group_id,
-      chat_type: message.chat.type,
-      forward_info: message.forward_from || message.forward_from_chat,
-      file_size_mb: fileSize ? Number((fileSize / (1024 * 1024)).toFixed(2)) : null,
-      photo_width: width,
-      photo_height: height,
-      message_date: new Date(message.date * 1000).toISOString(),
-      source_channel: message.chat.title || message.chat.username,
-      is_forwarded: !!message.forward_from || !!message.forward_from_chat,
-      original_source: message.forward_from_chat?.title || message.forward_from?.first_name
-    },
-    message.media_group_id,
-    fileUrl
-  );
-
-  return {
-    mediaId: mediaData.id,
-    fileUrl,
-    mediaType
-  };
 };

@@ -74,7 +74,11 @@ export async function validateWebhookSecret(secret: string | null): Promise<bool
     return false;
   }
 
-  const WEBHOOK_SECRET = '9d1b07076d9dde382c48538220d8a629a5242b5c12adb2d4a76efe147a3a1a5a';
+  const WEBHOOK_SECRET = Deno.env.get('TELEGRAM_WEBHOOK_SECRET');
+  if (!WEBHOOK_SECRET) {
+    console.error('[validateWebhookSecret] Webhook secret not configured');
+    return false;
+  }
   
   const isValid = secret === WEBHOOK_SECRET;
   console.log(`[validateWebhookSecret] Secret validation ${isValid ? 'successful' : 'failed'}`);

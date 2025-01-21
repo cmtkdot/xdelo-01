@@ -1,12 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { validateWebhookSecret } from "../_shared/telegram.ts";
+import { processMedia } from "./utils/mediaProcessor.ts";
 import { handleChannel } from "./utils/channelHandler.ts";
-import { handleBotUser } from "./utils/botUserHandler.ts";
-import { handleMedia } from "./utils/mediaProcessor.ts";
 import { handleMessage } from "./utils/messageHandler.ts";
-import { validateWebhookSecret } from "./utils/security.ts";
-import { handleForward } from "./utils/forwardHandler.ts";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -15,7 +13,7 @@ serve(async (req) => {
 
   try {
     const update = await req.json();
-    console.log('Received webhook update:', JSON.stringify(update));
+    console.log('[webhook] Received update:', JSON.stringify(update));
 
     // Validate webhook secret
     const url = new URL(req.url);
@@ -23,7 +21,7 @@ serve(async (req) => {
     const isValid = await validateWebhookSecret(secret);
     
     if (!isValid) {
-      console.error('Invalid webhook secret');
+      console.error('[webhook] Invalid webhook secret');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -40,25 +38,21 @@ serve(async (req) => {
     const message = update.message || update.edited_message || update.channel_post || update.edited_channel_post;
     
     if (!message) {
+      console.error('[webhook] No message found in update');
       throw new Error('No message found in update');
     }
 
     // Handle channel first
     await handleChannel(supabaseClient, message);
 
-    // Handle bot user if message is from a user (not a channel)
-    if (message.from) {
-      await handleBotUser(supabaseClient, message);
-    }
-
     // Handle media if present
     if (message.photo || message.video || message.document || message.animation) {
-      await handleMedia(supabaseClient, message);
-    }
+      const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+      if (!botToken) {
+        throw new Error('Bot token not configured');
+      }
 
-    // Handle forwarded messages
-    if (message.forward_from || message.forward_from_chat) {
-      await handleForward(supabaseClient, message);
+      await processMedia(supabaseClient, message, botToken, message.from?.id.toString() || 'system');
     }
 
     // Always handle the message itself
@@ -70,7 +64,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    console.error('[webhook] Error processing webhook:', error);
     
     return new Response(
       JSON.stringify({ error: error.message }),
