@@ -16,7 +16,6 @@ import { useMediaGallery } from "./media/hooks/useMediaGallery";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import SetupTelegramWebhook from "./webhook/SetupTelegramWebhook";
 
 const MediaGallery = () => {
   const navigate = useNavigate();
@@ -79,15 +78,12 @@ const MediaGallery = () => {
 
   return (
     <div className="w-full max-w-[2000px] mx-auto space-y-4">
-      <div className="flex items-center justify-between">
-        <MediaGalleryHeader
-          onSyncCaptions={handleSyncCaptions}
-          onDeleteDuplicates={handleDeleteDuplicates}
-          isSyncingCaptions={isSyncingCaptions}
-          isDeletingDuplicates={isDeletingDuplicates}
-        />
-        <SetupTelegramWebhook />
-      </div>
+      <MediaGalleryHeader
+        onSyncCaptions={handleSyncCaptions}
+        onDeleteDuplicates={handleDeleteDuplicates}
+        isSyncingCaptions={isSyncingCaptions}
+        isDeletingDuplicates={isDeletingDuplicates}
+      />
       
       <div className="w-full backdrop-blur-xl bg-black/40 border border-white/10 p-4 rounded-lg">
         <div className="flex items-center justify-between mb-4">
