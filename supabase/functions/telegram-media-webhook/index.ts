@@ -54,10 +54,18 @@ serve(async (req) => {
     const update = await req.json();
     console.log("[telegram-webhook] Received update:", JSON.stringify(update));
     
-    // Handle both channel posts and regular messages
-    const message = update.message || update.channel_post;
+    // Handle all possible message types
+    const message = update.message || 
+                   update.edited_message || 
+                   update.channel_post || 
+                   update.edited_channel_post;
+
     if (!message) {
-      throw new Error('No message in update');
+      console.log("[telegram-webhook] No message content in update");
+      return new Response(
+        JSON.stringify({ status: 'success', message: 'No message content to process' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Log message details
@@ -69,7 +77,8 @@ serve(async (req) => {
       has_video: !!message.video,
       has_document: !!message.document,
       has_animation: !!message.animation,
-      media_group_id: message.media_group_id
+      media_group_id: message.media_group_id,
+      is_edited: !!update.edited_message || !!update.edited_channel_post
     });
 
     // Set default user ID for all users
@@ -81,7 +90,7 @@ serve(async (req) => {
     // Process media if present
     const mediaResult = await processMedia(supabaseClient, message, botToken, userId);
 
-    // Create message record
+    // Create/Update message record
     await createMessageRecord(supabaseClient, message, mediaResult);
 
     // Forward update if needed
@@ -104,6 +113,7 @@ serve(async (req) => {
           chat_id: message.chat.id,
           chat_type: message.chat.type,
           has_media: !!mediaResult,
+          is_edited: !!update.edited_message || !!update.edited_channel_post,
           media_result: mediaResult,
           forward_result: forwardResult
         }
