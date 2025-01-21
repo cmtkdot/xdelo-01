@@ -3,8 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import type { GlideApp } from './types';
+import { AddGlideAppDialog } from './AddGlideAppDialog';
 
 interface AppSelectorProps {
   selectedAppId: string;
@@ -34,32 +35,19 @@ export function AppSelector({ selectedAppId, onAppSelect }: AppSelectorProps) {
         throw new Error('Not authenticated');
       }
 
-      console.log('Fetching Glide apps with session token');
-      
-      const { data: response, error: functionError } = await supabase.functions.invoke('glide-apps-sync', {
-        body: { 
-          operation: 'list-apps'
-        },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
-      });
+      const { data, error } = await supabase
+        .from('glide_apps')
+        .select('*')
+        .order('app_name');
 
-      if (functionError) {
-        console.error('Function error:', functionError);
-        throw functionError;
+      if (error) {
+        console.error('Error fetching Glide apps:', error);
+        throw error;
       }
 
-      if (!response?.apps) {
-        console.error('Invalid response format:', response);
-        throw new Error('Invalid response format from Glide apps sync');
-      }
-      
-      return response.apps as GlideApp[];
+      return data as GlideApp[];
     },
     enabled: !!session?.access_token,
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   useEffect(() => {
@@ -82,7 +70,7 @@ export function AppSelector({ selectedAppId, onAppSelect }: AppSelectorProps) {
   }
 
   return (
-    <div className="w-full">
+    <div className="flex gap-2 items-center w-full">
       <Select
         value={selectedAppId}
         onValueChange={onAppSelect}
@@ -99,6 +87,7 @@ export function AppSelector({ selectedAppId, onAppSelect }: AppSelectorProps) {
           ))}
         </SelectContent>
       </Select>
+      <AddGlideAppDialog />
     </div>
   );
 }

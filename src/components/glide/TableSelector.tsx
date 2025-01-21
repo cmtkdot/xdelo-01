@@ -20,15 +20,14 @@ export function TableSelector({
     queryFn: async () => {
       if (!selectedAppId) return [];
       
-      const { data: response, error: functionError } = await supabase.functions.invoke('glide-apps-sync', {
-        body: { 
-          operation: 'list-tables',
-          appId: selectedAppId
-        }
-      });
+      const { data, error } = await supabase
+        .from('glide_table_configs')
+        .select('*')
+        .eq('app_id', selectedAppId)
+        .order('table_name');
 
-      if (functionError) throw functionError;
-      return response.tables as GlideTableConfig[];
+      if (error) throw error;
+      return data as GlideTableConfig[];
     },
     enabled: !!selectedAppId,
   });
