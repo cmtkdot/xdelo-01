@@ -7,17 +7,21 @@ import { Card } from "@/components/ui/card";
 import { Loader2, RefreshCw } from "lucide-react";
 import { GlideDataGrid } from "@/components/glide/GlideDataGrid";
 import type { Database } from "@/integrations/supabase/types";
+import { useSessionContext } from "@supabase/auth-helpers-react";
 
 type GlideProduct = Database['public']['Tables']['glide_products']['Row'];
 
 const Glide = () => {
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
+  const { session, isLoading: isLoadingSession } = useSessionContext();
 
   // Fetch Glide products
   const { data: products, isLoading: isLoadingProducts, refetch } = useQuery({
-    queryKey: ['glide-products'],
+    queryKey: ['glide-products', session?.user.id],
     queryFn: async () => {
+      if (!session?.user.id) throw new Error('No active session');
+
       const { data, error } = await supabase
         .from('glide_products')
         .select('*')
@@ -26,12 +30,12 @@ const Glide = () => {
       if (error) throw error;
       return data as GlideProduct[];
     },
+    enabled: !!session?.user.id,
   });
 
   const handleSync = async () => {
     try {
       setIsSyncing(true);
-      const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
         throw new Error('No active session');
@@ -121,6 +125,27 @@ const Glide = () => {
       });
     }
   };
+
+  // Show loading state while checking session
+  if (isLoadingSession) {
+    return (
+      <div className="flex justify-center items-center h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // Show message if not authenticated
+  if (!session) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
+          <p className="text-muted-foreground">Please sign in to view Glide products.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
