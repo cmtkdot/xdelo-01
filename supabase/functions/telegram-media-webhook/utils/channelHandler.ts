@@ -9,6 +9,13 @@ export const handleChannel = async (
       throw new Error('No chat ID in message');
     }
 
+    // Format username - remove @ if present
+    const username = message.chat.username 
+      ? message.chat.username.startsWith('@') 
+        ? message.chat.username.substring(1) 
+        : message.chat.username
+      : null;
+
     const { data: existingChannel, error: selectError } = await supabase
       .from('channels')
       .select('*')
@@ -25,7 +32,7 @@ export const handleChannel = async (
         .insert({
           chat_id: message.chat.id,
           title: message.chat.title || 'Unknown',
-          username: message.chat.username,
+          username: username,
           user_id: message.from?.id ? message.from.id.toString() : 'system',
           is_active: true
         });
@@ -35,6 +42,24 @@ export const handleChannel = async (
       }
 
       console.log('[handleChannel] Created new channel record');
+    } else {
+      // Update existing channel if title or username changed
+      if (existingChannel.title !== message.chat.title || existingChannel.username !== username) {
+        const { error: updateError } = await supabase
+          .from('channels')
+          .update({
+            title: message.chat.title,
+            username: username,
+            updated_at: new Date().toISOString()
+          })
+          .eq('chat_id', message.chat.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        console.log('[handleChannel] Updated channel record');
+      }
     }
   } catch (error) {
     console.error('[handleChannel] Error:', error);
