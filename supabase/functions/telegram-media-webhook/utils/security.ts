@@ -4,7 +4,7 @@ export const corsHeaders = {
 };
 
 export const validateWebhookSecret = async (secret: string | null): Promise<boolean> => {
-  const webhookSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET');
+  const expectedSecret = "9d1b07076d9dde382c48538220d8a629a5242b5c12adb2d4a76efe147a3a1a5a";
   
   console.log('[validateWebhookSecret] Starting webhook secret validation');
   
@@ -13,13 +13,9 @@ export const validateWebhookSecret = async (secret: string | null): Promise<bool
     return false;
   }
 
-  if (!webhookSecret) {
-    console.error('[validateWebhookSecret] No webhook secret configured in environment');
-    return false;
-  }
-
-  const isValid = secret === webhookSecret;
+  const isValid = secret === expectedSecret;
   console.log('[validateWebhookSecret] Secret validation result:', isValid ? 'success' : 'failed');
+  console.log('[validateWebhookSecret] Provided secret:', secret);
   
   return isValid;
 };
